@@ -1,19 +1,19 @@
 "use client";
 
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useMemo } from "react";
 import { db } from "@/lib/firebase";
 import {
   collection, onSnapshot, query, orderBy, limit, doc, getDoc,
 } from "firebase/firestore";
 import { useI18n } from "@/lib/i18n";
-import { RedemptionTransaction, GlobalStats } from "@/types";
+import { RedemptionTransaction, AidCardModel } from "@/types";
 import {
   AreaChart, Area, XAxis, YAxis, Tooltip,
   ResponsiveContainer, PieChart, Pie, Cell, CartesianGrid,
 } from "recharts";
 import {
   TrendingUp, TrendingDown, Users, Wallet, Store,
-  ShoppingBasket, ArrowUpRight, RefreshCw, Activity,
+  ShoppingBasket, ArrowUpRight, RefreshCw, Activity, PackageCheck,
 } from "lucide-react";
 
 /* ── Normalize Nationality Helper ── */
@@ -58,42 +58,6 @@ const NAT_COLOR_MAP: Record<string, string> = {
 
 const CHART_FALLBACKS = ["#0A734D", "#D97706", "#0284C7", "#7C3AED", "#0D9488", "#E11D48"];
 
-const MONTHLY_DATA = [
-  { monthAr: "يناير", monthEn: "Jan", amount: 18400, baskets: 32 },
-  { monthAr: "فبراير", monthEn: "Feb", amount: 22100, baskets: 41 },
-  { monthAr: "مارس", monthEn: "Mar", amount: 19800, baskets: 36 },
-  { monthAr: "إبريل", monthEn: "Apr", amount: 27500, baskets: 52 },
-  { monthAr: "مايو", monthEn: "May", amount: 31200, baskets: 58 },
-  { monthAr: "يونيو", monthEn: "Jun", amount: 28900, baskets: 54 },
-  { monthAr: "يوليو", monthEn: "Jul", amount: 35400, baskets: 64 },
-  { monthAr: "أغسطس", monthEn: "Aug", amount: 29800, baskets: 57 },
-];
-
-/* ── Mini Sparkline ── */
-function MiniBarSpark({ data, color }: { data: number[]; color: string }) {
-  const max = Math.max(...data, 1);
-  const w = 58, h = 28, barW = 5, gap = 2;
-  return (
-    <svg width={w} height={h} viewBox={`0 0 ${w} ${h}`}>
-      {data.map((v, i) => {
-        const barH = Math.max(4, (v / max) * h);
-        const isLast = i === data.length - 1;
-        return (
-          <rect
-            key={i}
-            x={i * (barW + gap)}
-            y={h - barH}
-            width={barW}
-            height={barH}
-            rx={2}
-            fill={isLast ? color : "#CBD5E1"}
-          />
-        );
-      })}
-    </svg>
-  );
-}
-
 /* ── Custom Chart Tooltip ── */
 function CustomTooltip({ active, payload, label }: any) {
   if (active && payload?.length) {
@@ -112,7 +76,7 @@ function CustomTooltip({ active, payload, label }: any) {
           <div key={i} className="flex items-center gap-2 font-bold text-xs lg:text-sm py-0.5">
             <span className="w-3 h-3 rounded-sm" style={{ background: p.color || p.fill || "#0A734D" }} />
             <span style={{ color: "#E2E8F0" }}>{p.name}:</span>
-            <span className="font-black text-white font-mono">{p.value?.toLocaleString()}</span>
+            <span className="font-black text-white font-mono">{Number(p.value || 0).toLocaleString()}</span>
           </div>
         ))}
       </div>
@@ -121,154 +85,162 @@ function CustomTooltip({ active, payload, label }: any) {
   return null;
 }
 
-/* ── KPI Card Component ── */
-function KpiCard({
-  label, value, unit, delta, deltaPos, icon: Icon, iconVariant, spark, sparkColor, delay,
-}: {
-  label: string; value: string; unit?: string; delta?: string; deltaPos?: boolean;
-  icon: React.ElementType; iconVariant?: string; spark?: number[]; sparkColor?: string; delay?: number;
-}) {
-  return (
-    <div
-      className={`kpi-card animate-slide-up accent-${iconVariant || "emerald"}`}
-      style={{ animationDelay: `${delay || 0}ms` }}
-    >
-      <div className="flex items-start justify-between gap-3">
-        <div className={`kpi-icon ${iconVariant || ""}`}>
-          <Icon size={22} />
-        </div>
-        {spark && <MiniBarSpark data={spark} color={sparkColor || "#0A734D"} />}
-      </div>
-      <div>
-        <p className="kpi-label">{label}</p>
-        <div className="flex items-baseline gap-1.5 mt-1.5">
-          <span className="kpi-value font-mono">{value}</span>
-          {unit && <span className="kpi-unit font-bold">{unit}</span>}
-        </div>
-        {delta && (
-          <div className={`kpi-delta mt-2 ${deltaPos !== false ? "pos" : "neg"}`}>
-            {deltaPos !== false ? <TrendingUp size={14} /> : <TrendingDown size={14} />}
-            <span>{delta}</span>
-          </div>
-        )}
-      </div>
-    </div>
-  );
-}
-
 export default function DashboardOverview() {
   const { locale } = useI18n();
   const isAr = locale === "ar";
 
-  const [stats, setStats] = useState<GlobalStats | null>(null);
-  const [recentTxns, setRecentTxns] = useState<RedemptionTransaction[]>([]);
-  const [cardsCount, setCardsCount] = useState(0);
-  const [natDist, setNatDist] = useState<{ name: string; value: number; color: string }[]>([]);
+  const [cards, setCards] = useState<AidCardModel[]>([]);
+  const [redemptions, setRedemptions] = useState<RedemptionTransaction[]>([]);
+  const [baskets, setBaskets] = useState<any[]>([]);
+  const [merchantsCount, setMerchantsCount] = useState(0);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [flashId, setFlashId] = useState<string | null>(null);
   const prevIds = useRef<Set<string>>(new Set());
 
-  const loadStats = async () => {
-    try {
-      const s = await getDoc(doc(db, "stats", "global"));
-      if (s.exists()) setStats(s.data() as GlobalStats);
-    } catch (_) {}
-  };
-
   useEffect(() => {
-    loadStats().then(() => setLoading(false));
+    // 1. Listen to aid_cards (Beneficiaries)
+    const unsubCards = onSnapshot(collection(db, "aid_cards"), (snap) => {
+      const list: AidCardModel[] = [];
+      snap.forEach((d) => list.push({ cardId: d.id, ...d.data() } as AidCardModel));
+      setCards(list);
+      setLoading(false);
+    });
 
-    const q = query(collection(db, "redemptions"), orderBy("timestamp", "desc"), limit(8));
-    const u1 = onSnapshot(q, (snap) => {
+    // 2. Listen to redemptions (Cash Disbursed)
+    const qRedemptions = query(collection(db, "redemptions"), orderBy("timestamp", "desc"));
+    const unsubRedemptions = onSnapshot(qRedemptions, (snap) => {
       const list: RedemptionTransaction[] = [];
       let newest: string | null = null;
       snap.forEach((d) => {
         list.push({ id: d.id, ...d.data() } as RedemptionTransaction);
         if (!prevIds.current.has(d.id)) { newest = d.id; prevIds.current.add(d.id); }
       });
-      setRecentTxns(list);
+      setRedemptions(list);
       if (newest) { setFlashId(newest); setTimeout(() => setFlashId(null), 900); }
     });
 
-    const u2 = onSnapshot(collection(db, "aid_cards"), (snap) => {
-      setCardsCount(snap.size);
-      const counts: Record<string, number> = {};
-      snap.forEach((d) => {
-        const rawNat = d.data().nationality;
-        const normKey = isAr ? normalizeNationality(rawNat) : normalizeNationalityEn(rawNat);
-        counts[normKey] = (counts[normKey] || 0) + 1;
-      });
-
-      const sorted = Object.entries(counts)
-        .sort((a, b) => b[1] - a[1])
-        .slice(0, 5)
-        .map(([name, value], idx) => ({
-          name,
-          value,
-          color: NAT_COLOR_MAP[name] || CHART_FALLBACKS[idx % CHART_FALLBACKS.length],
-        }));
-      setNatDist(sorted);
+    // 3. Listen to basket_distributions
+    const qBaskets = query(collection(db, "basket_distributions"), orderBy("timestamp", "desc"));
+    const unsubBaskets = onSnapshot(qBaskets, (snap) => {
+      const list: any[] = [];
+      snap.forEach((d) => list.push({ id: d.id, ...d.data() }));
+      setBaskets(list);
     });
 
-    return () => { u1(); u2(); };
-  }, [isAr]);
+    // 4. Listen to users for approved merchants count
+    const unsubUsers = onSnapshot(collection(db, "users"), (snap) => {
+      let mCount = 0;
+      snap.forEach((d) => {
+        const u = d.data();
+        if (u.role === "merchant" && u.isApproved !== false) {
+          mCount++;
+        }
+      });
+      setMerchantsCount(mCount);
+    });
+
+    return () => {
+      unsubCards();
+      unsubRedemptions();
+      unsubBaskets();
+      unsubUsers();
+    };
+  }, []);
+
+  // Compute Dynamic Metrics
+  const totalBeneficiaries = cards.length;
+  const totalFundsDisbursed = redemptions.reduce((sum, r) => sum + (Number(r.amountDeducted ?? r.amount) || 0), 0);
+  const totalBasketsDelivered = baskets.reduce((sum, b) => sum + (Number(b.basketsDelivered || b.basketsCount) || 1), 0);
+  const totalRemainingCashBalance = cards.reduce((sum, c) => sum + (Number(c.totalBalance) || 0), 0);
+
+  // Nationality Breakdown Donut
+  const natDist = useMemo(() => {
+    const counts: Record<string, number> = {};
+    cards.forEach((d) => {
+      const rawNat = d.nationality;
+      const normKey = isAr ? normalizeNationality(rawNat) : normalizeNationalityEn(rawNat);
+      counts[normKey] = (counts[normKey] || 0) + 1;
+    });
+
+    return Object.entries(counts)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 5)
+      .map(([name, value], idx) => ({
+        name,
+        value,
+        color: NAT_COLOR_MAP[name] || CHART_FALLBACKS[idx % CHART_FALLBACKS.length],
+      }));
+  }, [cards, isAr]);
+
+  // Dynamic Monthly Data for the last 6 months
+  const monthlyData = useMemo(() => {
+    const months = [];
+    const now = new Date();
+    for (let i = 5; i >= 0; i--) {
+      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      const mIdx = d.getMonth();
+      const y = d.getFullYear();
+      const monthAr = d.toLocaleDateString("ar-EG", { month: "short" });
+      const monthEn = d.toLocaleDateString("en-US", { month: "short" });
+
+      const monthAmount = redemptions.filter((r) => {
+        const tDate = r.timestamp?.toDate ? r.timestamp.toDate() : new Date(r.timestamp);
+        return tDate.getMonth() === mIdx && tDate.getFullYear() === y;
+      }).reduce((sum, r) => sum + (Number(r.amountDeducted ?? r.amount) || 0), 0);
+
+      const monthBaskets = baskets.filter((b) => {
+        const tDate = b.timestamp?.toDate ? b.timestamp.toDate() : new Date(b.timestamp);
+        return tDate.getMonth() === mIdx && tDate.getFullYear() === y;
+      }).reduce((sum, b) => sum + (Number(b.basketsDelivered || b.basketsCount) || 1), 0);
+
+      months.push({
+        monthAr,
+        monthEn,
+        amount: monthAmount,
+        baskets: monthBaskets,
+      });
+    }
+    return months;
+  }, [redemptions, baskets]);
 
   const handleRefresh = async () => {
     setRefreshing(true);
-    await loadStats();
     setTimeout(() => setRefreshing(false), 500);
   };
 
-  const totalCases = cardsCount || stats?.totalBeneficiariesCount || 0;
-  const totalDisbursed = stats?.totalFundsDisbursed || 485200;
-  const activeMerchants = stats?.activeMerchantsCount || 8;
-  const totalRedemptions = stats?.totalRedemptionsCount || 1420;
-
   const kpis = [
     {
-      label: isAr ? "إجمالي الصرف الإغاثي" : "Total Relief Disbursed",
-      value: totalDisbursed.toLocaleString(),
+      label: isAr ? "إجمالي الصرف النقدي" : "Total Cash Disbursed",
+      value: totalFundsDisbursed.toLocaleString(),
       unit: isAr ? "ج.م" : "EGP",
-      delta: isAr ? "+8% هذا الشهر" : "+8% this month",
-      deltaPos: true,
+      sub: isAr ? "صرف فعلي عبر الصرافين" : "Disbursed via merchants",
       icon: Wallet,
       iconVariant: "emerald",
-      sparkColor: "#0A734D",
-      spark: [18, 22, 20, 28, 31, 29, 35, 30],
     },
     {
       label: isAr ? "الحالات المسجلة" : "Registered Beneficiaries",
-      value: totalCases.toLocaleString(),
+      value: totalBeneficiaries.toLocaleString(),
       unit: isAr ? "حالة" : "cases",
-      delta: isAr ? "معتمدة ونشطة بالمنظومة" : "approved & active",
-      deltaPos: true,
+      sub: isAr ? "بطاقات معتمدة بالمنظومة" : "Approved aid cards",
       icon: Users,
       iconVariant: "blue",
-      sparkColor: "#0284C7",
-      spark: [240, 245, 248, 252, 255, 256, 257, 258],
     },
     {
       label: isAr ? "المنافذ والصرافون" : "Active Stores & Merchants",
-      value: activeMerchants.toLocaleString(),
+      value: merchantsCount.toLocaleString(),
       unit: isAr ? "منفذ" : "stores",
-      delta: isAr ? "منافذ صرف معتمدة" : "authorized stores",
-      deltaPos: true,
+      sub: isAr ? "منافذ صرف معتمدة" : "Authorized merchants",
       icon: Store,
       iconVariant: "amber",
-      sparkColor: "#D97706",
-      spark: [6, 7, 7, 8, 8, 8, 8, 8],
     },
     {
-      label: isAr ? "عمليات الصرف المنجزة" : "Total Redemptions",
-      value: totalRedemptions.toLocaleString(),
-      unit: isAr ? "عملية" : "txns",
-      delta: isAr ? "إجمالي العمليات المنفذة" : "total completed",
-      deltaPos: true,
+      label: isAr ? "السلال الغذائية الموزعة" : "Food Baskets Distributed",
+      value: totalBasketsDelivered.toLocaleString(),
+      unit: isAr ? "سلة" : "baskets",
+      sub: isAr ? "تسليم عيني مباشر" : "Admin direct handover",
       icon: ShoppingBasket,
       iconVariant: "purple",
-      sparkColor: "#7C3AED",
-      spark: [12, 18, 24, 31, 40, 52, 61, 68],
     },
   ];
 
@@ -278,53 +250,81 @@ export default function DashboardOverview() {
       {/* ── Page Top Header ── */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl lg:text-3xl font-black text-slate-950 tracking-tight">
-            {isAr ? "النظرة العامة" : "Operations Overview"}
+          <h1 className="text-2xl lg:text-3xl font-black text-slate-950 flex items-center gap-3">
+            {isAr ? "لوحة التشغيل والمتابعة المركزية" : "Central Operations & Live Monitoring"}
+            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-black bg-emerald-100 text-emerald-900 border border-emerald-300">
+              <span className="w-2 h-2 rounded-full bg-emerald-600 animate-pulse" />
+              {isAr ? "مباشر (Live Sync)" : "Live Sync"}
+            </span>
           </h1>
-          <p className="text-sm text-slate-500 font-semibold mt-1">
+          <p className="text-sm text-slate-500 font-bold mt-1">
             {isAr
-              ? "متابعة حية وشاملة لعمليات الصرف، منافذ التوزيع، وتدفق المساعدات"
-              : "Live operational monitoring of relief disbursements and partner merchants"}
+              ? "متابعة العمليات الميدانية، الأرصدة المتبقية، وتوزيع السلال الغذائية لحظياً"
+              : "Real-time tracking of aid disbursements, card balances, and food baskets."}
           </p>
         </div>
+
         <button
           onClick={handleRefresh}
-          className="btn btn-secondary gap-2 px-4 py-2 text-sm font-bold"
+          className="btn btn-secondary flex items-center gap-2 text-xs font-bold"
+          title={isAr ? "تحديث البيانات" : "Refresh Data"}
         >
-          <RefreshCw className={`w-4 h-4 ${refreshing ? "animate-spin" : ""}`} />
-          <span>{isAr ? "تحديث البيانات" : "Refresh"}</span>
+          <RefreshCw className={`w-3.5 h-3.5 ${refreshing ? "animate-spin text-emerald-600" : ""}`} />
+          <span>{isAr ? "تحديث فوري" : "Refresh"}</span>
         </button>
       </div>
 
-      {/* ── 4 KPI Metric Cards ── */}
+      {/* ── KPI Cards Grid (4 Col) ── */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
-        {kpis.map((k, idx) => (
-          <KpiCard key={idx} {...k} delay={idx * 40} />
-        ))}
+        {kpis.map((kpi, idx) => {
+          const Icon = kpi.icon;
+          return (
+            <div key={idx} className="qout-card p-5 lg:p-6 bg-white shadow-xs rounded-3xl border border-slate-200">
+              <div className="flex items-center justify-between mb-3">
+                <span className="text-xs lg:text-sm font-extrabold text-slate-500">{kpi.label}</span>
+                <div className={`kpi-icon ${kpi.iconVariant === "emerald" ? "" : kpi.iconVariant}`}>
+                  <Icon className="w-5 h-5" />
+                </div>
+              </div>
+
+              <div className="flex items-baseline gap-2 mb-2">
+                <span className="text-2xl lg:text-3xl font-black text-slate-950 font-mono">
+                  {kpi.value}
+                </span>
+                <span className="text-xs font-extrabold text-slate-500">{kpi.unit}</span>
+              </div>
+
+              <p className="text-xs font-bold text-slate-400 border-t border-slate-100 pt-2.5 mt-1">
+                {kpi.sub}
+              </p>
+            </div>
+          );
+        })}
       </div>
 
-      {/* ── Visual Charts Row ── */}
+      {/* ── Section 2: Charts Row (2 Cols: Monthly Area Chart + Nationality Donut) ── */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
 
-        {/* Monthly Trend AreaChart (2 cols) */}
-        <div className="lg:col-span-2 qout-card p-6 lg:p-7 bg-white shadow-sm flex flex-col justify-between">
+        {/* Monthly Activity Area Chart (2 cols) */}
+        <div className="lg:col-span-2 qout-card p-6 lg:p-7 bg-white shadow-sm flex flex-col justify-between rounded-3xl border border-slate-200">
           <div>
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6">
+            <div className="flex items-center justify-between mb-4">
               <div>
                 <h3 className="text-base lg:text-lg font-black text-slate-950">
-                  {isAr ? "مسار الصرف الشهري والسلال الغذائية" : "Monthly Relief Disbursements & Food Baskets"}
+                  {isAr ? "حركة الصرف وتوزيع السلال (آخر 6 شهور)" : "Disbursement & Basket Trends (Last 6 Months)"}
                 </h3>
-                <p className="text-xs lg:text-sm text-slate-500 font-semibold mt-0.5">
-                  {isAr ? "مقارنة المبالغ النقدية المصروفة مقابل السلال الإغاثية" : "Comparison of cash disbursements (EGP) vs food baskets"}
+                <p className="text-xs text-slate-500 font-bold mt-0.5">
+                  {isAr ? "بيانات الصرف المالي الفعلي وحصص السلال المستلمة" : "Actual financial redemptions and food basket distributions"}
                 </p>
               </div>
-              <div className="flex items-center gap-5 text-xs lg:text-sm font-bold">
-                <div className="flex items-center gap-2 text-emerald-800">
-                  <span className="w-4 h-1.5 rounded-sm bg-[#0A734D] inline-block" />
+
+              <div className="flex items-center gap-4 text-xs font-extrabold">
+                <div className="flex items-center gap-1.5 text-emerald-800">
+                  <span className="w-3.5 h-1.5 rounded-sm bg-[#0A734D] inline-block" />
                   <span>{isAr ? "المبالغ (ج.م)" : "Funds (EGP)"}</span>
                 </div>
-                <div className="flex items-center gap-2 text-amber-700">
-                  <span className="w-4 h-1.5 rounded-sm bg-[#D97706] inline-block" />
+                <div className="flex items-center gap-1.5 text-amber-700">
+                  <span className="w-3.5 h-1.5 rounded-sm bg-[#D97706] inline-block" />
                   <span>{isAr ? "السلال" : "Baskets"}</span>
                 </div>
               </div>
@@ -332,15 +332,15 @@ export default function DashboardOverview() {
 
             <div className="h-72">
               <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={MONTHLY_DATA} margin={{ top: 10, right: 10, left: -10, bottom: 0 }}>
+                <AreaChart data={monthlyData} margin={{ top: 15, right: 10, left: -10, bottom: 0 }}>
                   <defs>
                     <linearGradient id="fillAmount" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#0A734D" stopOpacity={0.25} />
-                      <stop offset="95%" stopColor="#0A734D" stopOpacity={0} />
+                      <stop offset="5%" stopColor="#0A734D" stopOpacity="0.25" />
+                      <stop offset="95%" stopColor="#0A734D" stopOpacity="0" />
                     </linearGradient>
                     <linearGradient id="fillBaskets" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#D97706" stopOpacity={0.22} />
-                      <stop offset="95%" stopColor="#D97706" stopOpacity={0} />
+                      <stop offset="5%" stopColor="#D97706" stopOpacity="0.22" />
+                      <stop offset="95%" stopColor="#D97706" stopOpacity="0" />
                     </linearGradient>
                   </defs>
                   <CartesianGrid strokeDasharray="3 3" stroke="#F1F5F9" />
@@ -348,10 +348,11 @@ export default function DashboardOverview() {
                     dataKey={isAr ? "monthAr" : "monthEn"}
                     stroke="#94A3B8"
                     fontSize={12}
+                    tickLine={false}
                     tick={{ fill: "#475569", fontWeight: 700 }}
                   />
-                  <YAxis yAxisId="left" stroke="#94A3B8" fontSize={12} tick={{ fill: "#475569", fontWeight: 700 }} />
-                  <YAxis yAxisId="right" orientation="right" stroke="#94A3B8" fontSize={12} tick={{ fill: "#475569", fontWeight: 700 }} />
+                  <YAxis yAxisId="left" stroke="#94A3B8" fontSize={12} tickLine={false} tick={{ fill: "#475569", fontWeight: 700 }} />
+                  <YAxis yAxisId="right" orientation="right" stroke="#94A3B8" fontSize={12} tickLine={false} tick={{ fill: "#475569", fontWeight: 700 }} />
                   <Tooltip content={<CustomTooltip />} />
                   <Area
                     yAxisId="left"
@@ -380,14 +381,14 @@ export default function DashboardOverview() {
         </div>
 
         {/* Nationality Breakdown Donut (1 col) */}
-        <div className="qout-card p-6 lg:p-7 bg-white shadow-sm flex flex-col justify-between">
+        <div className="qout-card p-6 lg:p-7 bg-white shadow-sm flex flex-col justify-between rounded-3xl border border-slate-200">
           <div>
             <div className="mb-4">
               <h3 className="text-base lg:text-lg font-black text-slate-950">
                 {isAr ? "توزيع الجنسيات (معتمد)" : "Nationality Breakdown"}
               </h3>
-              <p className="text-xs lg:text-sm text-slate-500 font-semibold mt-0.5">
-                {totalCases} {isAr ? "حالة مسجلة بالمنظومة" : "registered beneficiaries"}
+              <p className="text-xs text-slate-500 font-bold mt-0.5">
+                {totalBeneficiaries} {isAr ? "حالة مسجلة بالمنظومة" : "registered beneficiaries"}
               </p>
             </div>
 
@@ -416,117 +417,134 @@ export default function DashboardOverview() {
               {/* Center Donut Count */}
               <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
                 <span className="text-3xl font-black text-slate-950 font-mono leading-none">
-                  {totalCases}
+                  {totalBeneficiaries}
                 </span>
                 <span className="text-xs font-bold text-slate-500 mt-1">
                   {isAr ? "حالة مسجلة" : "cases"}
                 </span>
               </div>
             </div>
-          </div>
 
-          {/* Clean Legend */}
-          <div className="space-y-2.5 pt-4 border-t border-slate-100">
-            {natDist.map((item, idx) => {
-              const pct = totalCases > 0 ? Math.round((item.value / totalCases) * 100) : 0;
-              return (
-                <div key={idx} className="flex items-center justify-between text-sm">
-                  <div className="flex items-center gap-2.5">
-                    <span className="w-3 h-3 rounded-sm flex-shrink-0" style={{ background: item.color }} />
-                    <span className="font-bold text-slate-800">{item.name}</span>
-                  </div>
-                  <div className="flex items-center gap-2 font-mono">
-                    <span className="font-black text-slate-950 text-sm">{item.value}</span>
-                    <span className="text-slate-500 font-bold text-xs">({pct}%)</span>
-                  </div>
+            {/* Legend Chips */}
+            <div className="flex flex-wrap items-center justify-center gap-2 pt-4 border-t border-slate-100 text-xs font-bold mt-2">
+              {natDist.map((item, idx) => (
+                <div key={idx} className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-slate-50 border border-slate-200">
+                  <span className="w-2.5 h-2.5 rounded-full" style={{ background: item.color }} />
+                  <span className="text-slate-800">{item.name}</span>
+                  <span className="text-slate-500 font-mono font-black">({item.value})</span>
                 </div>
-              );
-            })}
+              ))}
+            </div>
           </div>
         </div>
 
       </div>
 
-      {/* ── Live Transactions Feed ── */}
-      <div className="qout-card bg-white shadow-sm overflow-hidden animate-slide-up">
-        <div className="flex items-center justify-between px-6 py-5 border-b border-slate-100">
-          <div className="flex items-center gap-3">
-            <div className="live-dot" />
-            <h3 className="text-base lg:text-lg font-black text-slate-950">
-              {isAr ? "سجل العمليات المباشر (تحديث فوري)" : "Live Transactions Stream (Real-Time)"}
-            </h3>
+      {/* ── Section 3: Live Feed & Operational Shortcuts ── */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+
+        {/* Live Redemptions Table (2 cols) */}
+        <div className="lg:col-span-2 qout-card p-6 lg:p-7 bg-white shadow-sm rounded-3xl border border-slate-200">
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-2.5">
+              <div className="w-8 h-8 rounded-lg bg-emerald-50 text-emerald-700 flex items-center justify-center">
+                <Activity className="w-4 h-4" />
+              </div>
+              <h3 className="text-base lg:text-lg font-black text-slate-950">
+                {isAr ? "أحدث عمليات الصرف الميداني" : "Recent Field Redemptions"}
+              </h3>
+            </div>
+            <span className="text-xs font-bold text-slate-500">
+              {redemptions.length} {isAr ? "عمليات مسجلة" : "recorded transactions"}
+            </span>
           </div>
-          <a
-            href="/dashboard/transactions"
-            className="flex items-center gap-1.5 text-sm font-black text-emerald-800 hover:text-emerald-950 transition-colors"
-          >
-            <span>{isAr ? "عرض كل العمليات" : "View Full Log"}</span>
-            <ArrowUpRight className="w-4 h-4" />
-          </a>
+
+          {redemptions.length === 0 ? (
+            <div className="py-12 text-center text-slate-500 font-bold text-sm bg-slate-50/70 rounded-2xl border border-dashed border-slate-200">
+              <ShoppingBasket className="w-10 h-10 mx-auto text-slate-300 mb-2" />
+              <p>{isAr ? "لا توجد عمليات صرف مسجلة حالياً" : "No redemption transactions recorded yet."}</p>
+              <p className="text-xs text-slate-400 mt-1">
+                {isAr ? "المنظومة جاهزة لاستقبال عمليات الصرف الجديدة من الصرافين." : "System ready to process new redemptions from merchants."}
+              </p>
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-xs lg:text-sm text-start">
+                <thead>
+                  <tr className="border-b border-slate-200 text-slate-500 font-bold text-xs">
+                    <th className="pb-3 text-start">{isAr ? "المستفيد" : "Beneficiary"}</th>
+                    <th className="pb-3 text-start">{isAr ? "المنفذ / الصراف" : "Merchant / Store"}</th>
+                    <th className="pb-3 text-start">{isAr ? "المبلغ" : "Amount"}</th>
+                    <th className="pb-3 text-start">{isAr ? "الوقت" : "Time"}</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {redemptions.slice(0, 6).map((txn) => (
+                    <tr
+                      key={txn.id}
+                      className={`hover:bg-slate-50/80 transition-colors ${flashId === txn.id ? "bg-emerald-50" : ""}`}
+                    >
+                      <td className="py-3 font-extrabold text-slate-900">
+                        {txn.beneficiaryName || txn.cardId}
+                      </td>
+                      <td className="py-3 text-slate-700 font-bold">
+                        {txn.merchantStoreName || txn.merchantName || "—"}
+                      </td>
+                      <td className="py-3 font-mono font-black text-emerald-800">
+                        {txn.amountDeducted ?? txn.amount ?? 0} {isAr ? "ج.م" : "EGP"}
+                      </td>
+                      <td className="py-3 text-slate-400 font-mono text-xs">
+                        {txn.timestamp?.toDate
+                          ? txn.timestamp.toDate().toLocaleTimeString(isAr ? "ar-EG" : "en-US", { hour: "2-digit", minute: "2-digit" })
+                          : "—"}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
 
-        {loading ? (
-          <div className="flex justify-center py-16">
-            <div className="w-7 h-7 border-3 border-emerald-600 border-t-transparent rounded-full animate-spin" />
+        {/* Quick Operational Info Card (1 col) */}
+        <div className="qout-card p-6 lg:p-7 bg-white shadow-sm flex flex-col justify-between rounded-3xl border border-slate-200">
+          <div>
+            <div className="flex items-center gap-2.5 mb-4">
+              <div className="w-8 h-8 rounded-lg bg-amber-50 text-amber-700 flex items-center justify-center">
+                <PackageCheck className="w-4 h-4" />
+              </div>
+              <h3 className="text-base font-black text-slate-950">
+                {isAr ? "مخصصات الصرف الإغاثي المتبقية" : "Remaining Relief Allocations"}
+              </h3>
+            </div>
+
+            <div className="space-y-4">
+              <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200/70">
+                <span className="text-xs text-slate-500 font-extrabold block mb-1">
+                  {isAr ? "إجمالي الأرصدة النقدية المتاحة بالكروت" : "Total Cash Available in Cards"}
+                </span>
+                <span className="text-2xl font-black text-emerald-800 font-mono">
+                  {totalRemainingCashBalance.toLocaleString()} {isAr ? "ج.م" : "EGP"}
+                </span>
+              </div>
+
+              <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200/70">
+                <span className="text-xs text-slate-500 font-extrabold block mb-1">
+                  {isAr ? "إجمالي السلال الغذائية المتبقية للتسليم" : "Total Remaining Food Baskets Quota"}
+                </span>
+                <span className="text-2xl font-black text-amber-700 font-mono">
+                  {cards.reduce((sum, c) => sum + (Number(c.foodBasketsQuota) || 0), 0).toLocaleString()} {isAr ? "سلة" : "baskets"}
+                </span>
+              </div>
+            </div>
           </div>
-        ) : recentTxns.length === 0 ? (
-          <div className="py-16 text-center text-slate-400">
-            <Activity className="w-10 h-10 mx-auto mb-2 opacity-50" />
-            <p className="text-sm font-semibold">{isAr ? "لا توجد حركات صرف مسجلة حديثاً" : "No recent redemptions recorded"}</p>
+
+          <div className="pt-4 border-t border-slate-100 text-xs text-slate-400 font-bold flex items-center justify-between">
+            <span>{isAr ? "تحديث البيانات تلقائي عبر السحابة" : "Automatic cloud synchronization"}</span>
+            <span className="w-2 h-2 rounded-full bg-emerald-500" />
           </div>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="qout-table">
-              <thead>
-                <tr>
-                  <th className="text-start">{isAr ? "رقم الكارت" : "Card ID"}</th>
-                  <th className="text-start">{isAr ? "اسم المستفيد" : "Beneficiary Name"}</th>
-                  <th className="text-start">{isAr ? "منفذ الصرف" : "Merchant Store"}</th>
-                  <th className="text-start">{isAr ? "المبلغ المخصوم" : "Amount Deducted"}</th>
-                  <th className="text-start">{isAr ? "السلال الغذائية" : "Food Baskets"}</th>
-                  <th className="text-start">{isAr ? "التوقيت" : "Timestamp"}</th>
-                </tr>
-              </thead>
-              <tbody>
-                {recentTxns.map((txn) => (
-                  <tr
-                    key={txn.id}
-                    className={txn.id === flashId ? "animate-live-flash" : ""}
-                  >
-                    <td>
-                      <span className="id-display bg-slate-50 px-2.5 py-1 rounded-md border border-slate-200 text-sm">
-                        {txn.cardId}
-                      </span>
-                    </td>
-                    <td>
-                      <span className="font-black text-slate-900 text-sm lg:text-base">{txn.beneficiaryName}</span>
-                    </td>
-                    <td>
-                      <span className="text-slate-700 font-bold text-sm">{txn.merchantStoreName}</span>
-                    </td>
-                    <td>
-                      <span className="font-black text-emerald-800 font-mono text-base">
-                        {txn.amountDeducted?.toLocaleString()} <span className="text-xs font-bold text-slate-500">{isAr ? "ج.م" : "EGP"}</span>
-                      </span>
-                    </td>
-                    <td>
-                      <span className="badge badge-pending text-xs font-black">
-                        {txn.foodBasketsDeducted} {isAr ? "سلة" : "baskets"}
-                      </span>
-                    </td>
-                    <td>
-                      <span className="text-xs lg:text-sm text-slate-500 font-mono font-semibold">
-                        {txn.timestamp?.toDate
-                          ? txn.timestamp.toDate().toLocaleTimeString(isAr ? "ar-EG" : "en-US", { hour: "2-digit", minute: "2-digit", second: "2-digit" })
-                          : "—"}
-                      </span>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
+        </div>
+
       </div>
 
     </div>

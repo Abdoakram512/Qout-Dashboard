@@ -98,7 +98,7 @@ export default function TransactionsPage() {
         "رقم الكارت": x.cardId,
         "المستفيد": x.beneficiaryName,
         "منفذ الصرف (الصراف)": x.merchantStoreName,
-        "المبلغ المخصوم (ج.م)": x.amountDeducted,
+        "المبلغ المخصوم (ج.م)": (x.amountDeducted ?? x.amount ?? 0),
         "المدينة / الفرع": x.city || "—",
         "التاريخ والوقت": formatTime(x.timestamp),
         "ملاحظات": x.notes || "—",
@@ -144,7 +144,7 @@ export default function TransactionsPage() {
           <td style="font-family: monospace;">${x.cardId}</td>
           <td style="font-weight: 800; color: #0f172a;">${x.beneficiaryName}</td>
           <td style="font-weight: bold; color: #334155;">${x.merchantStoreName}</td>
-          <td style="font-weight: 800; color: #0A734D; text-align: left; font-family: monospace;">${(x.amountDeducted || 0).toLocaleString()} ج.م</td>
+          <td style="font-weight: 800; color: #0A734D; text-align: left; font-family: monospace;">${((x.amountDeducted ?? x.amount ?? 0) || 0).toLocaleString()} ج.م</td>
           <td>${x.city || "—"}</td>
           <td style="font-size: 10px; color: #64748b;">${formatTime(x.timestamp)}</td>
           <td style="text-align: center;"><span style="background: #dcfce7; color: #166534; padding: 2px 6px; border-radius: 4px; font-weight: bold;">مؤكدة</span></td>
@@ -720,7 +720,7 @@ export default function TransactionsPage() {
                       {/* Deducted Amount (Single Line) */}
                       <td className="py-4 px-4 text-center whitespace-nowrap">
                         <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-100 text-emerald-950 border border-emerald-300 font-black text-xs shadow-xs">
-                          <span className="font-mono text-sm">+{x.amountDeducted.toLocaleString()}</span>
+                          <span className="font-mono text-sm">+{((x.amountDeducted ?? x.amount ?? 0) ?? x.amount ?? 0).toLocaleString()}</span>
                           <span className="text-emerald-800 font-bold">{isAr ? "ج.م" : "EGP"}</span>
                         </span>
                       </td>

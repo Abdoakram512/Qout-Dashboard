@@ -124,32 +124,44 @@ export default function AnalyticsPage() {
     return () => { unsubCards(); unsubTxns(); };
   }, []);
 
-  /* ── Calculations & Metrics ── */
-  const totalBalance = useMemo(() => {
-    return cards.reduce((acc, c) => acc + (c.totalBalance ?? 0), 0);
+  /* ── Calculations & Dynamic Metrics from Database ── */
+  const totalRemainingBalance = useMemo(() => {
+    return cards.reduce((acc, c) => acc + (Number(c.totalBalance) || 0), 0);
   }, [cards]);
 
-  const initialEstimatedBudget = useMemo(() => {
-    return cards.length * 750;
-  }, [cards.length]);
+  const totalDisbursedAmount = useMemo(() => {
+    return txns.reduce((acc, t) => acc + (Number(t.amount) || 0), 0);
+  }, [txns]);
+
+  const totalAllocatedBudget = useMemo(() => {
+    return totalRemainingBalance + totalDisbursedAmount;
+  }, [totalRemainingBalance, totalDisbursedAmount]);
 
   const burnRatePct = useMemo(() => {
-    if (initialEstimatedBudget <= 0) return 0;
-    const consumed = initialEstimatedBudget - totalBalance;
-    return Math.max(0, Math.min(100, Math.round((consumed / initialEstimatedBudget) * 100)));
-  }, [initialEstimatedBudget, totalBalance]);
+    if (totalAllocatedBudget <= 0) return 0;
+    return Math.max(0, Math.min(100, Math.round((totalDisbursedAmount / totalAllocatedBudget) * 100)));
+  }, [totalAllocatedBudget, totalDisbursedAmount]);
 
-  const daysElapsed = 45;
-  const dailyBurnRate = useMemo(() => {
-    if (daysElapsed <= 0) return 0;
-    const consumed = initialEstimatedBudget - totalBalance;
-    return Math.max(0, Math.round(consumed / daysElapsed));
-  }, [initialEstimatedBudget, totalBalance]);
+  // Dynamic daily burn rate based on actual transaction timestamps
+  const { dailyBurnRate, daysRemaining } = useMemo(() => {
+    if (txns.length === 0 || totalDisbursedAmount === 0) {
+      return { dailyBurnRate: 0, daysRemaining: 0 };
+    }
+    
+    // Find earliest and latest transaction
+    const timestamps = txns.map(t => t.timestamp?.toDate ? t.timestamp.toDate().getTime() : 0).filter(ts => ts > 0);
+    if (timestamps.length === 0) {
+      return { dailyBurnRate: 0, daysRemaining: 0 };
+    }
 
-  const daysRemaining = useMemo(() => {
-    if (dailyBurnRate <= 0) return 0;
-    return Math.round(totalBalance / dailyBurnRate);
-  }, [totalBalance, dailyBurnRate]);
+    const minTs = Math.min(...timestamps);
+    const maxTs = Math.max(...timestamps, Date.now());
+    const daysElapsed = Math.max(1, Math.round((maxTs - minTs) / (1000 * 60 * 60 * 24)));
+
+    const burnRate = Math.round(totalDisbursedAmount / daysElapsed);
+    const remaining = burnRate > 0 ? Math.round(totalRemainingBalance / burnRate) : 0;
+    return { dailyBurnRate: burnRate, daysRemaining: remaining };
+  }, [txns, totalDisbursedAmount, totalRemainingBalance]);
 
   /* ── Weekly Activity Data ── */
   const weeklyData = useMemo(() => {
@@ -274,7 +286,7 @@ export default function AnalyticsPage() {
               {isAr ? "الرصيد المتبقي الكلي" : "Total Remaining Funds"}
             </p>
             <p className="text-3xl font-black text-emerald-800 font-mono leading-none">
-              {totalBalance.toLocaleString()} <span className="text-sm font-bold text-slate-500">{isAr ? "ج.م" : "EGP"}</span>
+              {totalRemainingBalance.toLocaleString()} <span className="text-sm font-bold text-slate-500">{isAr ? "ج.م" : "EGP"}</span>
             </p>
           </div>
 

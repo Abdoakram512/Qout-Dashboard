@@ -56,7 +56,9 @@ export interface RedemptionTransaction {
   beneficiaryNationalId?: string;
   merchantId: string;
   merchantStoreName: string;
-  amountDeducted: number;
+  merchantName?: string;
+  amountDeducted?: number;
+  amount?: number;
   foodBasketsDeducted?: number;
   city?: string;
   timestamp: any;
