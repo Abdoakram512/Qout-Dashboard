@@ -10,9 +10,10 @@ import { AidCardModel } from "@/types";
 import { QRCodeCanvas } from "qrcode.react";
 import * as XLSX from "xlsx";
 import {
-  Users, Search, Download, FileSpreadsheet, Printer,
-  QrCode, Edit, X, PackageCheck, MapPin, CheckCircle2,
+  Users, Search, Globe, Download, FileSpreadsheet, Printer,
+  QrCode, Edit, Edit3, X, PackageCheck, MapPin, CheckCircle2,
   AlertCircle, ChevronDown, Sparkles, Filter, Home,
+  Package, FileText, CreditCard, ShieldCheck, Coins,
 } from "lucide-react";
 
 function formatId(raw?: string): string {
@@ -429,35 +430,41 @@ export default function BeneficiariesPage() {
           />
         </div>
 
-        <div className="flex items-center gap-2 w-full md:w-auto flex-wrap">
-          <select
-            value={selectedNationality}
-            onChange={(e) => {
-              setSelectedNationality(e.target.value);
-              setCurrentPage(1);
-            }}
-            className="px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs font-black text-slate-800 focus:outline-none"
-          >
-            <option value="all">{isAr ? "جميع الجنسيات" : "All Nationalities"}</option>
-            <option value="سورية">{isAr ? "سورية" : "Syrian"}</option>
-            <option value="سودانية">{isAr ? "سودانية" : "Sudanese"}</option>
-            <option value="يمنية">{isAr ? "يمنية" : "Yemeni"}</option>
-            <option value="مصرية">{isAr ? "مصرية" : "Egyptian"}</option>
-          </select>
+        <div className="flex items-center gap-2.5 w-full md:w-auto flex-wrap">
+          {/* Nationality Filter */}
+          <div className="relative min-w-[150px] flex-1 sm:flex-initial">
+            <select
+              value={selectedNationality}
+              onChange={(e) => {
+                setSelectedNationality(e.target.value);
+                setCurrentPage(1);
+              }}
+              className="qout-select text-xs font-black py-2.5 pl-9 pr-3.5"
+            >
+              <option value="all">{isAr ? "🌍 جميع الجنسيات" : "🌍 All Nationalities"}</option>
+              <option value="سورية">{isAr ? "🇸🇾 سورية" : "🇸🇾 Syrian"}</option>
+              <option value="سودانية">{isAr ? "🇸🇩 سودانية" : "🇸🇩 Sudanese"}</option>
+              <option value="يمنية">{isAr ? "🇾🇪 يمنية" : "🇾🇪 Yemeni"}</option>
+              <option value="مصرية">{isAr ? "🇪🇬 مصرية" : "🇪🇬 Egyptian"}</option>
+            </select>
+          </div>
 
-          <select
-            value={selectedStatus}
-            onChange={(e) => {
-              setSelectedStatus(e.target.value);
-              setCurrentPage(1);
-            }}
-            className="px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs font-black text-slate-800 focus:outline-none"
-          >
-            <option value="all">{isAr ? "جميع الحالات" : "All Statuses"}</option>
-            <option value="active">{isAr ? "نشط (Active)" : "Active"}</option>
-            <option value="frozen">{isAr ? "مجمد (Frozen)" : "Frozen"}</option>
-            <option value="expired">{isAr ? "منتهي (Expired)" : "Expired"}</option>
-          </select>
+          {/* Status Filter */}
+          <div className="relative min-w-[150px] flex-1 sm:flex-initial">
+            <select
+              value={selectedStatus}
+              onChange={(e) => {
+                setSelectedStatus(e.target.value);
+                setCurrentPage(1);
+              }}
+              className="qout-select text-xs font-black py-2.5 pl-9 pr-3.5"
+            >
+              <option value="all">{isAr ? "⚡ جميع الحالات" : "⚡ All Statuses"}</option>
+              <option value="active">{isAr ? "🟢 نشط (Active)" : "🟢 Active"}</option>
+              <option value="frozen">{isAr ? "🔵 مجمّد (Frozen)" : "🔵 Frozen"}</option>
+              <option value="expired">{isAr ? "⚪ منتهي (Expired)" : "⚪ Expired"}</option>
+            </select>
+          </div>
         </div>
       </div>
 
@@ -640,80 +647,103 @@ export default function BeneficiariesPage() {
 
       {/* ── PORTAL: Distribute Basket Modal ─────────────────────────────── */}
       {mounted && distributeCard && createPortal(
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-xs">
-          <div className="bg-white rounded-3xl p-6 max-w-lg w-full shadow-2xl border border-slate-200 relative animate-in fade-in zoom-in-95 duration-200">
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="bg-white rounded-3xl p-6 sm:p-7 max-w-lg w-full shadow-2xl border-2 border-slate-200 relative animate-in zoom-in-95 duration-200">
             <button
               onClick={() => setDistributeCard(null)}
-              className="absolute top-4 left-4 btn btn-icon bg-slate-100 text-slate-500 hover:bg-slate-200"
+              className="absolute top-5 left-5 w-9 h-9 rounded-full bg-slate-100 text-slate-700 hover:bg-slate-200 hover:text-slate-950 flex items-center justify-center transition-all"
             >
               <X className="w-5 h-5" />
             </button>
 
-            {/* Header */}
-            <div className="flex items-center gap-3 mb-4">
-              <div className="w-12 h-12 rounded-2xl bg-amber-100 border border-amber-300 text-amber-900 flex items-center justify-center font-black shadow-xs">
-                <PackageCheck className="w-6 h-6 text-amber-700" />
+            {/* Header Banner */}
+            <div className="flex items-center gap-3.5 pb-4 border-b-2 border-slate-100 mb-5">
+              <div className="w-13 h-13 rounded-2xl bg-amber-500 text-white flex items-center justify-center shadow-lg shadow-amber-500/25 flex-shrink-0">
+                <PackageCheck className="w-7 h-7" />
               </div>
               <div>
-                <h3 className="text-base font-black text-slate-900 leading-tight">
-                  {isAr ? "تسليم سلة غذائية (مركز التوزيع الإداري)" : "Food Basket Handover"}
+                <h3 className="text-lg sm:text-xl font-black text-slate-950 leading-tight">
+                  {isAr ? "تسليم سلة غذائية (مركز التوزيع الإداري)" : "Handover Food Basket (Admin)"}
                 </h3>
-                <p className="text-xs text-slate-500 font-semibold mt-0.5">
-                  {isAr ? "صرف عيني مباشر من قبل الإدارة والمستودع" : "Direct distribution from admin center"}
+                <p className="text-xs text-slate-600 font-bold mt-0.5">
+                  {isAr ? "صرف عيني مباشر وتوثيق فوري في المنظومة" : "Direct handover and live quota deduction"}
                 </p>
               </div>
             </div>
 
-            {/* Beneficiary Summary Card */}
-            <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 mb-4 space-y-2 text-xs font-semibold">
+            {/* Beneficiary Info Card (High Contrast) */}
+            <div className="p-4 rounded-2xl bg-slate-50 border-2 border-slate-200 mb-5 space-y-2.5">
               <div className="flex items-center justify-between">
-                <span className="text-slate-500">{isAr ? "المستفيد:" : "Beneficiary:"}</span>
-                <span className="font-black text-slate-900 text-sm">{distributeCard.beneficiaryName}</span>
+                <span className="text-xs font-bold text-slate-500">{isAr ? "المستفيد:" : "Beneficiary:"}</span>
+                <span className="text-sm font-black text-slate-950">{distributeCard.beneficiaryName}</span>
               </div>
-              <div className="flex items-center justify-between font-mono">
-                <span className="text-slate-500 font-sans">{isAr ? "رقم الكارت والبطاقة:" : "Card & ID:"}</span>
-                <span className="font-bold text-slate-800">{distributeCard.cardId} • {formatId(distributeCard.nationalId)}</span>
-              </div>
+
               <div className="flex items-center justify-between">
-                <span className="text-slate-500">{isAr ? "الأسرة ومحل الإقامة:" : "Family & Residence:"}</span>
-                <span className="font-bold text-slate-800">{distributeCard.familyCount || 4} أفراد • {distributeCard.residence || "الرياض"}</span>
+                <span className="text-xs font-bold text-slate-500">{isAr ? "رقم الكارت والبطاقة:" : "Card & ID:"}</span>
+                <div className="flex items-center gap-2">
+                  <span className="font-mono text-xs font-black text-[#0A734D] bg-emerald-100 px-2.5 py-0.5 rounded-md border border-emerald-300">
+                    {distributeCard.cardId}
+                  </span>
+                  <span className="font-mono text-xs font-bold text-slate-700">
+                    {distributeCard.nationalId}
+                  </span>
+                </div>
               </div>
-              <div className="flex items-center justify-between pt-2 border-t border-slate-200">
-                <span className="text-slate-500 font-bold">{isAr ? "الحصص المتاحة حالياً:" : "Available Quota:"}</span>
-                <span className="px-2.5 py-0.5 rounded-full bg-amber-100 text-amber-900 font-black font-mono">
-                  {distributeCard.foodBasketsQuota || 0} {isAr ? "سلة متبقية" : "baskets"}
+
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold text-slate-500">{isAr ? "الأسرة ومحل الإقامة:" : "Family & Residence:"}</span>
+                <div className="flex items-center gap-1.5 text-xs font-bold text-slate-800">
+                  <span className="text-blue-700 font-black">{distributeCard.familyCount || 4} {isAr ? "أفراد" : "members"}</span>
+                  <span className="text-slate-400">•</span>
+                  <span>{distributeCard.residence || (isAr ? "الرياض" : "Riyadh")}</span>
+                </div>
+              </div>
+
+              <div className="flex items-center justify-between pt-2.5 border-t border-slate-200">
+                <span className="text-xs font-black text-slate-700">{isAr ? "الحصص المتاحة حالياً:" : "Available Quota:"}</span>
+                <span className="px-3 py-1 rounded-full bg-amber-100 text-amber-950 font-black text-xs border border-amber-300">
+                  {distributeCard.foodBasketsQuota || 0} {isAr ? "سلة متبقية" : "baskets left"}
                 </span>
               </div>
             </div>
 
-            {/* Form Fields */}
+            {/* Form Fields (High Contrast) */}
             <div className="space-y-4 text-xs font-bold">
+              {/* Basket Quantity */}
               <div>
-                <label className="block text-slate-700 mb-1.5">{isAr ? "عدد السلال المراد تسليمها في هذه العملية" : "Number of baskets to handover"}</label>
-                <div className="flex items-center gap-3">
-                  {[1, 2, distributeCard.foodBasketsQuota || 1].filter((v, i, a) => v <= (distributeCard.foodBasketsQuota || 0) && a.indexOf(v) === i).map((qty) => (
+                <label className="flex items-center gap-1.5 text-xs font-black text-slate-900 mb-2">
+                  <Package className="w-4 h-4 text-amber-600" />
+                  <span>{isAr ? "عدد السلال المراد تسليمها في هذه العملية" : "Number of baskets to handover"}</span>
+                </label>
+                <div className="grid grid-cols-2 gap-3">
+                  {[1, 2].filter((v) => v <= (distributeCard.foodBasketsQuota || 0)).map((qty) => (
                     <button
                       key={qty}
                       type="button"
                       onClick={() => setDistributeCount(qty)}
-                      className={`flex-1 py-2 rounded-xl border text-xs font-black transition-all ${
+                      className={`py-3 px-4 rounded-xl border-2 text-sm font-black transition-all flex items-center justify-center gap-2 ${
                         distributeCount === qty
-                          ? "bg-[#0A734D] text-white border-[#0A734D] shadow-xs"
-                          : "bg-white text-slate-800 border-slate-200 hover:bg-slate-50"
+                          ? "bg-[#0A734D] text-white border-[#0A734D] shadow-md shadow-emerald-900/20"
+                          : "bg-white text-slate-800 border-slate-300 hover:border-slate-400 hover:bg-slate-50"
                       }`}
                     >
-                      {qty} {isAr ? "سلة" : "basket"}
+                      <PackageCheck className="w-4 h-4" />
+                      <span>{qty} {isAr ? "سلة" : "basket"}</span>
                     </button>
                   ))}
                 </div>
               </div>
 
+              {/* Center */}
               <div>
-                <label className="block text-slate-700 mb-1.5">{isAr ? "مركز / مقر التوزيع" : "Distribution Center"}</label>
+                <label className="flex items-center gap-1.5 text-xs font-black text-slate-900 mb-2">
+                  <MapPin className="w-4 h-4 text-red-500" />
+                  <span>{isAr ? "مركز / مقر التوزيع" : "Distribution Center"}</span>
+                </label>
                 <select
                   value={distributionCenter}
                   onChange={(e) => setDistributionCenter(e.target.value)}
-                  className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 font-bold focus:outline-none"
+                  className="qout-select text-xs lg:text-sm font-black py-3"
                 >
                   <option value="المقر الرئيسي - مركز توزيع الروضة">المقر الرئيسي - مركز توزيع الروضة</option>
                   <option value="مركز التوزيع الميداني - العزيزية">مركز التوزيع الميداني - العزيزية</option>
@@ -723,23 +753,27 @@ export default function BeneficiariesPage() {
                 </select>
               </div>
 
+              {/* Notes */}
               <div>
-                <label className="block text-slate-700 mb-1.5">{isAr ? "ملاحظات التسليم (اختياري)" : "Notes"}</label>
+                <label className="flex items-center gap-1.5 text-xs font-black text-slate-900 mb-2">
+                  <FileText className="w-4 h-4 text-slate-500" />
+                  <span>{isAr ? "ملاحظات التسليم (اختياري)" : "Handover Notes (Optional)"}</span>
+                </label>
                 <input
                   type="text"
                   value={distributeNotes}
                   onChange={(e) => setDistributeNotes(e.target.value)}
-                  placeholder={isAr ? "مثال: تم تسليم السلة لرب الأسرة بموجب بطاقة الهوية" : "Handed over to family head..."}
-                  className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 font-semibold focus:outline-none"
+                  placeholder={isAr ? "مثال: تم تسليم السلة لرب الأسرة بموجب بطاقة الهوية" : "e.g. Handed over to family head..."}
+                  className="w-full px-4 py-3 rounded-xl bg-white border-2 border-slate-300 text-slate-950 font-bold text-xs lg:text-sm focus:border-[#0A734D] focus:ring-4 focus:ring-emerald-500/15 focus:outline-none transition-all shadow-xs placeholder:text-slate-400 placeholder:font-normal"
                 />
               </div>
 
               {/* Actions */}
-              <div className="pt-3 flex items-center justify-end gap-2.5">
+              <div className="pt-4 flex items-center justify-end gap-3 border-t-2 border-slate-100">
                 <button
                   type="button"
                   onClick={() => setDistributeCard(null)}
-                  className="btn btn-sm btn-secondary font-bold px-4"
+                  className="btn py-3 px-5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 font-black text-xs lg:text-sm border border-slate-300 transition-all"
                 >
                   {isAr ? "إلغاء" : "Cancel"}
                 </button>
@@ -747,7 +781,7 @@ export default function BeneficiariesPage() {
                   type="button"
                   disabled={distributing}
                   onClick={handleConfirmDistribution}
-                  className="btn btn-sm bg-[#0A734D] hover:bg-[#085E3E] text-white font-black px-5 flex items-center gap-2 shadow-md"
+                  className="btn py-3 px-6 rounded-xl bg-[#0A734D] hover:bg-[#085E3E] text-white font-black text-xs lg:text-sm flex items-center gap-2 shadow-lg shadow-emerald-900/20 transition-all"
                 >
                   <PackageCheck className="w-4 h-4 text-amber-300" />
                   <span>{distributing ? (isAr ? "جاري التسليم..." : "Delivering...") : (isAr ? "تأكيد تسليم السلال" : "Confirm Handover")}</span>
@@ -759,79 +793,108 @@ export default function BeneficiariesPage() {
         document.body
       )}
 
-      {/* ── PORTAL: Edit Card Modal ─────────────────────────────────────── */}
+      {/* ── PORTAL: Edit Card Modal (Ultra High Clarity & Contrast) ───────── */}
       {mounted && editingCard && createPortal(
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-xs">
-          <div className="bg-white rounded-3xl p-6 max-w-md w-full shadow-2xl border border-slate-200 relative animate-in fade-in zoom-in-95 duration-200">
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="bg-white rounded-3xl p-6 sm:p-7 max-w-lg w-full shadow-2xl border-2 border-slate-200 relative animate-in zoom-in-95 duration-200">
             <button
               onClick={() => setEditingCard(null)}
-              className="absolute top-4 left-4 btn btn-icon bg-slate-100 text-slate-500 hover:bg-slate-200"
+              className="absolute top-5 left-5 w-9 h-9 rounded-full bg-slate-100 text-slate-700 hover:bg-slate-200 hover:text-slate-950 flex items-center justify-center transition-all"
             >
               <X className="w-5 h-5" />
             </button>
 
-            <h3 className="text-base font-black text-slate-900 mb-1">
-              {isAr ? "تعديل بيانات المستفيد والبطاقة" : "Edit Beneficiary & Card"}
-            </h3>
-            <p className="text-xs text-slate-500 font-semibold mb-4">
-              {editingCard.beneficiaryName} ({editingCard.cardId})
-            </p>
+            {/* Header Banner */}
+            <div className="flex items-center gap-3.5 pb-4 border-b-2 border-slate-100 mb-5">
+              <div className="w-13 h-13 rounded-2xl bg-emerald-600 text-white flex items-center justify-center shadow-lg shadow-emerald-600/25 flex-shrink-0">
+                <Edit3 className="w-7 h-7" />
+              </div>
+              <div>
+                <h3 className="text-lg sm:text-xl font-black text-slate-950 leading-tight">
+                  {isAr ? "تعديل بيانات المستفيد والبطاقة" : "Edit Beneficiary & Card"}
+                </h3>
+                <div className="flex items-center gap-2 mt-1">
+                  <span className="font-mono text-xs font-black text-[#0A734D] bg-emerald-100 px-2.5 py-0.5 rounded-md border border-emerald-300">
+                    {editingCard.cardId}
+                  </span>
+                  <span className="text-xs font-black text-slate-800">
+                    {editingCard.beneficiaryName}
+                  </span>
+                </div>
+              </div>
+            </div>
 
-            <div className="space-y-3.5 text-xs font-bold">
+            {/* Form Fields with High Contrast & Icons */}
+            <div className="space-y-4 text-xs font-bold">
               {/* Family Count */}
               <div>
-                <label className="block text-slate-700 mb-1">{isAr ? "عدد أفراد الأسرة" : "Family Members Count"}</label>
+                <label className="flex items-center gap-1.5 text-xs font-black text-slate-900 mb-1.5">
+                  <Users className="w-4 h-4 text-blue-600" />
+                  <span>{isAr ? "عدد أفراد الأسرة" : "Family Members Count"}</span>
+                </label>
                 <input
                   type="number"
                   min={1}
                   max={20}
                   value={editFamilyCount}
                   onChange={(e) => setEditFamilyCount(parseInt(e.target.value) || 1)}
-                  className="w-full px-3.5 py-2 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 font-bold focus:outline-none"
+                  className="w-full px-4 py-3 rounded-xl bg-white border-2 border-slate-300 text-slate-950 font-black text-sm focus:border-[#0A734D] focus:ring-4 focus:ring-emerald-500/15 focus:outline-none transition-all shadow-xs"
                 />
               </div>
 
               {/* Residence */}
               <div>
-                <label className="block text-slate-700 mb-1">{isAr ? "محل السكن / مكان الإقامة" : "Residence / Address"}</label>
+                <label className="flex items-center gap-1.5 text-xs font-black text-slate-900 mb-1.5">
+                  <MapPin className="w-4 h-4 text-red-500" />
+                  <span>{isAr ? "محل السكن / مكان الإقامة" : "Residence / Address"}</span>
+                </label>
                 <input
                   type="text"
                   value={editResidence}
                   onChange={(e) => setEditResidence(e.target.value)}
                   placeholder={isAr ? "مثال: الرياض - حي الروضة" : "e.g. Riyadh - Rawdah"}
-                  className="w-full px-3.5 py-2 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 font-bold focus:outline-none"
+                  className="w-full px-4 py-3 rounded-xl bg-white border-2 border-slate-300 text-slate-950 font-bold text-sm focus:border-[#0A734D] focus:ring-4 focus:ring-emerald-500/15 focus:outline-none transition-all shadow-xs placeholder:text-slate-400 placeholder:font-normal"
                 />
               </div>
 
               {/* Cash Balance */}
               <div>
-                <label className="block text-slate-700 mb-1">{isAr ? "الرصيد النقدي للمشتريات (ج.م)" : "Cash Balance (EGP)"}</label>
+                <label className="flex items-center gap-1.5 text-xs font-black text-slate-900 mb-1.5">
+                  <CreditCard className="w-4 h-4 text-emerald-600" />
+                  <span>{isAr ? "الرصيد النقدي للمشتريات (ج.م)" : "Cash Balance (EGP)"}</span>
+                </label>
                 <input
                   type="number"
                   value={editBalance}
                   onChange={(e) => setEditBalance(parseFloat(e.target.value) || 0)}
-                  className="w-full px-3.5 py-2 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 font-bold focus:outline-none"
+                  className="w-full px-4 py-3 rounded-xl bg-white border-2 border-slate-300 text-slate-950 font-black text-sm font-mono focus:border-[#0A734D] focus:ring-4 focus:ring-emerald-500/15 focus:outline-none transition-all shadow-xs"
                 />
               </div>
 
               {/* Food Baskets Quota */}
               <div>
-                <label className="block text-slate-700 mb-1">{isAr ? "حصص السلال الغذائية المتاحة للتوزيع" : "Food Baskets Quota"}</label>
+                <label className="flex items-center gap-1.5 text-xs font-black text-slate-900 mb-1.5">
+                  <Package className="w-4 h-4 text-amber-600" />
+                  <span>{isAr ? "حصص السلال الغذائية المتاحة للتوزيع" : "Food Baskets Quota"}</span>
+                </label>
                 <input
                   type="number"
                   value={editQuota}
                   onChange={(e) => setEditQuota(parseInt(e.target.value) || 0)}
-                  className="w-full px-3.5 py-2 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 font-bold focus:outline-none"
+                  className="w-full px-4 py-3 rounded-xl bg-white border-2 border-slate-300 text-slate-950 font-black text-sm font-mono focus:border-[#0A734D] focus:ring-4 focus:ring-emerald-500/15 focus:outline-none transition-all shadow-xs"
                 />
               </div>
 
               {/* Status */}
               <div>
-                <label className="block text-slate-700 mb-1">{isAr ? "حالة الكارت" : "Card Status"}</label>
+                <label className="flex items-center gap-1.5 text-xs font-black text-slate-900 mb-1.5">
+                  <ShieldCheck className="w-4 h-4 text-purple-600" />
+                  <span>{isAr ? "حالة الكارت" : "Card Status"}</span>
+                </label>
                 <select
                   value={editStatus}
                   onChange={(e) => setEditStatus(e.target.value)}
-                  className="w-full px-3.5 py-2 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 font-bold focus:outline-none"
+                  className="qout-select text-sm font-black py-3"
                 >
                   <option value="active">{isAr ? "نشط (Active)" : "Active"}</option>
                   <option value="frozen">{isAr ? "مجمّد مؤقتاً (Frozen)" : "Frozen"}</option>
@@ -839,11 +902,12 @@ export default function BeneficiariesPage() {
                 </select>
               </div>
 
-              <div className="pt-3 flex items-center justify-end gap-2">
+              {/* Actions */}
+              <div className="pt-4 flex items-center justify-end gap-3 border-t-2 border-slate-100">
                 <button
                   type="button"
                   onClick={() => setEditingCard(null)}
-                  className="btn btn-sm btn-secondary px-4 font-bold"
+                  className="btn py-3 px-5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 font-black text-xs lg:text-sm border border-slate-300 transition-all"
                 >
                   {isAr ? "إلغاء" : "Cancel"}
                 </button>
@@ -851,9 +915,10 @@ export default function BeneficiariesPage() {
                   type="button"
                   disabled={saving}
                   onClick={handleSaveEdit}
-                  className="btn btn-sm bg-[#0A734D] hover:bg-[#085E3E] text-white font-black px-5"
+                  className="btn py-3 px-6 rounded-xl bg-[#0A734D] hover:bg-[#085E3E] text-white font-black text-xs lg:text-sm flex items-center gap-2 shadow-lg shadow-emerald-900/20 transition-all"
                 >
-                  {saving ? (isAr ? "جاري الحفظ..." : "Saving...") : (isAr ? "حفظ التعديلات" : "Save Changes")}
+                  <CheckCircle2 className="w-4 h-4 text-amber-300" />
+                  <span>{saving ? (isAr ? "جاري الحفظ..." : "Saving...") : (isAr ? "حفظ التعديلات" : "Save Changes")}</span>
                 </button>
               </div>
             </div>
@@ -864,43 +929,45 @@ export default function BeneficiariesPage() {
 
       {/* ── PORTAL: QR Code Modal ───────────────────────────────────────── */}
       {mounted && activeCard && createPortal(
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-xs">
-          <div className="bg-white rounded-3xl p-6 max-w-sm w-full shadow-2xl border border-slate-200 relative animate-in fade-in zoom-in-95 duration-200">
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="bg-white rounded-3xl p-6 sm:p-7 max-w-sm w-full shadow-2xl border-2 border-slate-200 relative animate-in zoom-in-95 duration-200">
             <button
               onClick={() => setActiveCard(null)}
-              className="absolute top-4 left-4 btn btn-icon bg-slate-100 text-slate-500 hover:bg-slate-200"
+              className="absolute top-5 left-5 w-9 h-9 rounded-full bg-slate-100 text-slate-700 hover:bg-slate-200 hover:text-slate-950 flex items-center justify-center transition-all"
             >
               <X className="w-5 h-5" />
             </button>
 
-            <h3 className="text-base font-black text-slate-900 mb-1">{activeCard.beneficiaryName}</h3>
-            <p className="text-xs text-slate-500 font-mono mb-4">{activeCard.cardId}</p>
+            <div className="text-center pb-3 border-b-2 border-slate-100 mb-4">
+              <h3 className="text-lg font-black text-slate-950 leading-tight">{activeCard.beneficiaryName}</h3>
+              <p className="text-xs text-[#0A734D] font-mono font-black mt-1 bg-emerald-50 py-0.5 px-3 rounded-full border border-emerald-200 inline-block">{activeCard.cardId}</p>
+            </div>
 
             <div
               ref={qrCanvasContainerRef}
-              className="p-6 rounded-2xl bg-slate-50 border border-slate-200 flex flex-col items-center justify-center mb-4"
+              className="p-6 rounded-2xl bg-slate-50 border-2 border-slate-200 flex flex-col items-center justify-center mb-4 shadow-inner"
             >
-              <div className="bg-white p-4 rounded-2xl shadow-xs border border-slate-100 mb-3 flex items-center justify-center">
-                <QRCodeCanvas value={activeCard.cardId} size={180} level="H" includeMargin={true} />
+              <div className="bg-white p-4 rounded-2xl shadow-md border border-slate-200 mb-3 flex items-center justify-center">
+                <QRCodeCanvas value={activeCard.cardId} size={190} level="H" includeMargin={true} />
               </div>
-              <div className="font-mono text-sm font-black text-slate-900 tracking-wider mb-1">
+              <div className="font-mono text-sm font-black text-slate-950 tracking-wider mb-1">
                 {activeCard.cardId}
               </div>
               <div
                 dir="ltr"
-                className="text-xs text-slate-800 font-mono font-bold bg-slate-100 px-2.5 py-0.5 rounded-md inline-block"
+                className="text-xs text-slate-900 font-mono font-bold bg-white border border-slate-200 px-3 py-1 rounded-md inline-block shadow-xs"
                 style={{ unicodeBidi: "isolate" }}
               >
                 {formatId(activeCard.nationalId)}
               </div>
-              <div className="mt-2 text-[10px] text-emerald-800 font-bold bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200">
+              <div className="mt-2.5 text-[11px] text-emerald-900 font-black bg-emerald-100 px-3 py-1 rounded-full border border-emerald-300">
                 {isAr ? "منظومة قُوت الإغاثية المعتمدة" : "Verified QOUT Aid Card"}
               </div>
             </div>
 
             <button
               onClick={handleDownloadQrPng}
-              className="btn btn-sm w-full bg-[#0A734D] hover:bg-[#085E3E] text-white font-black py-2.5 flex items-center justify-center gap-2 shadow-md"
+              className="btn w-full bg-[#0A734D] hover:bg-[#085E3E] text-white font-black py-3 rounded-xl flex items-center justify-center gap-2 shadow-lg shadow-emerald-900/20 text-sm"
             >
               <Download className="w-4 h-4 text-amber-300" />
               <span>{t("download_qr")}</span>

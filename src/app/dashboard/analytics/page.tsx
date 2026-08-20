@@ -237,7 +237,7 @@ export default function AnalyticsPage() {
             <BarChart3 className="w-6 h-6 text-white" />
           </div>
           <div>
-            <h1 className="text-2xl lg:text-3xl font-black text-slate-950 tracking-tight">
+            <h1 className="text-2xl lg:text-3xl font-black text-slate-950 ">
               {isAr ? "مركز التحليلات الإحصائية" : "Analytics & Operations Center"}
             </h1>
             <p className="text-sm text-slate-500 font-semibold mt-1">
@@ -270,7 +270,7 @@ export default function AnalyticsPage() {
         {/* 3 Metric Cards */}
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-5 mb-6">
           <div className="p-5 rounded-2xl bg-slate-50 border border-slate-200/80">
-            <p className="text-xs lg:text-sm font-bold text-slate-500 uppercase tracking-wide mb-1.5">
+            <p className="text-xs lg:text-sm font-bold text-slate-500 uppercase  mb-1.5">
               {isAr ? "الرصيد المتبقي الكلي" : "Total Remaining Funds"}
             </p>
             <p className="text-3xl font-black text-emerald-800 font-mono leading-none">
@@ -279,7 +279,7 @@ export default function AnalyticsPage() {
           </div>
 
           <div className="p-5 rounded-2xl bg-slate-50 border border-slate-200/80">
-            <p className="text-xs lg:text-sm font-bold text-slate-500 uppercase tracking-wide mb-1.5">
+            <p className="text-xs lg:text-sm font-bold text-slate-500 uppercase  mb-1.5">
               {isAr ? "معدل الصرف اليومي" : "Daily Burn Rate"}
             </p>
             <p className="text-3xl font-black text-amber-700 font-mono leading-none">
@@ -288,7 +288,7 @@ export default function AnalyticsPage() {
           </div>
 
           <div className="p-5 rounded-2xl bg-slate-50 border border-slate-200/80">
-            <p className="text-xs lg:text-sm font-bold text-slate-500 uppercase tracking-wide mb-1.5">
+            <p className="text-xs lg:text-sm font-bold text-slate-500 uppercase  mb-1.5">
               {isAr ? "الأيام المتبقية المتوقعة" : "Est. Days Remaining"}
             </p>
             <p className={`text-3xl font-black font-mono leading-none ${daysRemaining < 30 ? "text-red-600" : "text-emerald-700"}`}>
@@ -317,38 +317,42 @@ export default function AnalyticsPage() {
       {/* ── Section 2: Charts Grid ── */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
 
-        {/* Nationality Breakdown (Multi-Color Bar Chart) */}
-        <div className="qout-card p-6 lg:p-7 bg-white shadow-sm flex flex-col justify-between">
+        {/* Nationality Breakdown (Clean Column Chart with Zero Collisions) */}
+        <div className="qout-card p-6 lg:p-7 bg-white shadow-sm flex flex-col justify-between rounded-3xl border border-slate-200">
           <div>
-            <div className="flex items-center gap-2.5 mb-2">
-              <div className="kpi-icon">
-                <Users className="w-5 h-5" />
+            <div className="flex items-center gap-3 mb-2">
+              <div className="w-11 h-11 rounded-2xl bg-emerald-100 text-[#0A734D] flex items-center justify-center flex-shrink-0 shadow-xs">
+                <Users className="w-6 h-6" />
               </div>
               <div>
-                <h3 className="text-base lg:text-lg font-black text-slate-950">
+                <h3 className="text-base lg:text-lg font-black text-slate-950 leading-tight">
                   {isAr ? "توزيع المستفيدين حسب الجنسية" : "Beneficiaries by Nationality"}
                 </h3>
-                <p className="text-xs lg:text-sm text-slate-500 font-semibold mt-0.5">
-                  {isAr ? "ألوان موحدة عبر جميع لوحات النظام" : "Consistent color identity across all charts"}
+                <p className="text-xs text-slate-500 font-bold mt-0.5">
+                  {isAr ? "تصنيف الحالات المسجلة بالمنظومة" : "Registered beneficiaries breakdown"}
                 </p>
               </div>
             </div>
 
-            <div className="h-64 mt-4">
+            <div className="h-64 mt-3">
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={nationalityChartData} layout="vertical" margin={{ top: 5, right: 15, left: 15, bottom: 5 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#F1F5F9" horizontal={false} />
-                  <XAxis type="number" stroke="#94A3B8" fontSize={12} tick={{ fill: "#475569", fontWeight: 700 }} />
-                  <YAxis
-                    type="category"
+                <BarChart data={nationalityChartData} margin={{ top: 20, right: 10, left: -15, bottom: 5 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#F1F5F9" vertical={false} />
+                  <XAxis
                     dataKey="name"
-                    stroke="none"
-                    fontSize={13}
-                    width={80}
+                    stroke="#94A3B8"
+                    fontSize={12}
+                    tickLine={false}
                     tick={{ fill: "#0F172A", fontWeight: 800 }}
                   />
+                  <YAxis
+                    stroke="#94A3B8"
+                    fontSize={12}
+                    tickLine={false}
+                    tick={{ fill: "#475569", fontWeight: 700 }}
+                  />
                   <Tooltip content={<CustomTooltip />} />
-                  <Bar dataKey="count" name={isAr ? "عدد المستفيدين" : "Cases"} radius={[0, 8, 8, 0]}>
+                  <Bar dataKey="count" name={isAr ? "عدد المستفيدين" : "Cases"} radius={[8, 8, 0, 0]} maxBarSize={55}>
                     {nationalityChartData.map((entry, index) => (
                       <Cell key={`cell-${index}`} fill={entry.fill} />
                     ))}
@@ -358,47 +362,49 @@ export default function AnalyticsPage() {
             </div>
           </div>
 
-          {/* Color Chips */}
-          <div className="flex flex-wrap items-center gap-4 pt-4 border-t border-slate-100 text-sm">
+          {/* Color Chips with Badges */}
+          <div className="flex flex-wrap items-center gap-2.5 pt-4 border-t border-slate-100 text-xs">
             {nationalityChartData.map((item, idx) => (
-              <div key={idx} className="flex items-center gap-2">
-                <span className="w-3.5 h-3.5 rounded-sm" style={{ background: item.fill }} />
-                <span className="font-bold text-slate-800">{item.name}</span>
-                <span className="text-slate-500 font-mono font-bold">({item.count})</span>
+              <div key={idx} className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-50 border border-slate-200 shadow-2xs">
+                <span className="w-3 h-3 rounded-full flex-shrink-0" style={{ background: item.fill }} />
+                <span className="font-black text-slate-900">{item.name}</span>
+                <span className="font-mono font-black text-slate-700 bg-white px-2 py-0.5 rounded-md border border-slate-200">
+                  {item.count}
+                </span>
               </div>
             ))}
           </div>
         </div>
 
         {/* Weekly Activity Line/Area Chart */}
-        <div className="qout-card p-6 lg:p-7 bg-white shadow-sm flex flex-col justify-between">
+        <div className="qout-card p-6 lg:p-7 bg-white shadow-sm flex flex-col justify-between rounded-3xl border border-slate-200">
           <div>
-            <div className="flex items-center gap-2.5 mb-2">
-              <div className="kpi-icon blue">
-                <Activity className="w-5 h-5" />
+            <div className="flex items-center gap-3 mb-2">
+              <div className="w-11 h-11 rounded-2xl bg-blue-100 text-blue-700 flex items-center justify-center flex-shrink-0 shadow-xs">
+                <Activity className="w-6 h-6" />
               </div>
               <div>
-                <h3 className="text-base lg:text-lg font-black text-slate-950">
+                <h3 className="text-base lg:text-lg font-black text-slate-950 leading-tight">
                   {isAr ? "حركة الصرف الأسبوعية" : "Weekly Redemption Volume"}
                 </h3>
-                <p className="text-xs lg:text-sm text-slate-500 font-semibold mt-0.5">
+                <p className="text-xs text-slate-500 font-bold mt-0.5">
                   {isAr ? "عدد العمليات المنجزة يومياً خلال آخر 7 أيام" : "Daily completed transactions over the last 7 days"}
                 </p>
               </div>
             </div>
 
-            <div className="h-64 mt-4">
+            <div className="h-64 mt-3">
               <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={weeklyData} margin={{ top: 10, right: 15, left: -15, bottom: 0 }}>
+                <AreaChart data={weeklyData} margin={{ top: 20, right: 15, left: -15, bottom: 5 }}>
                   <defs>
                     <linearGradient id="weeklyGreen" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#0A734D" stopOpacity={0.25} />
-                      <stop offset="95%" stopColor="#0A734D" stopOpacity={0} />
+                      <stop offset="5%" stopColor="#0A734D" stopOpacity={0.3} />
+                      <stop offset="95%" stopColor="#0A734D" stopOpacity={0.02} />
                     </linearGradient>
                   </defs>
                   <CartesianGrid strokeDasharray="3 3" stroke="#F1F5F9" />
-                  <XAxis dataKey="day" stroke="#94A3B8" fontSize={12} tick={{ fill: "#475569", fontWeight: 700 }} />
-                  <YAxis stroke="#94A3B8" fontSize={12} tick={{ fill: "#475569", fontWeight: 700 }} />
+                  <XAxis dataKey="day" stroke="#94A3B8" fontSize={12} tickLine={false} tick={{ fill: "#475569", fontWeight: 700 }} />
+                  <YAxis stroke="#94A3B8" fontSize={12} tickLine={false} tick={{ fill: "#475569", fontWeight: 700 }} />
                   <Tooltip content={<CustomTooltip />} />
                   <Area
                     type="monotone"
@@ -415,10 +421,11 @@ export default function AnalyticsPage() {
             </div>
           </div>
 
-          <div className="pt-4 border-t border-slate-100 flex items-center justify-between text-sm text-slate-600 font-bold">
-            <span>{isAr ? "إجمالي عمليات الأسبوع: " : "Total weekly redemptions: "}</span>
-            <span className="text-emerald-800 font-mono font-black text-base">
-              {weeklyData.reduce((acc, d) => acc + d.count, 0)} {isAr ? "عملية" : "txns"}
+          <div className="pt-4 border-t border-slate-100 flex items-center justify-between text-xs lg:text-sm text-slate-600 font-bold">
+            <span>{isAr ? "إجمالي عمليات الأسبوع:" : "Total weekly redemptions:"}</span>
+            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-100 text-emerald-950 font-black border border-emerald-300">
+              <span className="font-mono text-sm">{weeklyData.reduce((acc, d) => acc + d.count, 0)}</span>
+              <span>{isAr ? "عملية صرف" : "txns"}</span>
             </span>
           </div>
         </div>
