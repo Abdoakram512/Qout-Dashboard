@@ -68,8 +68,9 @@
     --sidebar-accent:  #0A734D;
 
     /* ── Typography & Neutrals ── */
-    --font-primary: 'Cairo', system-ui, -apple-system, sans-serif;
-    --font-mono:    'JetBrains Mono', 'Fira Code', 'Courier New', monospace;
+    --font-primary: 'Cairo', 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+    --font-en:      'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+    --font-mono:    'JetBrains Mono', 'Plus Jakarta Sans', monospace;
     --text-primary:   #0F172A;
     --text-secondary: #475569;
     --text-muted:     #64748B;
@@ -114,16 +115,34 @@ body {
   -moz-osx-font-smoothing: grayscale;
 }
 
-/* ── Mono / ID display ── */
+/* Dual-Language Typography */
+html[lang="en"] body,
+html[dir="ltr"] body {
+  font-family: 'Plus Jakarta Sans', 'Cairo', system-ui, -apple-system, sans-serif;
+  letter-spacing: -0.01em;
+}
+
+html[lang="ar"] body,
+html[dir="rtl"] body {
+  font-family: 'Cairo', 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+}
+
+/* Monospace & English Codes (Clear, Comfortable Sizing) */
+.font-mono,
+.id-display,
+code,
+kbd {
+  font-family: 'JetBrains Mono', 'Plus Jakarta Sans', monospace !important;
+  font-feature-settings: "zero" 1;
+}
+
 .id-display {
-  font-family: var(--font-mono);
   direction: ltr;
   unicode-bidi: isolate;
   display: inline-block;
-  letter-spacing: 0.03em;
-  font-size: 12px;
-  color: #1E293B;
-  font-weight: 600;
+  font-size: 13px;
+  color: #0F172A;
+  font-weight: 700;
 }
 
 /* ── Card ── */
