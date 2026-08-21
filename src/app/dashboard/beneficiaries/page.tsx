@@ -18,7 +18,7 @@ import {
 
 function formatId(raw?: string): string {
   if (!raw) return "-";
-  return String(raw).replace(/\\s+/g, "").toUpperCase();
+  return String(raw).replace(/\s+/g, "").toUpperCase();
 }
 
 export default function BeneficiariesPage() {
@@ -474,92 +474,101 @@ export default function BeneficiariesPage() {
           <table className="w-full text-sm text-slate-800 text-start">
             <thead className="bg-slate-50/90 text-slate-700 font-extrabold border-b border-slate-200 text-xs">
               <tr>
-                <th className="py-3.5 px-4 text-start">{isAr ? "رقم الكارت" : "Card ID"}</th>
-                <th className="py-3.5 px-4 text-start">{isAr ? "اسم المستفيد والبطاقة" : "Beneficiary"}</th>
-                <th className="py-3.5 px-4 text-start">{isAr ? "الأسرة ومحل الإقامة" : "Family & Residence"}</th>
-                <th className="py-3.5 px-4 text-start">{isAr ? "رصيد المشتريات" : "Cash Balance"}</th>
-                <th className="py-3.5 px-4 text-start">{isAr ? "حصص السلال المتاحة" : "Baskets Quota"}</th>
-                <th className="py-3.5 px-4 text-start">{isAr ? "الحالة" : "Status"}</th>
-                <th className="py-3.5 px-4 text-center">{isAr ? "إجراءات الإدارة" : "Admin Actions"}</th>
+                <th className="py-3.5 px-3 text-start whitespace-nowrap">{isAr ? "رقم الكارت" : "Card ID"}</th>
+                <th className="py-3.5 px-4 text-start whitespace-nowrap">{isAr ? "اسم المستفيد" : "Beneficiary Name"}</th>
+                <th className="py-3.5 px-3 text-start whitespace-nowrap">{isAr ? "رقم الهوية / الجواز" : "National ID"}</th>
+                <th className="py-3.5 px-3 text-start whitespace-nowrap">{isAr ? "الجنسية" : "Nationality"}</th>
+                <th className="py-3.5 px-3 text-start whitespace-nowrap">{isAr ? "أفراد الأسرة" : "Family Size"}</th>
+                <th className="py-3.5 px-4 text-start whitespace-nowrap">{isAr ? "محل الإقامة" : "Residence"}</th>
+                <th className="py-3.5 px-3 text-start whitespace-nowrap">{isAr ? "رصيد المشتريات" : "Cash Balance"}</th>
+                <th className="py-3.5 px-3 text-start whitespace-nowrap">{isAr ? "حصص السلال" : "Baskets Quota"}</th>
+                <th className="py-3.5 px-3 text-start whitespace-nowrap">{isAr ? "الحالة" : "Status"}</th>
+                <th className="py-3.5 px-4 text-center whitespace-nowrap">{isAr ? "إجراءات الإدارة" : "Admin Actions"}</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 font-semibold">
               {loading ? (
                 <tr>
-                  <td colSpan={7} className="py-16 text-center text-slate-400 font-bold">
+                  <td colSpan={10} className="py-16 text-center text-slate-400 font-bold">
                     {isAr ? "جاري تحميل بيانات المستفيدين..." : "Loading beneficiaries..."}
                   </td>
                 </tr>
               ) : filteredCards.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="py-16 text-center text-slate-400 font-bold">
+                  <td colSpan={10} className="py-16 text-center text-slate-400 font-bold">
                     {isAr ? "لا توجد نتائج مطابقة للبحث" : "No matching beneficiaries found"}
                   </td>
                 </tr>
               ) : (
                 paginatedCards.map((card) => (
                   <tr key={card.cardId} className="hover:bg-slate-50/80 transition-colors">
-                    {/* Card ID */}
-                    <td className="py-3.5 px-4">
-                      <span className="font-mono font-black text-xs px-2.5 py-1 rounded-lg bg-slate-100 text-slate-900 border border-slate-200 inline-block">
+                    {/* 1. Card ID */}
+                    <td className="py-3.5 px-3 whitespace-nowrap">
+                      <span className="font-mono font-black text-xs px-2.5 py-1 rounded-lg bg-slate-100 text-slate-900 border border-slate-200 inline-block shadow-2xs">
                         {card.cardId}
                       </span>
                     </td>
 
-                    {/* Beneficiary Name & National ID */}
-                    <td className="py-3.5 px-4">
-                      <div className="font-black text-slate-900 text-sm leading-tight">
+                    {/* 2. Beneficiary Name */}
+                    <td className="py-3.5 px-4 whitespace-nowrap">
+                      <span className="font-black text-slate-950 text-sm">
                         {card.beneficiaryName}
-                      </div>
-                      <div className="flex items-center gap-2 mt-1 text-xs text-slate-500 font-mono">
-                        <span>ID: {formatId(card.nationalId)}</span>
-                        {card.nationality && (
-                          <span className="px-1.5 py-0.2 rounded-md bg-slate-100 text-slate-700 text-[10px] font-sans font-bold">
-                            {card.nationality}
-                          </span>
-                        )}
-                      </div>
+                      </span>
                     </td>
 
-                    {/* Family Count & Residence */}
-                    <td className="py-3.5 px-4">
-                      <div className="flex items-center gap-1.5">
-                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-blue-50 text-blue-800 border border-blue-200 text-xs font-black">
-                          <Users className="w-3 h-3 text-blue-600" />
-                          {card.familyCount || 4} {isAr ? "أفراد" : "members"}
-                        </span>
-                      </div>
-                      <div className="flex items-center gap-1 text-xs text-slate-600 font-bold mt-1">
-                        <MapPin className="w-3 h-3 text-slate-400 flex-shrink-0" />
+                    {/* 3. National ID / Passport (Zero Spaces) */}
+                    <td className="py-3.5 px-3 whitespace-nowrap">
+                      <span className="font-mono font-black text-xs text-slate-800 bg-slate-50 px-2.5 py-1 rounded-md border border-slate-200 inline-block shadow-2xs">
+                        {formatId(card.nationalId)}
+                      </span>
+                    </td>
+
+                    {/* 4. Nationality */}
+                    <td className="py-3.5 px-3 whitespace-nowrap">
+                      <span className="inline-block px-2.5 py-1 rounded-lg bg-slate-100 text-slate-800 text-xs font-black border border-slate-200 shadow-2xs">
+                        {card.nationality || (isAr ? "سورية" : "Syrian")}
+                      </span>
+                    </td>
+
+                    {/* 5. Family Members */}
+                    <td className="py-3.5 px-3 whitespace-nowrap">
+                      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-blue-50 text-blue-900 border border-blue-200 text-xs font-black shadow-2xs">
+                        <Users className="w-3.5 h-3.5 text-blue-600 flex-shrink-0" />
+                        <span>{card.familyCount || 4} {isAr ? "أفراد" : "members"}</span>
+                      </span>
+                    </td>
+
+                    {/* 6. Residence */}
+                    <td className="py-3.5 px-4 whitespace-nowrap">
+                      <div className="flex items-center gap-1.5 text-xs text-slate-700 font-bold">
+                        <MapPin className="w-3.5 h-3.5 text-slate-400 flex-shrink-0" />
                         <span>{card.residence || (isAr ? "الرياض - حي الروضة" : "Riyadh")}</span>
                       </div>
                     </td>
 
-                    {/* Cash Balance */}
-                    <td className="py-3.5 px-4">
+                    {/* 7. Cash Balance */}
+                    <td className="py-3.5 px-3 whitespace-nowrap">
                       <span className="font-black text-[#0A734D] font-mono text-sm">
                         {(card.totalBalance || 0).toLocaleString()} {isAr ? "ج.م" : "EGP"}
                       </span>
-                      <p className="text-[10px] text-slate-400 font-bold">{isAr ? "صرف المتاجر" : "Merchant POS"}</p>
                     </td>
 
-                    {/* Food Baskets Quota */}
-                    <td className="py-3.5 px-4">
-                      <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-amber-50 text-amber-900 border border-amber-300 font-black text-xs font-mono">
+                    {/* 8. Food Baskets Quota */}
+                    <td className="py-3.5 px-3 whitespace-nowrap">
+                      <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-amber-50 text-amber-950 border border-amber-300 font-black text-xs font-mono shadow-2xs">
                         {card.foodBasketsQuota || 0} {isAr ? "سلة" : "baskets"}
                       </span>
-                      <p className="text-[10px] text-slate-400 font-bold mt-0.5">{isAr ? "توزيع الإدارة" : "Admin distribution"}</p>
                     </td>
 
-                    {/* Status */}
-                    <td className="py-3.5 px-4">
+                    {/* 9. Status */}
+                    <td className="py-3.5 px-3 whitespace-nowrap">
                       <span
-                        className={`inline-block text-[11px] font-black px-2.5 py-0.5 rounded-full ${
+                        className={`inline-block text-xs font-black px-2.5 py-1 rounded-full shadow-2xs ${
                           card.status === "active"
-                            ? "bg-emerald-100 text-emerald-800 border border-emerald-300"
+                            ? "bg-emerald-100 text-emerald-900 border border-emerald-300"
                             : card.status === "frozen"
-                            ? "bg-amber-100 text-amber-800 border border-amber-300"
-                            : "bg-red-100 text-red-800 border border-red-300"
+                            ? "bg-amber-100 text-amber-900 border border-amber-300"
+                            : "bg-red-100 text-red-900 border border-red-300"
                         }`}
                       >
                         {card.status === "active" ? (isAr ? "نشط" : "Active") : card.status === "frozen" ? (isAr ? "مجمد" : "Frozen") : (isAr ? "منتهي" : "Expired")}
