@@ -232,7 +232,7 @@ export default function AnalyticsPage() {
             <BarChart3 className="w-6 h-6 text-white" />
           </div>
           <div>
-            <h1 className="text-2xl lg:text-3xl font-black text-slate-950 ">
+            <h1 className="text-xl sm:text-2xl lg:text-3xl font-black text-slate-950">
               {isAr ? "مركز التحليلات والمحاسبة الإغاثية" : "Analytics & Operations Center"}
             </h1>
             <p className="text-sm text-slate-500 font-semibold mt-1">

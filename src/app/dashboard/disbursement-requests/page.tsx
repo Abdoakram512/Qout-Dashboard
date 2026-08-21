@@ -169,7 +169,7 @@ export default function DisbursementRequestsPage() {
             <ShieldAlert className="w-6 h-6 text-amber-300" />
           </div>
           <div>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 flex-wrap">
               <h1 className="text-xl lg:text-2xl font-black text-slate-900">
                 {isAr ? "طلبات الصرف الاستثنائي والطوارئ" : "Extra Disbursement Requests"}
               </h1>

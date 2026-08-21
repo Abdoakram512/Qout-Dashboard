@@ -473,10 +473,10 @@ export default function BeneficiariesPage() {
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl lg:text-3xl font-black text-slate-950 tracking-tight flex items-center gap-2.5">
-            <Users className="w-7 h-7 text-[#0A734D]" />
+          <h1 className="text-xl sm:text-2xl lg:text-3xl font-black text-slate-950 tracking-tight flex flex-wrap items-center gap-2 sm:gap-2.5">
+            <Users className="w-6 h-6 sm:w-7 sm:h-7 text-[#0A734D]" />
             <span>{isAr ? "المستفيدون والكروت الإغاثية" : "Beneficiaries & Aid Cards"}</span>
-            <span className="text-sm font-black px-3 py-1 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-300">
+            <span className="text-xs sm:text-sm font-black px-2.5 sm:px-3 py-0.5 sm:py-1 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-300">
               {cards.length} {isAr ? "حالة مسجلة" : "cases"}
             </span>
           </h1>

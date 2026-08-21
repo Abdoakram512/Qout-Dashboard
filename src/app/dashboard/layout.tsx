@@ -664,32 +664,34 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         <header className="qout-topbar sticky top-0 z-20 px-4 sm:px-6 flex items-center justify-between bg-white/95 backdrop-blur-xs border-b border-slate-200/80 shadow-xs h-16">
 
           {/* Left: Mobile Toggle & Page Title */}
-          <div className="flex items-center gap-2.5 sm:gap-3.5">
+          <div className="flex items-center gap-2 sm:gap-3.5 min-w-0">
             <button
-              className="lg:hidden btn btn-icon btn-secondary p-2 rounded-xl"
+              className="lg:hidden btn btn-icon btn-secondary p-2 rounded-xl flex-shrink-0"
               onClick={() => setMobileOpen(true)}
               aria-label={isAr ? "فتح القائمة" : "Open Navigation"}
             >
               <Menu className="w-5 h-5 text-slate-800" />
             </button>
             {pageTitle && (
-              <h2 className="text-sm sm:text-base lg:text-lg font-black text-slate-900 truncate">
+              <h2 className="text-xs sm:text-base lg:text-lg font-black text-slate-900 truncate">
                 {pageTitle}
               </h2>
             )}
           </div>
 
           {/* Right: Actions */}
-          <div className="flex items-center gap-2.5">
+          <div className="flex items-center gap-1.5 sm:gap-2.5 flex-shrink-0">
 
             {/* Pending Accounts Alert */}
             {pendingCount > 0 && (
               <a
                 href="/dashboard/accounts"
-                className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-black bg-amber-100 text-amber-900 border border-amber-300 hover:bg-amber-200 transition-all shadow-xs"
+                className="flex items-center gap-1 sm:gap-1.5 px-2 sm:px-3.5 py-1.5 rounded-full text-xs font-black bg-amber-100 text-amber-900 border border-amber-300 hover:bg-amber-200 transition-all shadow-xs"
+                title={isAr ? `${pendingCount} حسابات معلقة للاعتماد` : `${pendingCount} pending accounts`}
               >
-                <Bell className="w-3.5 h-3.5 text-amber-700" />
-                <span>{pendingCount} {isAr ? "معلق للاعتماد" : "pending"}</span>
+                <Bell className="w-3.5 h-3.5 text-amber-700 flex-shrink-0" />
+                <span className="hidden sm:inline">{pendingCount} {isAr ? "معلق للاعتماد" : "pending"}</span>
+                <span className="sm:hidden font-mono font-black">{pendingCount}</span>
               </a>
             )}
 
