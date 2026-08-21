@@ -10,7 +10,7 @@ import {
   ResponsiveContainer, Cell, AreaChart, Area,
 } from "recharts";
 import {
-  Flame, ShieldAlert, Users, AlertTriangle, CheckCircle2,
+  Flame, ShieldAlert, Users,
   BarChart3, Activity,
 } from "lucide-react";
 
@@ -218,23 +218,6 @@ export default function AnalyticsPage() {
       };
     });
   }, [cards, isAr]);
-
-  /* ── Anomaly Sentinel Detection (Spikes) ── */
-  const anomalies = useMemo(() => {
-    const thirtyMinsAgo = Date.now() - 30 * 60 * 1000;
-    const storeCount: Record<string, number> = {};
-
-    txns.forEach((t) => {
-      const ts = t.timestamp?.toDate ? t.timestamp.toDate().getTime() : 0;
-      if (ts > thirtyMinsAgo && t.merchantStoreName) {
-        storeCount[t.merchantStoreName] = (storeCount[t.merchantStoreName] || 0) + 1;
-      }
-    });
-
-    return Object.entries(storeCount)
-      .filter(([, count]) => count >= 3)
-      .map(([store, count]) => ({ store, count }));
-  }, [txns]);
 
   return (
     <div className="space-y-7 page-enter">
@@ -603,66 +586,6 @@ export default function AnalyticsPage() {
             </tbody>
           </table>
         </div>
-      </div>
-
-      {/* ── Section 4: Anomaly Sentinel (Security / Fraud Watch) ── */}
-      <div className="qout-card p-6 lg:p-7 bg-white shadow-sm">
-        <div className="flex items-center gap-3 mb-5">
-          <div className={`kpi-icon ${anomalies.length > 0 ? "amber" : ""}`}>
-            <AlertTriangle className="w-6 h-6" />
-          </div>
-          <div>
-            <h3 className="text-base lg:text-lg font-black text-slate-950">
-              {isAr ? "حارس النزاهة وكاشف الأنماط غير المعتادة (Anomaly Sentinel)" : "Integrity Guard & Anomaly Sentinel"}
-            </h3>
-            <p className="text-xs lg:text-sm text-slate-500 font-semibold mt-0.5">
-              {isAr ? "مراقبة العمليات المتكررة أو غير الطبيعية من منافذ الصرف خلال فترات زمنية قصيرة" : "Live monitoring of high-frequency or anomalous merchant redemptions"}
-            </p>
-          </div>
-        </div>
-
-        {anomalies.length === 0 ? (
-          <div className="flex items-center gap-4 p-5 rounded-2xl bg-emerald-50 border border-emerald-200 text-emerald-950">
-            <CheckCircle2 className="w-6 h-6 text-emerald-600 flex-shrink-0" />
-            <div>
-              <p className="text-base font-black text-emerald-950">
-                {isAr ? "المنظومة آمنة: لا توجد عمليات صرف مريبة في آخر 30 دقيقة" : "System Secure: No anomalous activity detected in the last 30 minutes"}
-              </p>
-              <p className="text-sm text-emerald-800 font-semibold mt-0.5">
-                {isAr ? "تتم معالجة كافة حركات الصرف بوتيرة طبيعية وآمنة." : "All transactions are executing within standard operating thresholds."}
-              </p>
-            </div>
-          </div>
-        ) : (
-          <div className="space-y-3">
-            {anomalies.map((item, idx) => (
-              <div
-                key={idx}
-                className="flex items-center justify-between p-5 rounded-2xl bg-amber-50 border border-amber-200"
-              >
-                <div className="flex items-center gap-3.5">
-                  <AlertTriangle className="w-6 h-6 text-amber-600 flex-shrink-0" />
-                  <div>
-                    <p className="text-base font-black text-amber-950">
-                      {isAr
-                        ? `تنبيه: تم رصد ${item.count} عمليات صرف سريعة خلال 30 دقيقة`
-                        : `Alert: ${item.count} high-speed redemptions in 30 minutes`}
-                    </p>
-                    <p className="text-sm font-bold text-amber-800 mt-0.5">
-                      {isAr ? "المتجر: " : "Store: "}{item.store}
-                    </p>
-                  </div>
-                </div>
-                <a
-                  href="/dashboard/merchants"
-                  className="btn btn-amber text-sm font-bold px-4 py-2"
-                >
-                  {isAr ? "فحص المنفذ" : "Review Store"}
-                </a>
-              </div>
-            ))}
-          </div>
-        )}
       </div>
 
     </div>

@@ -4,7 +4,7 @@ import React, { useState } from "react";
 import { useAuth } from "@/lib/authContext";
 import { useI18n } from "@/lib/i18n";
 import {
-  Settings, Database, User, KeyRound, ShieldCheck,
+  Settings, User, KeyRound, ShieldCheck,
   CheckCircle2, Eye, EyeOff, Save, Lock, Sparkles, AlertCircle
 } from "lucide-react";
 
@@ -222,49 +222,6 @@ export default function SettingsPage() {
             )}
           </button>
         </form>
-      </div>
-
-      {/* Cloud & Database Health */}
-      <div className="bg-white rounded-3xl p-6 lg:p-7 border border-slate-200 shadow-xs space-y-4">
-        <div className="flex items-center gap-3 pb-3 border-b border-slate-100">
-          <div className="w-10 h-10 rounded-2xl bg-blue-100 text-blue-800 flex items-center justify-center flex-shrink-0">
-            <Database className="w-5 h-5" />
-          </div>
-          <div>
-            <h3 className="text-base font-black text-slate-950">
-              {isAr ? "حالة الاتصال بالبنية التحتية السحابية" : "Cloud Infrastructure & Database Health"}
-            </h3>
-            <p className="text-xs text-slate-500 font-bold mt-0.5">
-              {isAr ? "بيانات الاتصال بقواعد بيانات Google Cloud Firebase" : "Google Cloud Firebase connection status"}
-            </p>
-          </div>
-        </div>
-
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-xs">
-          <div className="p-4 bg-slate-50 rounded-2xl border border-slate-200/80">
-            <span className="text-slate-500 font-extrabold block mb-1">
-              {isAr ? "معرف المشروع:" : "Project ID:"}
-            </span>
-            <span className="font-mono font-black text-slate-900 text-sm">qout-f853f</span>
-          </div>
-
-          <div className="p-4 bg-slate-50 rounded-2xl border border-slate-200/80">
-            <span className="text-slate-500 font-extrabold block mb-1">
-              {isAr ? "حالة السيرفر:" : "Server Status:"}
-            </span>
-            <span className="inline-flex items-center gap-1.5 text-emerald-800 font-black text-sm">
-              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-              {isAr ? "متصل ويعمل بكفاءة (Online)" : "Healthy & Online"}
-            </span>
-          </div>
-
-          <div className="p-4 bg-slate-50 rounded-2xl border border-slate-200/80">
-            <span className="text-slate-500 font-extrabold block mb-1">
-              {isAr ? "المنطقة الجغرافية:" : "Region:"}
-            </span>
-            <span className="font-mono font-black text-slate-900 text-sm">europe-west1</span>
-          </div>
-        </div>
       </div>
     </div>
   );
