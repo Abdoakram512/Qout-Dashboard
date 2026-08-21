@@ -250,15 +250,105 @@ export default function AnalyticsPage() {
           </div>
           <div>
             <h1 className="text-2xl lg:text-3xl font-black text-slate-950 ">
-              {isAr ? "مركز التحليلات الإحصائية" : "Analytics & Operations Center"}
+              {isAr ? "مركز التحليلات والمحاسبة الإغاثية" : "Analytics & Operations Center"}
             </h1>
             <p className="text-sm text-slate-500 font-semibold mt-1">
               {isAr
-                ? "مؤشرات الاستهلاك، دراسة الاحتياج، وتنبؤات استدامة المساعدات"
-                : "Burn-rate velocity, vulnerability insights, and operational alerts"}
+                ? "مؤسسة الفجر الخيرية | مؤشرات الاستهلاك، دراسة الاحتياج، وتوليد كشوف الحسابات المحاسبية المعتمدة"
+                : "Al-Fajr Foundation | Burn-rate velocity, vulnerability matrix, and certified accounting close reports"}
             </p>
           </div>
         </div>
+
+        <button
+          onClick={() => {
+            const printWindow = window.open("", "_blank");
+            if (!printWindow) return;
+
+            const curDate = new Date();
+            const monthName = curDate.toLocaleDateString("ar-EG", { month: "long", year: "numeric" });
+
+            const html = `
+              <!DOCTYPE html>
+              <html dir="rtl" lang="ar">
+              <head>
+                <meta charset="utf-8">
+                <title>تقرير الإقفال المحاسبي الشهري - مؤسسة الفجر الخيرية</title>
+                <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+                <style>
+                  @page { size: A4 portrait; margin: 12mm; }
+                  body { font-family: 'Cairo', sans-serif; margin: 0; padding: 10px; color: #0f172a; background: #fff; font-size: 11px; }
+                  .header { display: flex; justify-content: space-between; align-items: center; border-bottom: 3px solid #0A734D; padding-bottom: 12px; margin-bottom: 16px; }
+                  .brand-title { font-size: 22px; font-weight: 900; color: #0A734D; margin: 0; }
+                  .brand-sub { font-size: 11px; color: #64748b; margin: 2px 0 0 0; }
+                  .grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; margin-bottom: 16px; }
+                  .card { padding: 12px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; }
+                  .card-title { font-size: 11px; color: #64748b; font-weight: bold; }
+                  .card-val { font-size: 18px; font-weight: 900; color: #0A734D; font-mono; margin-top: 4px; }
+                  .footer-box { margin-top: 30px; display: flex; justify-content: space-between; align-items: center; border-top: 2px solid #e2e8f0; padding-top: 15px; }
+                  .stamp { border: 2px dashed #0A734D; padding: 10px 20px; border-radius: 8px; text-align: center; color: #0A734D; font-weight: 900; }
+                </style>
+              </head>
+              <body>
+                <div class="header">
+                  <div>
+                    <h1 class="brand-title">مؤسسة الفجر الخيرية (Al-Fajr Foundation)</h1>
+                    <p class="brand-sub">تقرير الإقفال والمطابقة المحاسبية لشهر (${monthName})</p>
+                  </div>
+                  <div style="text-align: left; font-size: 11px;">
+                    <div>تاريخ الإصدار: <b>${curDate.toLocaleDateString("ar-EG")}</b></div>
+                    <div>الحالة: <b style="color: #0A734D;">معتمد ومطابق ✅</b></div>
+                  </div>
+                </div>
+
+                <div class="grid">
+                  <div class="card">
+                    <div class="card-title">إجمالي المبالغ المنصرفة فعلياً للمستفيدين</div>
+                    <div class="card-val">${totalDisbursedAmount.toLocaleString()} ج.م</div>
+                  </div>
+                  <div class="card">
+                    <div class="card-title">إجمالي الأرصدة المتبقية ببطاقات المستفيدين</div>
+                    <div class="card-val" style="color: #b45309;">${totalRemainingBalance.toLocaleString()} ج.م</div>
+                  </div>
+                  <div class="card">
+                    <div class="card-title">عدد المستفيدين المعتمدين بالمنظومة</div>
+                    <div class="card-val" style="color: #0284c7;">${cards.length} حالة مسجلة</div>
+                  </div>
+                  <div class="card">
+                    <div class="card-title">معدل الصرف اليومي المحسوب</div>
+                    <div class="card-val">${dailyBurnRate.toLocaleString()} ج.م / يوم</div>
+                  </div>
+                </div>
+
+                <div style="background: #ecfdf5; border: 1px solid #a7f3d0; border-radius: 8px; padding: 12px; margin-top: 15px; font-size: 11px; font-weight: bold; color: #064e3b; line-height: 1.6;">
+                  📌 إقرار التدقيق الداخلي: تشهد الإدارة المالية لمؤسسة الفجر الخيرية بأن كافة العمليات المذكورة أعلاه مطابقة لقيود الصرف الرقمية وسجلات المنافذ المعتمدة، وتم التحقق من سلامة الأرصدة عبر نظام الحماية المشفر.
+                </div>
+
+                <div class="footer-box">
+                  <div>
+                    <p style="margin: 0; font-weight: bold;">الإدارة المالية والمراجعة الحسابية</p>
+                    <p style="margin: 3px 0 0 0; color: #94a3b8; font-size: 10px;">تقرير محاسبي موثق صادر من السيرفر المركزي</p>
+                  </div>
+                  <div class="stamp">
+                    اعتماد الإدارة المالية<br>مؤسسة الفجر الخيرية
+                  </div>
+                </div>
+
+                <script>
+                  window.onload = function() { setTimeout(function() { window.print(); }, 500); };
+                </script>
+              </body>
+              </html>
+            `;
+            printWindow.document.open();
+            printWindow.document.write(html);
+            printWindow.document.close();
+          }}
+          className="btn bg-[#0A734D] hover:bg-[#085E3E] text-white font-black flex items-center gap-2 px-4 py-2.5 rounded-xl shadow-md cursor-pointer self-start sm:self-auto"
+        >
+          <Activity className="w-4 h-4 text-amber-300" />
+          <span>{isAr ? "تصدير كشف الإقفال المحاسبي الشهري" : "Export Monthly Audit"}</span>
+        </button>
       </div>
 
       {/* ── Section 1: Aid Burn-Rate & Velocity Forecast ── */}

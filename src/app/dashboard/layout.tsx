@@ -14,8 +14,8 @@ import {
 import { collection, query, where, orderBy, limit, onSnapshot } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 
-// ─── QOUT Official Brand Logo (Vector Insignia) ───────────────────
-function QoutLogo({ isAr }: { isAr: boolean }) {
+// ─── Al-Fajr Foundation Brand Logo (Vector Insignia) ──────────────
+function AlFajrLogo({ isAr }: { isAr: boolean }) {
   return (
     <div className="flex items-center gap-3.5">
       {/* Brand Icon Emblem */}
@@ -39,9 +39,10 @@ function QoutLogo({ isAr }: { isAr: boolean }) {
             strokeLinecap="round"
             strokeLinejoin="round"
           >
-            <path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z" fill="#F59E0B" stroke="#FDE68A" strokeWidth="1.5" />
-            <path d="M12 5 9.04 7.96a2.17 2.17 0 0 0 0 3.08c.82.82 2.13.85 3 .07l2.07-1.9" stroke="#FFFFFF" strokeWidth="2" />
-            <path d="m14 15 2 2" stroke="#FFFFFF" strokeWidth="2" />
+            {/* Sunrise / Crescent Foundation Emblem */}
+            <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83" stroke="#F59E0B" strokeWidth="1.5" />
+            <circle cx="12" cy="12" r="4" fill="#F59E0B" stroke="#FDE68A" strokeWidth="1.5" />
+            <path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z" fill="none" stroke="#FFFFFF" strokeWidth="1.5" />
           </svg>
         </div>
       </div>
@@ -50,14 +51,14 @@ function QoutLogo({ isAr }: { isAr: boolean }) {
       <div className="flex flex-col justify-center">
         <div className="flex items-center gap-2">
           <span className="text-xl font-black text-slate-900 tracking-tight leading-tight">
-            {isAr ? "منظومة قُوت" : "QOUT Relief"}
+            {isAr ? "مؤسسة الفجر" : "Al-Fajr Relief"}
           </span>
           <span className="text-[10px] font-black px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-300/80 font-mono">
             PRO
           </span>
         </div>
         <span className="text-xs font-bold text-[#0A734D] tracking-wide mt-0.5 leading-none">
-          {isAr ? "منظومة الإغاثة الرقمية المركزية" : "Digital Humanitarian Platform"}
+          {isAr ? "المؤسسة الخيرية المركزية" : "Humanitarian Foundation"}
         </span>
       </div>
     </div>
@@ -469,27 +470,38 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const router = useRouter();
   const isAr = locale === "ar";
 
-  const [pendingCount, setPendingCount]         = useState(0);
-  const [beneficiaryCount, setBeneficiaryCount] = useState(0);
-  const [merchantCount, setMerchantCount]       = useState(0);
-  const [mobileOpen, setMobileOpen]             = useState(false);
-  const [activityOpen, setActivityOpen]         = useState(false);
-  const [lastSync, setLastSync]                 = useState<string>("—");
+  const [pendingCount, setPendingCount]                 = useState(0);
+  const [pendingRequestsCount, setPendingRequestsCount] = useState(0);
+  const [beneficiaryCount, setBeneficiaryCount]         = useState(0);
+  const [merchantCount, setMerchantCount]               = useState(0);
+  const [mobileOpen, setMobileOpen]                     = useState(false);
+  const [activityOpen, setActivityOpen]                 = useState(false);
+  const [lastSync, setLastSync]                         = useState<string>("—");
 
   useEffect(() => {
     if (!loading && !adminData) router.push("/login");
   }, [adminData, loading, router]);
 
   useEffect(() => {
+    // 1. Pending accounts
     const qPend = query(collection(db, "users"), where("isApproved", "==", false));
     const u1 = onSnapshot(qPend, (s) => {
       setPendingCount(s.size);
       setLastSync(new Date().toLocaleTimeString(isAr ? "ar-EG" : "en-US", { hour: "2-digit", minute: "2-digit" }));
     });
+
+    // 2. Beneficiaries (aid_cards)
     const u2 = onSnapshot(collection(db, "aid_cards"), (s) => setBeneficiaryCount(s.size));
+
+    // 3. Approved Merchants
     const qMerch = query(collection(db, "users"), where("role", "==", "merchant"), where("isActive", "==", true));
     const u3 = onSnapshot(qMerch, (s) => setMerchantCount(s.size));
-    return () => { u1(); u2(); };
+
+    // 4. Pending Extra Disbursement Requests
+    const qReq = query(collection(db, "extra_disbursement_requests"), where("status", "==", "pending"));
+    const u4 = onSnapshot(qReq, (s) => setPendingRequestsCount(s.size));
+
+    return () => { u1(); u2(); u3(); u4(); };
   }, [isAr]);
 
   const navSections = [
@@ -497,16 +509,17 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       label: isAr ? "التشغيل والمتابعة" : "Operations",
       items: [
         { href: "/dashboard",           icon: LayoutDashboard, label: isAr ? "النظرة العامة"     : "Overview" },
-        { href: "/dashboard/analytics", icon: BarChart3,       label: isAr ? "التحليلات والإحصاء" : "Analytics" },
+        { href: "/dashboard/analytics", icon: BarChart3,       label: isAr ? "التحليلات والتقارير المحاسبية" : "Analytics & Reports" },
       ],
     },
     {
-      label: isAr ? "إدارة البيانات" : "Data Management",
+      label: isAr ? "إدارة البيانات والعمليات" : "Data & Operations",
       items: [
-        { href: "/dashboard/beneficiaries", icon: Users,       label: isAr ? "المستفيدون والكروت" : "Beneficiaries", badge: beneficiaryCount, badgeColor: "emerald" as const },
-        { href: "/dashboard/merchants",     icon: Store,       label: isAr ? "المنافذ والصرافون"  : "Merchants",     badge: merchantCount,    badgeColor: "emerald" as const },
-        { href: "/dashboard/accounts",      icon: UserCheck,   label: isAr ? "الحسابات والاعتمادات" : "Accounts",      badge: pendingCount,     badgeColor: "amber" as const },
-        { href: "/dashboard/transactions",  icon: ReceiptText, label: isAr ? "سجل العمليات"      : "Transactions" },
+        { href: "/dashboard/beneficiaries",         icon: Users,       label: isAr ? "المستفيدون والكروت" : "Beneficiaries", badge: beneficiaryCount, badgeColor: "emerald" as const },
+        { href: "/dashboard/merchants",             icon: Store,       label: isAr ? "المنافذ والميزانيات" : "Merchants & Budgets", badge: merchantCount, badgeColor: "emerald" as const },
+        { href: "/dashboard/disbursement-requests", icon: AlertCircle, label: isAr ? "طلبات الصرف الإضافي" : "Extra Disbursements", badge: pendingRequestsCount, badgeColor: "amber" as const },
+        { href: "/dashboard/accounts",              icon: UserCheck,   label: isAr ? "الحسابات والاعتمادات" : "Accounts",      badge: pendingCount,     badgeColor: "amber" as const },
+        { href: "/dashboard/transactions",          icon: ReceiptText, label: isAr ? "سجل العمليات"      : "Transactions" },
       ],
     },
     {
@@ -517,23 +530,28 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     },
   ];
 
-  const pageTitles: Record<string, string> = {
-    "/dashboard":               isAr ? "النظرة العامة"      : "Overview",
-    "/dashboard/analytics":     isAr ? "مركز التحليلات"     : "Analytics",
-    "/dashboard/beneficiaries": isAr ? "المستفيدون والكروت" : "Beneficiaries",
-    "/dashboard/merchants":     isAr ? "المنافذ والصرافون"  : "Merchants",
-    "/dashboard/accounts":      isAr ? "الحسابات"           : "Accounts",
-    "/dashboard/transactions":  isAr ? "سجل العمليات"       : "Transactions",
-    "/dashboard/settings":      isAr ? "الإعدادات"          : "Settings",
+  const getPageTitle = (path: string) => {
+    if (path === "/dashboard") return isAr ? "النظرة العامة" : "Overview";
+    if (path === "/dashboard/analytics") return isAr ? "مركز التحليلات والإقفال المالي" : "Analytics & Financial Close";
+    if (path === "/dashboard/beneficiaries") return isAr ? "المستفيدون والكروت الإغاثية" : "Beneficiaries & Aid Cards";
+    if (path.startsWith("/dashboard/beneficiaries/")) return isAr ? "ملف المستفيد الشامل (360°)" : "Beneficiary 360° Profile";
+    if (path === "/dashboard/merchants") return isAr ? "المنافذ والصرافون والميزانيات" : "Merchants & Liquidity";
+    if (path.startsWith("/dashboard/merchants/")) return isAr ? "بروفايل الصراف والمحفظة المالية" : "Merchant Ledger & Profile";
+    if (path === "/dashboard/disbursement-requests") return isAr ? "طلبات الصرف الإضافي والاستثنائي" : "Extra Disbursement Requests";
+    if (path === "/dashboard/accounts") return isAr ? "إدارة الحسابات" : "Accounts Management";
+    if (path === "/dashboard/transactions") return isAr ? "سجل العمليات" : "Redemption Transactions";
+    if (path === "/dashboard/settings") return isAr ? "الإعدادات" : "Settings";
+    return isAr ? "لوحة التحكم" : "Dashboard";
   };
-  const pageTitle = pageTitles[pathname] || "";
+
+  const pageTitle = getPageTitle(pathname);
 
   if (loading) {
     return (
       <div className="flex h-screen w-full items-center justify-center bg-[#F8FAF9]">
         <div className="flex flex-col items-center gap-4">
-          <div className="w-14 h-14 rounded-2xl bg-[#0A734D] border-2 border-amber-400 text-white flex items-center justify-center font-black text-2xl shadow-lg shadow-emerald-950/20">
-            قُوت
+          <div className="w-16 h-16 rounded-2xl bg-[#0A734D] border-2 border-amber-400 text-white flex items-center justify-center font-black text-xl shadow-lg shadow-emerald-950/20">
+            الفجر
           </div>
           <div className="w-7 h-7 border-3 border-emerald-600 border-t-transparent rounded-full animate-spin" />
         </div>
@@ -545,7 +563,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     <>
       {/* Brand Header */}
       <div className="px-6 py-5 border-b border-slate-200/80 bg-white">
-        <QoutLogo isAr={isAr} />
+        <AlFajrLogo isAr={isAr} />
       </div>
 
       {/* Navigation Sections */}
@@ -560,7 +578,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                   href={item.href}
                   icon={item.icon}
                   label={item.label}
-                  isActive={pathname === item.href}
+                  isActive={pathname === item.href || (item.href !== "/dashboard" && pathname.startsWith(item.href))}
                   badge={"badge" in item ? item.badge : undefined}
                   badgeColor={"badgeColor" in item ? item.badgeColor : undefined}
                 />
@@ -570,7 +588,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         ))}
       </nav>
 
-      {/* Footer Profile & Logout (Full Visibility, No Ellipsis) */}
+      {/* Footer Profile & Logout */}
       <div className="p-4 border-t border-slate-200/80 bg-slate-50/80">
         <div className="flex items-center gap-3 mb-3 p-3 rounded-xl bg-white border border-slate-200 shadow-xs">
           <div
@@ -580,7 +598,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           </div>
           <div className="flex-1 min-w-0">
             <p className="text-sm font-black text-slate-900 leading-tight">
-              {adminData?.name || (isAr ? "المشرف العام لمنظومة قُوت" : "Administrator")}
+              {adminData?.name || (isAr ? "مشرف مؤسسة الفجر" : "Administrator")}
             </p>
             <p className="text-xs text-slate-500 font-mono mt-1 font-semibold break-all">
               {adminData?.email}

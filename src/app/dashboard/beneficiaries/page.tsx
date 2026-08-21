@@ -13,12 +13,24 @@ import {
   Users, Search, Globe, Download, FileSpreadsheet, Printer,
   QrCode, Edit, Edit3, X, PackageCheck, MapPin, CheckCircle2,
   AlertCircle, ChevronDown, Sparkles, Filter, Home,
-  Package, FileText, CreditCard, ShieldCheck, Coins,
+  Package, FileText, Plus, Minus, CreditCard, ShieldCheck, Coins,
+  Clock,
 } from "lucide-react";
 
 function formatId(raw?: string): string {
   if (!raw) return "-";
   return String(raw).replace(/\s+/g, "").toUpperCase();
+}
+
+function parseDate(raw: any): Date | null {
+  if (!raw) return null;
+  if (raw.toDate) return raw.toDate();
+  if (raw instanceof Date) return raw;
+  if (typeof raw === "string") {
+    const d = new Date(raw);
+    return isNaN(d.getTime()) ? null : d;
+  }
+  return null;
 }
 
 export default function BeneficiariesPage() {
@@ -31,6 +43,12 @@ export default function BeneficiariesPage() {
   const [search, setSearch] = useState("");
   const [selectedNationality, setSelectedNationality] = useState("all");
   const [selectedStatus, setSelectedStatus] = useState("all");
+
+  // Recipient Filters
+  const now = new Date();
+  const [selectedRecipientFilter, setSelectedRecipientFilter] = useState("all");
+  const [selectedMonth, setSelectedMonth] = useState<number>(now.getMonth());
+  const [selectedYear, setSelectedYear] = useState<number>(now.getFullYear());
 
   // QR Modal
   const [activeCard, setActiveCard] = useState<AidCardModel | null>(null);
@@ -48,7 +66,7 @@ export default function BeneficiariesPage() {
   // Distribute Basket Modal (Admin Distribution)
   const [distributeCard, setDistributeCard] = useState<AidCardModel | null>(null);
   const [distributeCount, setDistributeCount] = useState<number>(1);
-  const [distributionCenter, setDistributionCenter] = useState<string>("المقر الرئيسي - مركز توزيع الروضة");
+  const [distributionCenter, setDistributionCenter] = useState<string>("المقر الرئيسي - مركز توزيع الفجر");
   const [distributeNotes, setDistributeNotes] = useState<string>("");
   const [distributing, setDistributing] = useState(false);
   const [successToast, setSuccessToast] = useState<string | null>(null);
@@ -67,8 +85,8 @@ export default function BeneficiariesPage() {
         list.push({ cardId: docSnap.id, ...docSnap.data() } as AidCardModel);
       });
       list.sort((a, b) => {
-        const numA = parseInt(a.cardId.replace(/\\D/g, "")) || 0;
-        const numB = parseInt(b.cardId.replace(/\\D/g, "")) || 0;
+        const numA = parseInt(a.cardId.replace(/\D/g, "")) || 0;
+        const numB = parseInt(b.cardId.replace(/\D/g, "")) || 0;
         return numA - numB;
       });
       setCards(list);
@@ -77,6 +95,41 @@ export default function BeneficiariesPage() {
 
     return () => unsub();
   }, []);
+
+  // Helper to check receipt status in a specific month
+  const getCardRecipientDetails = (card: AidCardModel, targetMonth = selectedMonth, targetYear = selectedYear) => {
+    const cashDate = parseDate(card.lastCashRedemptionDate);
+    const basketDate = parseDate(card.lastBasketDistributionDate);
+
+    const receivedCashInTarget = cashDate && cashDate.getMonth() === targetMonth && cashDate.getFullYear() === targetYear;
+    const receivedBasketInTarget = basketDate && basketDate.getMonth() === targetMonth && basketDate.getFullYear() === targetYear;
+
+    const hasReceived = !!(receivedCashInTarget || receivedBasketInTarget);
+    
+    // Latest date overall
+    let latestDate: Date | null = null;
+    if (cashDate && basketDate) {
+      latestDate = cashDate > basketDate ? cashDate : basketDate;
+    } else {
+      latestDate = cashDate || basketDate;
+    }
+
+    // Days since last receive
+    let daysSinceLast: number | null = null;
+    if (latestDate) {
+      daysSinceLast = Math.floor((Date.now() - latestDate.getTime()) / (1000 * 60 * 60 * 24));
+    }
+
+    return {
+      hasReceived,
+      receivedCashInTarget,
+      receivedBasketInTarget,
+      latestDate,
+      daysSinceLast,
+      cashDate,
+      basketDate,
+    };
+  };
 
   const filteredCards = cards.filter((c) => {
     const cleanNatId = formatId(c.nationalId);
@@ -93,13 +146,35 @@ export default function BeneficiariesPage() {
     const matchesNat = selectedNationality === "all" || c.nationality === selectedNationality;
     const matchesStatus = selectedStatus === "all" || c.status === selectedStatus;
 
-    return matchesSearch && matchesNat && matchesStatus;
+    // Recipient Status Filter Evaluation
+    const statusDetails = getCardRecipientDetails(c, selectedMonth, selectedYear);
+    let matchesRecipient = true;
+
+    if (selectedRecipientFilter === "received_this_month") {
+      matchesRecipient = statusDetails.hasReceived;
+    } else if (selectedRecipientFilter === "not_received_this_month") {
+      matchesRecipient = !statusDetails.hasReceived;
+    } else if (selectedRecipientFilter === "received_last_month") {
+      const prevMonth = selectedMonth === 0 ? 11 : selectedMonth - 1;
+      const prevYear = selectedMonth === 0 ? selectedYear - 1 : selectedYear;
+      matchesRecipient = getCardRecipientDetails(c, prevMonth, prevYear).hasReceived;
+    } else if (selectedRecipientFilter === "dormant") {
+      matchesRecipient = statusDetails.daysSinceLast === null || statusDetails.daysSinceLast >= 60;
+    }
+
+    return matchesSearch && matchesNat && matchesStatus && matchesRecipient;
   });
+
+  // Calculate quick stats for the currently selected month
+  const totalCardsCount = cards.length;
+  const receivedThisMonthCount = cards.filter((c) => getCardRecipientDetails(c, selectedMonth, selectedYear).hasReceived).length;
+  const notReceivedThisMonthCount = totalCardsCount - receivedThisMonthCount;
+  const coverageRate = totalCardsCount > 0 ? Math.round((receivedThisMonthCount / totalCardsCount) * 100) : 0;
 
   const totalPages = Math.ceil(filteredCards.length / itemsPerPage) || 1;
   const paginatedCards = filteredCards.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
 
-  // Pure Canvas Export (100% immune to CSS security errors)
+  // Pure Canvas Export
   const handleDownloadQrPng = () => {
     if (!activeCard || !qrCanvasContainerRef.current) return;
     const srcCanvas = qrCanvasContainerRef.current.querySelector("canvas");
@@ -122,19 +197,19 @@ export default function BeneficiariesPage() {
 
       // Header Text
       ctx.fillStyle = "#ffffff";
-      ctx.font = "bold 20px 'Segoe UI', Tahoma, sans-serif";
+      ctx.font = "bold 20px 'Cairo', 'Segoe UI', Tahoma, sans-serif";
       ctx.textAlign = "center";
-      ctx.fillText("منظومة قُوت الإغاثية", 220, 42);
+      ctx.fillText("مؤسسة الفجر الخيرية", 220, 42);
 
       // Beneficiary Name
       ctx.fillStyle = "#0f172a";
-      ctx.font = "bold 16px 'Segoe UI', Tahoma, sans-serif";
+      ctx.font = "bold 16px 'Cairo', 'Segoe UI', Tahoma, sans-serif";
       ctx.fillText(activeCard.beneficiaryName || "مستفيد", 220, 105);
 
       // Info line
       ctx.fillStyle = "#64748b";
-      ctx.font = "12px 'Segoe UI', Tahoma, sans-serif";
-      const infoSub = `${activeCard.nationality || ""} • ${activeCard.familyCount || 4} أفراد • ${activeCard.residence || ""} prioritised`.trim();
+      ctx.font = "12px 'Cairo', 'Segoe UI', Tahoma, sans-serif";
+      const infoSub = `${activeCard.nationality || ""} • ${activeCard.familyCount || 4} أفراد • ${activeCard.residence || ""}`.trim();
       ctx.fillText(infoSub, 220, 128);
 
       // Draw QR Canvas centered
@@ -151,16 +226,16 @@ export default function BeneficiariesPage() {
 
       // Balances
       ctx.fillStyle = "#0f172a";
-      ctx.font = "bold 13px 'Segoe UI', Tahoma, sans-serif";
+      ctx.font = "bold 13px 'Cairo', 'Segoe UI', Tahoma, sans-serif";
       ctx.fillText(`رصيد المشتريات: ${(activeCard.totalBalance || 0).toLocaleString()} ج.م  |  السلال: ${activeCard.foodBasketsQuota || 0} سلة`, 220, 460);
 
       // Footer
       ctx.fillStyle = "#94a3b8";
-      ctx.font = "10px 'Segoe UI', Tahoma, sans-serif";
-      ctx.fillText("البطاقة الرقمية الرسمية - منظومة قُوت المركزية", 220, 500);
+      ctx.font = "10px 'Cairo', 'Segoe UI', Tahoma, sans-serif";
+      ctx.fillText("البطاقة الرقمية المعتمدة - مؤسسة الفجر الخيرية", 220, 500);
 
       const link = document.createElement("a");
-      link.download = `QOUT-CARD-${activeCard.cardId}.png`;
+      link.download = `ALFAJR-CARD-${activeCard.cardId}.png`;
       link.href = outCanvas.toDataURL("image/png");
       link.click();
     } catch (err) {
@@ -278,9 +353,17 @@ export default function BeneficiariesPage() {
     const totalBalanceSum = filteredCards.reduce((acc, curr) => acc + (curr.totalBalance || 0), 0);
     const totalBasketsSum = filteredCards.reduce((acc, curr) => acc + (curr.foodBasketsQuota || 0), 0);
 
+    const monthNamesAr = ["يناير", "فبراير", "مارس", "أبريل", "مايو", "يونيو", "يوليو", "أغسطس", "سبتمبر", "أكتوبر", "نوفمبر", "ديسمبر"];
+
     const rowsHtml = filteredCards
       .map(
-        (c, idx) => `
+        (c, idx) => {
+          const st = getCardRecipientDetails(c, selectedMonth, selectedYear);
+          const stText = st.hasReceived 
+            ? `استلم ${st.latestDate ? `(يوم ${st.latestDate.getDate()})` : ""}`
+            : "لم يستلم";
+
+          return `
       <tr>
         <td style="text-align: center; font-weight: bold;">${idx + 1}</td>
         <td style="font-family: monospace; font-weight: bold;">${c.cardId}</td>
@@ -291,9 +374,11 @@ export default function BeneficiariesPage() {
         <td>${c.residence || "-"}</td>
         <td style="font-weight: 800; color: #0A734D;">${(c.totalBalance || 0).toLocaleString()} ج.م</td>
         <td style="font-weight: 800; color: #b45309; text-align: center;">${c.foodBasketsQuota}</td>
+        <td style="text-align: center; font-weight: 800; color: ${st.hasReceived ? "#0A734D" : "#dc2626"};">${stText}</td>
         <td style="text-align: center;">${c.status === "active" ? "نشط" : "غير نشط"}</td>
       </tr>
-    `
+    `;
+        }
       )
       .join("");
 
@@ -302,7 +387,7 @@ export default function BeneficiariesPage() {
       <html dir="rtl" lang="ar">
       <head>
         <meta charset="utf-8">
-        <title>كشف المستفيدين والكروت الإغاثية - منظومة قُوت</title>
+        <title>كشف المستفيدين وحالة الاستلام الشهري - مؤسسة الفجر الخيرية</title>
         <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800;900&display=swap" rel="stylesheet">
         <style>
           @page { size: A4 landscape; margin: 10mm; }
@@ -312,7 +397,7 @@ export default function BeneficiariesPage() {
           .brand-sub { font-size: 12px; color: #64748b; margin: 2px 0 0 0; }
           .meta-box { text-align: left; font-size: 11px; color: #475569; }
           .meta-box span { font-weight: bold; color: #0f172a; }
-          table { width: 100%; border-collapse: collapse; font-size: 10.5px; }
+          table { width: 100%; border-collapse: collapse; font-size: 10px; }
           th { background-color: #0A734D; color: #ffffff; padding: 7px 5px; text-align: right; border: 1px solid #064E3B; font-weight: 700; }
           td { padding: 5px; border: 1px solid #e2e8f0; text-align: right; }
           tr:nth-child(even) { background-color: #f8fafc; }
@@ -323,12 +408,12 @@ export default function BeneficiariesPage() {
       <body>
         <div class="header">
           <div>
-            <h1 class="brand-title">منظومة قُوت الإغاثية (QOUT)</h1>
-            <p class="brand-sub">كشف المستفيدين المعتمدين وتوزيع السلال والأرصدة</p>
+            <h1 class="brand-title">مؤسسة الفجر الخيرية (Al-Fajr Foundation)</h1>
+            <p class="brand-sub">كشف المستفيدين المعتمدين وتتبع الاستلام لشهر (${monthNamesAr[selectedMonth]} ${selectedYear})</p>
           </div>
           <div class="meta-box">
             <div>تاريخ التقرير: <span>${new Date().toLocaleDateString("ar-EG", { year: "numeric", month: "long", day: "numeric" })}</span></div>
-            <div>إجمالي الحالات: <span>${filteredCards.length} مستفيد</span></div>
+            <div>الحالات المدرجة: <span>${filteredCards.length} مستفيد</span></div>
           </div>
         </div>
         <table>
@@ -343,6 +428,7 @@ export default function BeneficiariesPage() {
               <th>محل الإقامة</th>
               <th>الرصيد النقدي</th>
               <th>حصص السلال</th>
+              <th style="text-align: center;">حالة الاستلام</th>
               <th style="text-align: center;">الحالة</th>
             </tr>
           </thead>
@@ -351,9 +437,10 @@ export default function BeneficiariesPage() {
           </tbody>
         </table>
         <div class="summary-bar">
-          <div>إجمالي المستفيدين: <span>${filteredCards.length} حالة</span></div>
-          <div>إجمالي الأرصدة النقدية: <span style="color: #0A734D;">${totalBalanceSum.toLocaleString()} ج.م</span></div>
-          <div>إجمالي السلال الغذائية المتاحة: <span style="color: #b45309;">${totalBasketsSum.toLocaleString()} سلة</span></div>
+          <div>إجمالي الحالات: <span>${filteredCards.length} حالة</span></div>
+          <div>المستلمون لشهر ${monthNamesAr[selectedMonth]}: <span style="color: #0A734D;">${receivedThisMonthCount} حالة (${coverageRate}%)</span></div>
+          <div>إجمالي الأرصدة المتاحة: <span style="color: #0A734D;">${totalBalanceSum.toLocaleString()} ج.م</span></div>
+          <div>إجمالي السلال: <span style="color: #b45309;">${totalBasketsSum.toLocaleString()} سلة</span></div>
         </div>
         <script>
           window.onload = function() {
@@ -368,6 +455,10 @@ export default function BeneficiariesPage() {
     printWindow.document.write(htmlContent);
     printWindow.document.close();
   };
+
+  const monthNames = isAr
+    ? ["يناير", "فبراير", "مارس", "أبريل", "مايو", "يونيو", "يوليو", "أغسطس", "سبتمبر", "أكتوبر", "نوفمبر", "ديسمبر"]
+    : ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
 
   return (
     <div className="space-y-6">
@@ -391,8 +482,8 @@ export default function BeneficiariesPage() {
           </h1>
           <p className="text-slate-500 text-sm font-semibold mt-1">
             {isAr
-              ? "إدارة الحالات المعتمدة، تحديث بيانات السكن وأفراد الأسرة، وتسليم السلال الغذائية المركزية"
-              : "Manage verified cases, update demographics, and record admin food basket handovers"}
+              ? "مؤسسة الفجر الخيرية | إدارة الحالات المعتمدة، تتبع الاستلام الشهري، وملفات المستفيدين 360°"
+              : "Al-Fajr Foundation | Beneficiary cases, monthly receipt tracking, and 360° profiles"}
           </p>
         </div>
 
@@ -414,23 +505,154 @@ export default function BeneficiariesPage() {
         </div>
       </div>
 
-      {/* Filters & Search */}
-      <div className="p-4 rounded-2xl bg-white border border-slate-200/90 shadow-xs flex flex-col md:flex-row items-center gap-3">
-        <div className="relative flex-1 w-full">
-          <Search className="w-4 h-4 text-slate-400 absolute right-3.5 top-3.5" />
-          <input
-            type="text"
-            value={search}
-            onChange={(e) => {
-              setSearch(e.target.value);
-              setCurrentPage(1);
-            }}
-            placeholder={isAr ? "بحث باسم المستفيد، رقم الكارت، رقم البطاقة، أو محل السكن..." : "Search by name, card, ID, residence..."}
-            className="w-full pr-10 pl-4 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-sm font-bold text-slate-900 focus:bg-white focus:border-emerald-500 focus:outline-none transition-all"
-          />
+      {/* ── Monthly Receipt Summary Strip (New Smart Feature) ── */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="p-4 rounded-2xl bg-white border border-slate-200 shadow-xs flex items-center justify-between">
+          <div>
+            <span className="text-xs font-extrabold text-slate-500 block">
+              {isAr ? `المستلمون لشهر (${monthNames[selectedMonth]})` : `Received (${monthNames[selectedMonth]})`}
+            </span>
+            <span className="text-2xl font-black text-emerald-800 font-mono mt-0.5 inline-block">
+              {receivedThisMonthCount}
+            </span>
+            <span className="text-xs text-slate-400 font-bold ms-1.5 font-mono">
+              / {totalCardsCount} {isAr ? "حالة" : "cases"}
+            </span>
+          </div>
+          <div className="w-11 h-11 rounded-xl bg-emerald-50 text-emerald-700 border border-emerald-200 flex items-center justify-center font-bold">
+            <CheckCircle2 className="w-5 h-5" />
+          </div>
         </div>
 
-        <div className="flex items-center gap-2.5 w-full md:w-auto flex-wrap">
+        <div className="p-4 rounded-2xl bg-white border border-slate-200 shadow-xs flex items-center justify-between">
+          <div>
+            <span className="text-xs font-extrabold text-slate-500 block">
+              {isAr ? `لم يستلموا بعد (${monthNames[selectedMonth]})` : `Not Received (${monthNames[selectedMonth]})`}
+            </span>
+            <span className="text-2xl font-black text-red-600 font-mono mt-0.5 inline-block">
+              {notReceivedThisMonthCount}
+            </span>
+            <span className="text-xs text-slate-400 font-bold ms-1.5">
+              {isAr ? "بانتظار الصرف" : "pending"}
+            </span>
+          </div>
+          <div className="w-11 h-11 rounded-xl bg-red-50 text-red-600 border border-red-200 flex items-center justify-center font-bold">
+            <AlertCircle className="w-5 h-5" />
+          </div>
+        </div>
+
+        <div className="p-4 rounded-2xl bg-white border border-slate-200 shadow-xs flex items-center justify-between">
+          <div>
+            <span className="text-xs font-extrabold text-slate-500 block">
+              {isAr ? "نسبة تغطية الصرف الشهري" : "Monthly Coverage Rate"}
+            </span>
+            <span className="text-2xl font-black text-emerald-800 font-mono mt-0.5 inline-block">
+              {coverageRate}%
+            </span>
+            <span className="text-xs text-emerald-700 font-bold ms-1.5">
+              {coverageRate >= 75 ? (isAr ? "🟢 ممتاز" : "Optimal") : (isAr ? "🟡 قيد المتابعة" : "In Progress")}
+            </span>
+          </div>
+          <div className="w-11 h-11 rounded-xl bg-emerald-50 text-emerald-700 border border-emerald-200 flex items-center justify-center font-bold font-mono text-sm">
+            {coverageRate}%
+          </div>
+        </div>
+
+        <div className="p-4 rounded-2xl bg-white border border-slate-200 shadow-xs flex items-center justify-between">
+          <div>
+            <span className="text-xs font-extrabold text-slate-500 block">
+              {isAr ? "الحالات المتخلفة (+60 يوم)" : "Dormant Cases (+60d)"}
+            </span>
+            <span className="text-2xl font-black text-amber-700 font-mono mt-0.5 inline-block">
+              {cards.filter((c) => {
+                const st = getCardRecipientDetails(c);
+                return st.daysSinceLast === null || st.daysSinceLast >= 60;
+              }).length}
+            </span>
+            <span className="text-xs text-slate-400 font-bold ms-1.5">
+              {isAr ? "حالة حرجة" : "dormant"}
+            </span>
+          </div>
+          <div className="w-11 h-11 rounded-xl bg-amber-50 text-amber-700 border border-amber-200 flex items-center justify-center font-bold">
+            <Clock className="w-5 h-5" />
+          </div>
+        </div>
+      </div>
+
+      {/* Filters & Search */}
+      <div className="p-4 rounded-2xl bg-white border border-slate-200/90 shadow-xs flex flex-col gap-3">
+        <div className="flex flex-col lg:flex-row items-center gap-3">
+          {/* Search Input */}
+          <div className="relative flex-1 w-full">
+            <Search className="w-4 h-4 text-slate-400 absolute right-3.5 top-3.5" />
+            <input
+              type="text"
+              value={search}
+              onChange={(e) => {
+                setSearch(e.target.value);
+                setCurrentPage(1);
+              }}
+              placeholder={isAr ? "بحث باسم المستفيد، رقم الكارت، رقم البطاقة، أو محل السكن..." : "Search by name, card, ID, residence..."}
+              className="w-full pr-10 pl-4 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-sm font-bold text-slate-900 focus:bg-white focus:border-emerald-500 focus:outline-none transition-all"
+            />
+          </div>
+
+          {/* Month & Year Picker */}
+          <div className="flex items-center gap-2 w-full lg:w-auto">
+            <div className="relative min-w-[130px] flex-1 lg:flex-initial">
+              <select
+                value={selectedMonth}
+                onChange={(e) => {
+                  setSelectedMonth(parseInt(e.target.value));
+                  setCurrentPage(1);
+                }}
+                className="qout-select text-xs font-black py-2.5 pl-9 pr-3.5 w-full"
+              >
+                {monthNames.map((mName, idx) => (
+                  <option key={idx} value={idx}>
+                    📅 {mName}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div className="relative min-w-[100px] flex-1 lg:flex-initial">
+              <select
+                value={selectedYear}
+                onChange={(e) => {
+                  setSelectedYear(parseInt(e.target.value));
+                  setCurrentPage(1);
+                }}
+                className="qout-select text-xs font-black py-2.5 pl-9 pr-3.5 w-full font-mono"
+              >
+                <option value={2026}>2026</option>
+                <option value={2025}>2025</option>
+                <option value={2024}>2024</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        {/* Second Filter Row */}
+        <div className="flex items-center gap-2.5 flex-wrap pt-2 border-t border-slate-100">
+          {/* Recipient Status Filter Dropdown (CORE NEW FEATURE) */}
+          <div className="relative min-w-[210px] flex-1 sm:flex-initial">
+            <select
+              value={selectedRecipientFilter}
+              onChange={(e) => {
+                setSelectedRecipientFilter(e.target.value);
+                setCurrentPage(1);
+              }}
+              className="qout-select text-xs font-black py-2.5 pl-9 pr-3.5 bg-emerald-50/60 border-emerald-300 text-emerald-950 font-bold"
+            >
+              <option value="all">{isAr ? "📋 كل حالات الاستلام" : "📋 All Receipt Statuses"}</option>
+              <option value="received_this_month">{isAr ? `✅ استلموا شهر (${monthNames[selectedMonth]})` : `✅ Received (${monthNames[selectedMonth]})`}</option>
+              <option value="not_received_this_month">{isAr ? `❌ لم يستلموا شهر (${monthNames[selectedMonth]})` : `❌ Not Received (${monthNames[selectedMonth]})`}</option>
+              <option value="received_last_month">{isAr ? "📅 استلموا الشهر السابق" : "📅 Received Last Month"}</option>
+              <option value="dormant">{isAr ? "⚠️ متخلفون عن الاستلام (+60 يوم)" : "⚠️ Dormant Cases (+60d)"}</option>
+            </select>
+          </div>
+
           {/* Nationality Filter */}
           <div className="relative min-w-[150px] flex-1 sm:flex-initial">
             <select
@@ -446,6 +668,7 @@ export default function BeneficiariesPage() {
               <option value="سودانية">{isAr ? "🇸🇩 سودانية" : "🇸🇩 Sudanese"}</option>
               <option value="يمنية">{isAr ? "🇾🇪 يمنية" : "🇾🇪 Yemeni"}</option>
               <option value="مصرية">{isAr ? "🇪🇬 مصرية" : "🇪🇬 Egyptian"}</option>
+              <option value="فلسطينية">{isAr ? "🇵🇸 فلسطينية" : "🇵🇸 Palestinian"}</option>
             </select>
           </div>
 
@@ -465,6 +688,11 @@ export default function BeneficiariesPage() {
               <option value="expired">{isAr ? "⚪ منتهي (Expired)" : "⚪ Expired"}</option>
             </select>
           </div>
+
+          {/* Active Filter Counter Chip */}
+          <span className="text-xs font-bold text-slate-500 ms-auto">
+            {isAr ? `مطابق للبحث والفلترة: ${filteredCards.length} حالة` : `Matching: ${filteredCards.length} cases`}
+          </span>
         </div>
       </div>
 
@@ -475,13 +703,16 @@ export default function BeneficiariesPage() {
             <thead className="bg-slate-50/90 text-slate-700 font-extrabold border-b border-slate-200 text-xs">
               <tr>
                 <th className="py-3.5 px-3 text-start whitespace-nowrap">{isAr ? "رقم الكارت" : "Card ID"}</th>
-                <th className="py-3.5 px-4 text-start whitespace-nowrap">{isAr ? "اسم المستفيد" : "Beneficiary Name"}</th>
+                <th className="py-3.5 px-4 text-start whitespace-nowrap">{isAr ? "اسم المستفيد (البروفايل)" : "Beneficiary Name"}</th>
                 <th className="py-3.5 px-3 text-start whitespace-nowrap">{isAr ? "رقم الهوية / الجواز" : "National ID"}</th>
                 <th className="py-3.5 px-3 text-start whitespace-nowrap">{isAr ? "الجنسية" : "Nationality"}</th>
                 <th className="py-3.5 px-3 text-start whitespace-nowrap">{isAr ? "أفراد الأسرة" : "Family Size"}</th>
                 <th className="py-3.5 px-4 text-start whitespace-nowrap">{isAr ? "محل الإقامة" : "Residence"}</th>
                 <th className="py-3.5 px-3 text-start whitespace-nowrap">{isAr ? "رصيد المشتريات" : "Cash Balance"}</th>
                 <th className="py-3.5 px-3 text-start whitespace-nowrap">{isAr ? "حصص السلال" : "Baskets Quota"}</th>
+                <th className="py-3.5 px-3 text-center whitespace-nowrap bg-emerald-50/40 text-emerald-950 border-x border-emerald-100">
+                  {isAr ? `استلام شهر (${monthNames[selectedMonth]})` : `Receipt Status (${monthNames[selectedMonth]})`}
+                </th>
                 <th className="py-3.5 px-3 text-start whitespace-nowrap">{isAr ? "الحالة" : "Status"}</th>
                 <th className="py-3.5 px-4 text-center whitespace-nowrap">{isAr ? "إجراءات الإدارة" : "Admin Actions"}</th>
               </tr>
@@ -489,137 +720,188 @@ export default function BeneficiariesPage() {
             <tbody className="divide-y divide-slate-100 font-semibold">
               {loading ? (
                 <tr>
-                  <td colSpan={10} className="py-16 text-center text-slate-400 font-bold">
-                    {isAr ? "جاري تحميل بيانات المستفيدين..." : "Loading beneficiaries..."}
+                  <td colSpan={11} className="py-16 text-center text-slate-400 font-bold">
+                    {isAr ? "جاري تحميل بيانات المستفيدين من مؤسسة الفجر..." : "Loading beneficiaries..."}
                   </td>
                 </tr>
               ) : filteredCards.length === 0 ? (
                 <tr>
-                  <td colSpan={10} className="py-16 text-center text-slate-400 font-bold">
-                    {isAr ? "لا توجد نتائج مطابقة للبحث" : "No matching beneficiaries found"}
+                  <td colSpan={11} className="py-16 text-center text-slate-400 font-bold">
+                    {isAr ? "لا توجد نتائج مطابقة للبحث والفلترة" : "No matching beneficiaries found"}
                   </td>
                 </tr>
               ) : (
-                paginatedCards.map((card) => (
-                  <tr key={card.cardId} className="hover:bg-slate-50/80 transition-colors">
-                    {/* 1. Card ID */}
-                    <td className="py-3.5 px-3 whitespace-nowrap">
-                      <span className="font-mono font-black text-xs px-2.5 py-1 rounded-lg bg-slate-100 text-slate-900 border border-slate-200 inline-block shadow-2xs">
-                        {card.cardId}
-                      </span>
-                    </td>
+                paginatedCards.map((card) => {
+                  const receiptStatus = getCardRecipientDetails(card, selectedMonth, selectedYear);
 
-                    {/* 2. Beneficiary Name */}
-                    <td className="py-3.5 px-4 whitespace-nowrap">
-                      <span className="font-black text-slate-950 text-sm">
-                        {card.beneficiaryName}
-                      </span>
-                    </td>
-
-                    {/* 3. National ID / Passport (Zero Spaces) */}
-                    <td className="py-3.5 px-3 whitespace-nowrap">
-                      <span className="font-mono font-black text-xs text-slate-800 bg-slate-50 px-2.5 py-1 rounded-md border border-slate-200 inline-block shadow-2xs">
-                        {formatId(card.nationalId)}
-                      </span>
-                    </td>
-
-                    {/* 4. Nationality */}
-                    <td className="py-3.5 px-3 whitespace-nowrap">
-                      <span className="inline-block px-2.5 py-1 rounded-lg bg-slate-100 text-slate-800 text-xs font-black border border-slate-200 shadow-2xs">
-                        {card.nationality || (isAr ? "سورية" : "Syrian")}
-                      </span>
-                    </td>
-
-                    {/* 5. Family Members */}
-                    <td className="py-3.5 px-3 whitespace-nowrap">
-                      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-blue-50 text-blue-900 border border-blue-200 text-xs font-black shadow-2xs">
-                        <Users className="w-3.5 h-3.5 text-blue-600 flex-shrink-0" />
-                        <span>{card.familyCount || 4} {isAr ? "أفراد" : "members"}</span>
-                      </span>
-                    </td>
-
-                    {/* 6. Residence */}
-                    <td className="py-3.5 px-4 whitespace-nowrap">
-                      <div className="flex items-center gap-1.5 text-xs text-slate-700 font-bold">
-                        <MapPin className="w-3.5 h-3.5 text-slate-400 flex-shrink-0" />
-                        <span>{card.residence || (isAr ? "الرياض - حي الروضة" : "Riyadh")}</span>
-                      </div>
-                    </td>
-
-                    {/* 7. Cash Balance */}
-                    <td className="py-3.5 px-3 whitespace-nowrap">
-                      <span className="font-black text-[#0A734D] font-mono text-sm">
-                        {(card.totalBalance || 0).toLocaleString()} {isAr ? "ج.م" : "EGP"}
-                      </span>
-                    </td>
-
-                    {/* 8. Food Baskets Quota */}
-                    <td className="py-3.5 px-3 whitespace-nowrap">
-                      <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-amber-50 text-amber-950 border border-amber-300 font-black text-xs font-mono shadow-2xs">
-                        {card.foodBasketsQuota || 0} {isAr ? "سلة" : "baskets"}
-                      </span>
-                    </td>
-
-                    {/* 9. Status */}
-                    <td className="py-3.5 px-3 whitespace-nowrap">
-                      <span
-                        className={`inline-block text-xs font-black px-2.5 py-1 rounded-full shadow-2xs ${
-                          card.status === "active"
-                            ? "bg-emerald-100 text-emerald-900 border border-emerald-300"
-                            : card.status === "frozen"
-                            ? "bg-amber-100 text-amber-900 border border-amber-300"
-                            : "bg-red-100 text-red-900 border border-red-300"
-                        }`}
-                      >
-                        {card.status === "active" ? (isAr ? "نشط" : "Active") : card.status === "frozen" ? (isAr ? "مجمد" : "Frozen") : (isAr ? "منتهي" : "Expired")}
-                      </span>
-                    </td>
-
-                    {/* Actions */}
-                    <td className="py-3.5 px-4 text-center">
-                      <div className="flex items-center justify-center gap-1.5">
-                        {/* Deliver Basket Button */}
-                        <button
-                          onClick={() => {
-                            setDistributeCard(card);
-                            setDistributeCount(Math.min(1, card.foodBasketsQuota || 1));
-                          }}
-                          disabled={(card.foodBasketsQuota || 0) <= 0}
-                          title={isAr ? "تسليم سلة غذائية (الإدارة)" : "Distribute Food Basket"}
-                          className="p-2 rounded-xl bg-amber-500 hover:bg-amber-600 disabled:opacity-30 disabled:hover:bg-amber-500 text-white transition-all shadow-xs flex items-center gap-1 text-xs font-black cursor-pointer disabled:cursor-not-allowed"
+                  return (
+                    <tr key={card.cardId} className="hover:bg-slate-50/80 transition-colors">
+                      {/* 1. Card ID (Clickable to Profile) */}
+                      <td className="py-3.5 px-3 whitespace-nowrap">
+                        <a
+                          href={`/dashboard/beneficiaries/${card.cardId}`}
+                          className="font-mono font-black text-xs px-2.5 py-1 rounded-lg bg-emerald-50 text-emerald-900 border border-emerald-200 inline-block shadow-2xs hover:bg-emerald-100 transition-colors"
+                          title={isAr ? "عرض ملف المستفيد الشامل (360°)" : "View 360° Profile"}
                         >
-                          <PackageCheck className="w-4 h-4" />
-                          <span className="hidden xl:inline">{isAr ? "تسليم سلة" : "Deliver"}</span>
-                        </button>
+                          {card.cardId}
+                        </a>
+                      </td>
 
-                        {/* View QR */}
-                        <button
-                          onClick={() => setActiveCard(card)}
-                          title={isAr ? "عرض وتحميل الكود الرقمي" : "View QR"}
-                          className="p-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 transition-all"
+                      {/* 2. Beneficiary Name (Clickable link to Profile) */}
+                      <td className="py-3.5 px-4 whitespace-nowrap">
+                        <a
+                          href={`/dashboard/beneficiaries/${card.cardId}`}
+                          className="font-black text-slate-950 text-sm hover:text-[#0A734D] transition-colors flex items-center gap-1.5 group"
+                          title={isAr ? "فتح بروفايل المستفيد" : "Open Profile"}
                         >
-                          <QrCode className="w-4 h-4" />
-                        </button>
+                          <span>{card.beneficiaryName}</span>
+                          <span className="text-[10px] text-emerald-600 opacity-0 group-hover:opacity-100 transition-opacity font-bold">↗</span>
+                        </a>
+                      </td>
 
-                        {/* Edit Card */}
-                        <button
-                          onClick={() => {
-                            setEditingCard(card);
-                            setEditBalance(card.totalBalance);
-                            setEditQuota(card.foodBasketsQuota);
-                            setEditFamilyCount(card.familyCount || 4);
-                            setEditResidence(card.residence || "");
-                            setEditStatus(card.status);
-                          }}
-                          title={isAr ? "تعديل البيانات والأسرة" : "Edit Card"}
-                          className="p-2 rounded-xl bg-slate-100 hover:bg-blue-50 text-slate-700 hover:text-blue-700 transition-all"
+                      {/* 3. National ID / Passport */}
+                      <td className="py-3.5 px-3 whitespace-nowrap">
+                        <span className="font-mono font-black text-xs text-slate-800 bg-slate-50 px-2.5 py-1 rounded-md border border-slate-200 inline-block shadow-2xs">
+                          {formatId(card.nationalId)}
+                        </span>
+                      </td>
+
+                      {/* 4. Nationality */}
+                      <td className="py-3.5 px-3 whitespace-nowrap">
+                        <span className="inline-block px-2.5 py-1 rounded-lg bg-slate-100 text-slate-800 text-xs font-black border border-slate-200 shadow-2xs">
+                          {card.nationality || (isAr ? "سورية" : "Syrian")}
+                        </span>
+                      </td>
+
+                      {/* 5. Family Members */}
+                      <td className="py-3.5 px-3 whitespace-nowrap">
+                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-blue-50 text-blue-900 border border-blue-200 text-xs font-black shadow-2xs">
+                          <Users className="w-3.5 h-3.5 text-blue-600 flex-shrink-0" />
+                          <span>{card.familyCount || 4} {isAr ? "أفراد" : "members"}</span>
+                        </span>
+                      </td>
+
+                      {/* 6. Residence */}
+                      <td className="py-3.5 px-4 whitespace-nowrap">
+                        <div className="flex items-center gap-1.5 text-xs text-slate-700 font-bold">
+                          <MapPin className="w-3.5 h-3.5 text-slate-400 flex-shrink-0" />
+                          <span>{card.residence || (isAr ? "الروضة" : "Rawdah")}</span>
+                        </div>
+                      </td>
+
+                      {/* 7. Cash Balance */}
+                      <td className="py-3.5 px-3 whitespace-nowrap">
+                        <span className="font-black text-[#0A734D] font-mono text-sm">
+                          {(card.totalBalance || 0).toLocaleString()} {isAr ? "ج.م" : "EGP"}
+                        </span>
+                      </td>
+
+                      {/* 8. Food Baskets Quota */}
+                      <td className="py-3.5 px-3 whitespace-nowrap">
+                        <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-amber-50 text-amber-950 border border-amber-300 font-black text-xs font-mono shadow-2xs">
+                          {card.foodBasketsQuota || 0} {isAr ? "سلة" : "baskets"}
+                        </span>
+                      </td>
+
+                      {/* 9. Receipt Status for the selected month (NEW COLUMN) */}
+                      <td className="py-3.5 px-3 text-center whitespace-nowrap bg-emerald-50/20 border-x border-emerald-100">
+                        {receiptStatus.hasReceived ? (
+                          <div className="inline-flex flex-col items-center">
+                            <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-900 border border-emerald-300 text-[11px] font-black">
+                              <CheckCircle2 className="w-3 h-3 text-emerald-600" />
+                              <span>{isAr ? "تم الاستلام" : "Received"}</span>
+                            </span>
+                            {receiptStatus.latestDate && (
+                              <span className="text-[10px] text-slate-500 font-mono mt-0.5 font-bold">
+                                {receiptStatus.latestDate.getDate()} {monthNames[receiptStatus.latestDate.getMonth()]}
+                              </span>
+                            )}
+                          </div>
+                        ) : (
+                          <div className="inline-flex flex-col items-center">
+                            <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-red-100 text-red-900 border border-red-300 text-[11px] font-black">
+                              <X className="w-3 h-3 text-red-600" />
+                              <span>{isAr ? "لم يستلم بعد" : "Not Received"}</span>
+                            </span>
+                            {receiptStatus.daysSinceLast !== null && (
+                              <span className="text-[10px] text-slate-400 font-mono mt-0.5">
+                                {isAr ? `(منذ ${receiptStatus.daysSinceLast} يوم)` : `(${receiptStatus.daysSinceLast}d ago)`}
+                              </span>
+                            )}
+                          </div>
+                        )}
+                      </td>
+
+                      {/* 10. Status */}
+                      <td className="py-3.5 px-3 whitespace-nowrap">
+                        <span
+                          className={`inline-block text-xs font-black px-2.5 py-1 rounded-full shadow-2xs ${
+                            card.status === "active"
+                              ? "bg-emerald-100 text-emerald-900 border border-emerald-300"
+                              : card.status === "frozen"
+                              ? "bg-amber-100 text-amber-900 border border-amber-300"
+                              : "bg-red-100 text-red-900 border border-red-300"
+                          }`}
                         >
-                          <Edit className="w-4 h-4" />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))
+                          {card.status === "active" ? (isAr ? "نشط" : "Active") : card.status === "frozen" ? (isAr ? "مجمد" : "Frozen") : (isAr ? "منتهي" : "Expired")}
+                        </span>
+                      </td>
+
+                      {/* 11. Actions (Deliver, QR, Edit, and Profile) */}
+                      <td className="py-3.5 px-3 text-center whitespace-nowrap min-w-[220px]">
+                        <div className="flex items-center justify-center gap-2">
+                          {/* 360° Profile Button */}
+                          <a
+                            href={`/dashboard/beneficiaries/${card.cardId}`}
+                            title={isAr ? "عرض ملف المستفيد الشامل (360°)" : "View 360° Profile"}
+                            className="p-2 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-[#0A734D] transition-all border border-emerald-200 cursor-pointer shadow-2xs"
+                          >
+                            <FileText className="w-4 h-4" />
+                          </a>
+
+                          {/* Deliver Basket Button */}
+                          <button
+                            onClick={() => {
+                              setDistributeCard(card);
+                              setDistributeCount(Math.min(1, card.foodBasketsQuota || 1));
+                            }}
+                            disabled={(card.foodBasketsQuota || 0) <= 0}
+                            title={isAr ? "تسليم سلة غذائية (الإدارة)" : "Distribute Food Basket"}
+                            className="px-3 py-1.5 rounded-xl bg-amber-500 hover:bg-amber-600 disabled:opacity-30 disabled:hover:bg-amber-500 text-white transition-all shadow-xs flex items-center gap-1 text-xs font-black cursor-pointer disabled:cursor-not-allowed"
+                          >
+                            <PackageCheck className="w-4 h-4" />
+                            <span>{isAr ? "سلة" : "Deliver"}</span>
+                          </button>
+
+                          {/* View QR */}
+                          <button
+                            onClick={() => setActiveCard(card)}
+                            title={isAr ? "عرض وتحميل الكود الرقمي" : "View QR"}
+                            className="p-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 transition-all border border-slate-200/80 cursor-pointer shadow-2xs"
+                          >
+                            <QrCode className="w-4 h-4" />
+                          </button>
+
+                          {/* Edit Card */}
+                          <button
+                            onClick={() => {
+                              setEditingCard(card);
+                              setEditBalance(card.totalBalance);
+                              setEditQuota(card.foodBasketsQuota);
+                              setEditFamilyCount(card.familyCount || 4);
+                              setEditResidence(card.residence || "");
+                              setEditStatus(card.status);
+                            }}
+                            title={isAr ? "تعديل البيانات والأسرة" : "Edit Card"}
+                            className="p-2 rounded-xl bg-slate-100 hover:bg-blue-50 text-slate-700 hover:text-blue-700 transition-all border border-slate-200/80 cursor-pointer shadow-2xs"
+                          >
+                            <Edit className="w-4 h-4" />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })
               )}
             </tbody>
           </table>
@@ -680,36 +962,40 @@ export default function BeneficiariesPage() {
               </div>
             </div>
 
-            {/* Beneficiary Info Card (High Contrast) */}
-            <div className="p-4 rounded-2xl bg-slate-50 border-2 border-slate-200 mb-5 space-y-2.5">
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-bold text-slate-500">{isAr ? "المستفيد:" : "Beneficiary:"}</span>
+            {/* Beneficiary Info Card (Original Clean Style with Tight Key-Value Alignment & No Spaces in ID) */}
+            <div className="p-4 rounded-2xl bg-slate-50 border-2 border-slate-200 mb-5 space-y-3">
+              {/* Row 1: Beneficiary Name */}
+              <div className="flex items-center gap-4 text-xs">
+                <span className="font-bold text-slate-500 w-32 shrink-0">{isAr ? "المستفيد:" : "Beneficiary:"}</span>
                 <span className="text-sm font-black text-slate-950">{distributeCard.beneficiaryName}</span>
               </div>
 
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-bold text-slate-500">{isAr ? "رقم الكارت والبطاقة:" : "Card & ID:"}</span>
+              {/* Row 2: Card & National ID (No spaces) */}
+              <div className="flex items-center gap-4 text-xs">
+                <span className="font-bold text-slate-500 w-32 shrink-0">{isAr ? "رقم الكارت والبطاقة:" : "Card & National ID:"}</span>
                 <div className="flex items-center gap-2">
                   <span className="font-mono text-xs font-black text-[#0A734D] bg-emerald-100 px-2.5 py-0.5 rounded-md border border-emerald-300">
                     {distributeCard.cardId}
                   </span>
-                  <span className="font-mono text-xs font-bold text-slate-700">
-                    {distributeCard.nationalId}
+                  <span className="font-mono text-xs font-bold text-slate-800 bg-white px-2 py-0.5 rounded border border-slate-200">
+                    {formatId(distributeCard.nationalId)}
                   </span>
                 </div>
               </div>
 
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-bold text-slate-500">{isAr ? "الأسرة ومحل الإقامة:" : "Family & Residence:"}</span>
-                <div className="flex items-center gap-1.5 text-xs font-bold text-slate-800">
+              {/* Row 3: Family & Residence */}
+              <div className="flex items-center gap-4 text-xs">
+                <span className="font-bold text-slate-500 w-32 shrink-0">{isAr ? "الأسرة ومحل الإقامة:" : "Family & Residence:"}</span>
+                <div className="flex items-center gap-2 font-bold text-slate-800">
                   <span className="text-blue-700 font-black">{distributeCard.familyCount || 4} {isAr ? "أفراد" : "members"}</span>
-                  <span className="text-slate-400">•</span>
+                  <span className="text-slate-300">•</span>
                   <span>{distributeCard.residence || (isAr ? "الرياض" : "Riyadh")}</span>
                 </div>
               </div>
 
-              <div className="flex items-center justify-between pt-2.5 border-t border-slate-200">
-                <span className="text-xs font-black text-slate-700">{isAr ? "الحصص المتاحة حالياً:" : "Available Quota:"}</span>
+              {/* Row 4: Quota Remaining */}
+              <div className="flex items-center gap-4 text-xs pt-3 border-t border-slate-200">
+                <span className="font-black text-slate-700 w-32 shrink-0">{isAr ? "الحصص المتاحة حالياً:" : "Available Quota:"}</span>
                 <span className="px-3 py-1 rounded-full bg-amber-100 text-amber-950 font-black text-xs border border-amber-300">
                   {distributeCard.foodBasketsQuota || 0} {isAr ? "سلة متبقية" : "baskets left"}
                 </span>
@@ -718,28 +1004,101 @@ export default function BeneficiariesPage() {
 
             {/* Form Fields (High Contrast) */}
             <div className="space-y-4 text-xs font-bold">
-              {/* Basket Quantity */}
+              {/* Basket Quantity (Clean Presets + Centered Compact Stepper) */}
               <div>
-                <label className="flex items-center gap-1.5 text-xs font-black text-slate-900 mb-2">
-                  <Package className="w-4 h-4 text-amber-600" />
-                  <span>{isAr ? "عدد السلال المراد تسليمها في هذه العملية" : "Number of baskets to handover"}</span>
-                </label>
-                <div className="grid grid-cols-2 gap-3">
-                  {[1, 2].filter((v) => v <= (distributeCard.foodBasketsQuota || 0)).map((qty) => (
+                <div className="flex items-center justify-between mb-2">
+                  <label className="flex items-center gap-1.5 text-xs font-black text-slate-900">
+                    <Package className="w-4 h-4 text-amber-600" />
+                    <span>{isAr ? "عدد السلال المراد تسليمها" : "Quantity to Handover"}</span>
+                  </label>
+                  <span className="text-xs font-black px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-900 border border-emerald-300 font-mono">
+                    {distributeCount} {isAr ? "سلة محددة" : "selected"}
+                  </span>
+                </div>
+
+                {/* Quick Presets (4 Pills) */}
+                <div className="grid grid-cols-4 gap-2 mb-3">
+                  {[1, 2, 5].map((qty) => {
+                    const isAvailable = qty <= (distributeCard.foodBasketsQuota || 0);
+                    return (
+                      <button
+                        key={qty}
+                        type="button"
+                        disabled={!isAvailable}
+                        onClick={() => setDistributeCount(qty)}
+                        className={`py-2 px-1.5 rounded-xl border-2 text-xs font-black transition-all flex items-center justify-center gap-1 cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed ${
+                          distributeCount === qty
+                            ? "bg-[#0A734D] text-white border-[#0A734D] shadow-sm"
+                            : "bg-white text-slate-700 border-slate-200 hover:border-slate-300 hover:bg-slate-50"
+                        }`}
+                      >
+                        <span>{qty} {isAr ? "سلة" : "bsk"}</span>
+                      </button>
+                    );
+                  })}
+                  <button
+                    type="button"
+                    onClick={() => setDistributeCount(distributeCard.foodBasketsQuota || 1)}
+                    disabled={(distributeCard.foodBasketsQuota || 0) <= 0}
+                    className={`py-2 px-1.5 rounded-xl border-2 text-xs font-black transition-all flex items-center justify-center gap-1 cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed ${
+                      distributeCount === (distributeCard.foodBasketsQuota || 1) && distributeCount > 5
+                        ? "bg-[#0A734D] text-white border-[#0A734D] shadow-sm"
+                        : "bg-amber-50 text-amber-900 border-amber-300 hover:bg-amber-100"
+                    }`}
+                  >
+                    <Sparkles className="w-3.5 h-3.5 text-amber-600" />
+                    <span>{isAr ? "الكل" : "All"}</span>
+                  </button>
+                </div>
+
+                {/* Centered Connected Stepper Control */}
+                <div className="flex flex-col items-center justify-center p-3.5 rounded-2xl bg-slate-50 border border-slate-200">
+                  <div className="flex items-center gap-3">
+                    {/* Minus button */}
                     <button
-                      key={qty}
                       type="button"
-                      onClick={() => setDistributeCount(qty)}
-                      className={`py-3 px-4 rounded-xl border-2 text-sm font-black transition-all flex items-center justify-center gap-2 ${
-                        distributeCount === qty
-                          ? "bg-[#0A734D] text-white border-[#0A734D] shadow-md shadow-emerald-900/20"
-                          : "bg-white text-slate-800 border-slate-300 hover:border-slate-400 hover:bg-slate-50"
-                      }`}
+                      onClick={() => setDistributeCount((c) => Math.max(1, c - 1))}
+                      disabled={distributeCount <= 1}
+                      className="w-11 h-11 rounded-xl bg-white border-2 border-slate-300 text-slate-700 hover:bg-slate-100 hover:border-slate-400 disabled:opacity-30 font-black flex items-center justify-center transition-all cursor-pointer disabled:cursor-not-allowed shadow-2xs active:scale-95"
+                      title={isAr ? "إنقاص سلة" : "Decrease"}
                     >
-                      <PackageCheck className="w-4 h-4" />
-                      <span>{qty} {isAr ? "سلة" : "basket"}</span>
+                      <Minus className="w-5 h-5 text-slate-700" />
                     </button>
-                  ))}
+
+                    {/* Middle number box (Expanded & Fully Visible for Multi-Digit Numbers) */}
+                    <div className="flex items-center justify-center gap-2 bg-white border-2 border-slate-300 rounded-2xl px-5 py-2 shadow-2xs focus-within:border-[#0A734D] focus-within:ring-4 focus-within:ring-emerald-500/10 transition-all min-w-[170px]">
+                      <input
+                        type="number"
+                        min={1}
+                        max={distributeCard.foodBasketsQuota || 1}
+                        value={distributeCount}
+                        onChange={(e) => {
+                          const val = parseInt(e.target.value) || 1;
+                          const max = distributeCard.foodBasketsQuota || 1;
+                          setDistributeCount(Math.min(Math.max(1, val), max));
+                        }}
+                        className="w-24 text-center font-black text-2xl text-slate-950 font-mono focus:outline-none bg-transparent p-0"
+                      />
+                      <span className="text-sm font-black text-slate-700 select-none whitespace-nowrap">
+                        {isAr ? "سلة" : "baskets"}
+                      </span>
+                    </div>
+
+                    {/* Plus button */}
+                    <button
+                      type="button"
+                      onClick={() => setDistributeCount((c) => Math.min((distributeCard.foodBasketsQuota || 1), c + 1))}
+                      disabled={distributeCount >= (distributeCard.foodBasketsQuota || 1)}
+                      className="w-11 h-11 rounded-xl bg-[#0A734D] hover:bg-[#085e3e] text-white disabled:opacity-30 font-black flex items-center justify-center transition-all cursor-pointer disabled:cursor-not-allowed shadow-sm active:scale-95 border-2 border-emerald-700"
+                      title={isAr ? "زيادة سلة" : "Increase"}
+                    >
+                      <Plus className="w-5 h-5 text-white" />
+                    </button>
+                  </div>
+
+                  <span className="text-[11px] text-slate-400 font-bold mt-2">
+                    {isAr ? `(الحد الأقصى المتاح للصرف: ${distributeCard.foodBasketsQuota || 0} سلة)` : `(Max available: ${distributeCard.foodBasketsQuota || 0})`}
+                  </span>
                 </div>
               </div>
 

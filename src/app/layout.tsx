@@ -4,8 +4,8 @@ import { I18nProvider } from "@/lib/i18n";
 import { AuthProvider } from "@/lib/authContext";
 
 export const metadata: Metadata = {
-  title: "منظومة قُوت | لوحة تحكم الإدارة العامة",
-  description: "Central Administration Web Portal for QOUT Relief Organization",
+  title: "مؤسسة الفجر الخيرية | لوحة تحكم الإدارة العامة",
+  description: "Central Administration Web Portal for Al-Fajr Relief & Development Foundation",
 };
 
 export default function RootLayout({

@@ -154,6 +154,18 @@ export default function DashboardOverview() {
   const totalBasketsDelivered = baskets.reduce((sum, b) => sum + (Number(b.basketsDelivered || b.basketsCount) || 1), 0);
   const totalRemainingCashBalance = cards.reduce((sum, c) => sum + (Number(c.totalBalance) || 0), 0);
 
+  // Current Month Recipient Calculation
+  const currentMonth = new Date().getMonth();
+  const currentYear = new Date().getFullYear();
+  const currentMonthReceivedCount = cards.filter((c) => {
+    const cashDate = c.lastCashRedemptionDate?.toDate ? c.lastCashRedemptionDate.toDate() : c.lastCashRedemptionDate ? new Date(c.lastCashRedemptionDate as any) : null;
+    const basketDate = c.lastBasketDistributionDate?.toDate ? c.lastBasketDistributionDate.toDate() : c.lastBasketDistributionDate ? new Date(c.lastBasketDistributionDate as any) : null;
+    const cMonth = cashDate && cashDate.getMonth() === currentMonth && cashDate.getFullYear() === currentYear;
+    const bMonth = basketDate && basketDate.getMonth() === currentMonth && basketDate.getFullYear() === currentYear;
+    return !!(cMonth || bMonth);
+  }).length;
+  const monthlyCoveragePct = totalBeneficiaries > 0 ? Math.round((currentMonthReceivedCount / totalBeneficiaries) * 100) : 0;
+
   // Nationality Breakdown Donut
   const natDist = useMemo(() => {
     const counts: Record<string, number> = {};
@@ -302,6 +314,36 @@ export default function DashboardOverview() {
             </div>
           );
         })}
+      </div>
+
+      {/* ── Monthly Receipt Coverage Quick Action Strip ── */}
+      <div className="p-4 sm:p-5 rounded-3xl bg-gradient-to-r from-emerald-900 via-[#0A734D] to-emerald-950 text-white shadow-md flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div className="flex items-center gap-3.5">
+          <div className="w-12 h-12 rounded-2xl bg-white/10 text-amber-300 border border-white/20 flex items-center justify-center font-black text-xl flex-shrink-0">
+            {monthlyCoveragePct}%
+          </div>
+          <div>
+            <h3 className="text-base font-black text-white flex items-center gap-2">
+              <span>{isAr ? "معدل تغذية واستلام المستفيدين للشهر الحالي" : "Current Month Beneficiary Coverage"}</span>
+              <span className="text-[10px] font-black px-2 py-0.5 rounded-full bg-amber-400 text-amber-950">
+                {currentMonthReceivedCount} / {totalBeneficiaries} {isAr ? "حالة" : "cases"}
+              </span>
+            </h3>
+            <p className="text-xs text-emerald-100/90 font-semibold mt-0.5">
+              {isAr
+                ? `تم صرف الإعانة لـ (${currentMonthReceivedCount}) مستفيد حتى الآن، ومتبقي (${Math.max(0, totalBeneficiaries - currentMonthReceivedCount)}) بانتظار الصرف.`
+                : `${currentMonthReceivedCount} beneficiaries have received aid this month, with ${Math.max(0, totalBeneficiaries - currentMonthReceivedCount)} remaining.`}
+            </p>
+          </div>
+        </div>
+
+        <a
+          href="/dashboard/beneficiaries"
+          className="btn btn-sm bg-white hover:bg-emerald-50 text-[#0A734D] font-black flex items-center gap-1.5 px-4 py-2.5 rounded-xl whitespace-nowrap self-start md:self-auto shadow-sm"
+        >
+          <span>{isAr ? "فلترة المستلمين وغير المستلمين" : "View Recipient Filter"}</span>
+          <ArrowUpRight className="w-4 h-4" />
+        </a>
       </div>
 
       {/* ── Section 2: Charts Row (2 Cols: Monthly Area Chart + Nationality Donut) ── */}

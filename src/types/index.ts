@@ -20,6 +20,15 @@ export interface UserModel {
   commercialReg?: string;
   totalDisbursed?: number;
   totalTransactions?: number;
+  // New Liquidity and Budget fields for merchants
+  allocatedBudget?: number;
+  currentRemainingBudget?: number;
+  lastAllocationDate?: any;
+  instapayAddress?: string;
+  vodafoneCashNumber?: string;
+  liquidityAlertLevel?: "normal" | "warning" | "critical";
+  inKindNeeds?: string;
+  medicalNotes?: string;
   createdAt?: any;
 }
 
@@ -60,6 +69,8 @@ export interface RedemptionTransaction {
   amountDeducted?: number;
   amount?: number;
   foodBasketsDeducted?: number;
+  remainingBalance?: number;
+  remainingBaskets?: number;
   city?: string;
   timestamp: any;
   createdAt?: string;
@@ -85,10 +96,106 @@ export interface BasketDistribution {
   notes?: string;
 }
 
+export interface BudgetAllocation {
+  id: string;
+  allocationId?: string;
+  merchantId: string;
+  merchantName: string;
+  merchantStoreName?: string;
+  amount: number;
+  type: "initial" | "recharge" | "adjustment";
+  allocatedBy: {
+    adminId: string;
+    adminName: string;
+  };
+  notes?: string;
+  timestamp: any;
+  createdAt?: string;
+}
+
+export interface PaymentReceipt {
+  id: string;
+  receiptId?: string;
+  merchantId: string;
+  merchantName: string;
+  merchantStoreName?: string;
+  amount: number;
+  paymentMethod: "instapay" | "vodafone_cash" | "bank_transfer" | "cash";
+  referenceNumber: string;
+  senderAccountOrPhone?: string;
+  receiverAccountOrPhone?: string;
+  receiptImageUrl?: string;
+  status: "sent" | "confirmed_by_merchant" | "disputed";
+  confirmedAt?: any;
+  sentBy: {
+    adminId: string;
+    adminName: string;
+  };
+  notes?: string;
+  timestamp: any;
+  createdAt?: string;
+}
+
+export interface ExtraDisbursementRequest {
+  id: string;
+  requestId?: string;
+  merchantId: string;
+  merchantName?: string;
+  merchantStoreName: string;
+  cardId: string;
+  beneficiaryId?: string;
+  beneficiaryName: string;
+  beneficiaryNationalId?: string;
+  requestedAmount: number;
+  requestedBaskets?: number;
+  reason: string;
+  status: "pending" | "approved" | "rejected";
+  reviewedBy?: {
+    adminId: string;
+    adminName: string;
+  };
+  reviewedAt?: any;
+  rejectionReason?: string;
+  resultingTransactionId?: string;
+  timestamp: any;
+  createdAt?: string;
+}
+
+export interface MonthlyAuditReport {
+  id: string;
+  reportId: string;
+  month: number;
+  year: number;
+  monthNameAr: string;
+  monthNameEn: string;
+  totalFundsAllocated: number;
+  totalFundsDisbursed: number;
+  totalRemainingLiquidity: number;
+  totalBasketsDistributed: number;
+  totalBeneficiariesServed: number;
+  totalBeneficiariesCount: number;
+  beneficiaryCoverageRate: number;
+  merchantsSummary: Array<{
+    merchantId: string;
+    merchantStoreName: string;
+    allocated: number;
+    disbursed: number;
+    remaining: number;
+    transactionsCount: number;
+  }>;
+  generatedBy: {
+    adminId: string;
+    adminName: string;
+  };
+  timestamp: any;
+  createdAt?: string;
+}
+
 export interface GlobalStats {
   totalFundsDisbursed: number;
   totalBeneficiariesCount: number;
   activeMerchantsCount: number;
   totalRedemptionsCount: number;
   totalBasketsDelivered?: number;
+  totalAllocatedBudget?: number;
 }
