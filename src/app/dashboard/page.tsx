@@ -247,17 +247,19 @@ export default function DashboardOverview() {
   return (
     <div className="space-y-7 page-enter">
 
-      {/* ── Page Top Header ── */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl lg:text-3xl font-black text-slate-950 flex items-center gap-3">
-            {isAr ? "لوحة التشغيل والمتابعة المركزية" : "Central Operations & Live Monitoring"}
-            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-black bg-emerald-100 text-emerald-900 border border-emerald-300">
+      {/* ── Page Top Header (Responsive for Mobile & Desktop) ── */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3.5 sm:gap-4">
+        <div className="space-y-1">
+          <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+            <h1 className="text-xl sm:text-2xl lg:text-3xl font-black text-slate-950 leading-tight">
+              {isAr ? "لوحة التشغيل والمتابعة المركزية" : "Central Operations & Live Monitoring"}
+            </h1>
+            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-black bg-emerald-100 text-emerald-900 border border-emerald-300 whitespace-nowrap flex-shrink-0 shadow-2xs">
               <span className="w-2 h-2 rounded-full bg-emerald-600 animate-pulse" />
-              {isAr ? "مباشر (Live Sync)" : "Live Sync"}
+              <span>{isAr ? "مباشر (Live Sync)" : "Live Sync"}</span>
             </span>
-          </h1>
-          <p className="text-sm text-slate-500 font-bold mt-1">
+          </div>
+          <p className="text-xs sm:text-sm text-slate-500 font-bold max-w-2xl leading-relaxed">
             {isAr
               ? "متابعة العمليات الميدانية، الأرصدة المتبقية، وتوزيع السلال الغذائية لحظياً"
               : "Real-time tracking of aid disbursements, card balances, and food baskets."}
@@ -266,7 +268,7 @@ export default function DashboardOverview() {
 
         <button
           onClick={handleRefresh}
-          className="btn btn-secondary flex items-center gap-2 text-xs font-bold"
+          className="btn btn-secondary flex items-center gap-2 text-xs font-black self-start sm:self-auto px-4 py-2 rounded-xl shadow-xs"
           title={isAr ? "تحديث البيانات" : "Refresh Data"}
         >
           <RefreshCw className={`w-3.5 h-3.5 ${refreshing ? "animate-spin text-emerald-600" : ""}`} />
