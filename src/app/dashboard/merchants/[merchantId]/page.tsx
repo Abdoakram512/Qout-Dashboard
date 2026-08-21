@@ -19,6 +19,7 @@ import {
   Clock, ShieldCheck, Download, Users, Phone, ExternalLink,
 } from "lucide-react";
 import Link from "next/link";
+import { createPortal } from "react-dom";
 
 function parseDate(raw: any): Date {
   if (!raw) return new Date();
@@ -38,6 +39,11 @@ export default function MerchantProfilePage() {
   const { locale } = useI18n();
   const { adminData } = useAuth();
   const isAr = locale === "ar";
+
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   const [merchant, setMerchant] = useState<UserModel | null>(null);
   const [allocations, setAllocations] = useState<BudgetAllocation[]>([]);
@@ -827,12 +833,12 @@ export default function MerchantProfilePage() {
       </div>
 
       {/* ── MODAL: Allocate Budget ───────────────────────────────── */}
-      {showAllocModal && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-sm animate-in fade-in duration-200">
+      {showAllocModal && mounted && merchant && createPortal(
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-sm animate-in fade-in duration-200">
           <div className="bg-white rounded-3xl p-6 sm:p-7 max-w-lg w-full shadow-2xl border-2 border-slate-200 relative animate-in zoom-in-95 duration-200">
             <button
               onClick={() => setShowAllocModal(false)}
-              className="absolute top-5 left-5 w-9 h-9 rounded-full bg-slate-100 text-slate-700 hover:bg-slate-200 flex items-center justify-center transition-all"
+              className="absolute top-5 left-5 w-9 h-9 rounded-full bg-slate-100 text-slate-700 hover:bg-slate-200 flex items-center justify-center transition-all cursor-pointer"
             >
               <X className="w-5 h-5" />
             </button>
@@ -916,16 +922,17 @@ export default function MerchantProfilePage() {
               </div>
             </form>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* ── MODAL: Send Payment Receipt ──────────────────────────── */}
-      {showReceiptModal && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-sm animate-in fade-in duration-200">
+      {showReceiptModal && mounted && merchant && createPortal(
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-sm animate-in fade-in duration-200">
           <div className="bg-white rounded-3xl p-6 sm:p-7 max-w-lg w-full shadow-2xl border-2 border-slate-200 relative animate-in zoom-in-95 duration-200 max-h-[90vh] overflow-y-auto">
             <button
               onClick={() => setShowReceiptModal(false)}
-              className="absolute top-5 left-5 w-9 h-9 rounded-full bg-slate-100 text-slate-700 hover:bg-slate-200 flex items-center justify-center transition-all"
+              className="absolute top-5 left-5 w-9 h-9 rounded-full bg-slate-100 text-slate-700 hover:bg-slate-200 flex items-center justify-center transition-all cursor-pointer"
             >
               <X className="w-5 h-5" />
             </button>
@@ -1048,7 +1055,8 @@ export default function MerchantProfilePage() {
               </div>
             </form>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );
