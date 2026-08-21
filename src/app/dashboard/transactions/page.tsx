@@ -158,7 +158,7 @@ export default function TransactionsPage() {
         <html dir="rtl" lang="ar">
         <head>
           <meta charset="utf-8">
-          <title>سجل عمليات الصرف المالي - منظومة قُوت</title>
+          <title>سجل عمليات الصرف المالي - مؤسسة الفجر الخيرية</title>
           <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800;900&display=swap" rel="stylesheet">
           <style>
             @page { size: A4 landscape; margin: 10mm; }
@@ -179,7 +179,7 @@ export default function TransactionsPage() {
         <body>
           <div class="header">
             <div>
-              <h1 class="brand-title">منظومة قُوت الإغاثية (QOUT)</h1>
+              <h1 class="brand-title">مؤسسة الفجر الخيرية (Al-Fajr Foundation)</h1>
               <p class="brand-sub">كشف سجل الصرف المالي عبر شبكة المنافذ والمتاجر المعتمدة</p>
             </div>
             <div class="meta-box">
@@ -244,7 +244,7 @@ export default function TransactionsPage() {
         <html dir="rtl" lang="ar">
         <head>
           <meta charset="utf-8">
-          <title>سجل تسليم السلال الغذائية - منظومة قُوت</title>
+          <title>سجل تسليم السلال الغذائية - مؤسسة الفجر الخيرية</title>
           <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800;900&display=swap" rel="stylesheet">
           <style>
             @page { size: A4 landscape; margin: 10mm; }
@@ -265,7 +265,7 @@ export default function TransactionsPage() {
         <body>
           <div class="header">
             <div>
-              <h1 class="brand-title">منظومة قُوت الإغاثية (QOUT)</h1>
+              <h1 class="brand-title">مؤسسة الفجر الخيرية (Al-Fajr Foundation)</h1>
               <p class="brand-sub">كشف سجل تسليم وتوزيع السلال الغذائية عبر الإدارة ومراكز التوزيع</p>
             </div>
             <div class="meta-box">

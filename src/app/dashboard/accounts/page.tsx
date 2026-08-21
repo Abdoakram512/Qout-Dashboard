@@ -447,7 +447,7 @@ export default function AccountsPage() {
                   {isAr ? "إنشاء حساب جديد بالمنظومة" : "Create New Account"}
                 </h3>
                 <p className="text-xs text-slate-500 font-semibold mt-0.5">
-                  {isAr ? "إضافة مستخدم أو صراف جديد إلى قاعدة بيانات قُوت" : "Add new user, merchant, or admin to QOUT platform"}
+                  {isAr ? "إضافة مستخدم أو صراف جديد إلى قاعدة بيانات مؤسسة الفجر الخيرية" : "Add new user, merchant, or admin to Al-Fajr platform"}
                 </p>
               </div>
             </div>

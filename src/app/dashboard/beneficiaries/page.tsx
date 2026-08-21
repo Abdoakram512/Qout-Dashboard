@@ -301,7 +301,7 @@ export default function BeneficiariesPage() {
         remainingBasketsAfter: remainingAfter,
         distributedBy: {
           adminId: adminData?.uid || "usr_admin_01",
-          adminName: adminData?.name || "المشرف العام لمنظومة قُوت",
+          adminName: adminData?.name || "المشرف العام لمؤسسة الفجر الخيرية",
         },
         distributionCenter: distributionCenter,
         notes: distributeNotes.trim() || (isAr ? "تسليم سلال غذائية من مركز التوزيع الإداري" : "Admin food basket distribution"),
@@ -1329,7 +1329,7 @@ export default function BeneficiariesPage() {
                 {formatId(activeCard.nationalId)}
               </div>
               <div className="mt-2.5 text-[11px] text-emerald-900 font-black bg-emerald-100 px-3 py-1 rounded-full border border-emerald-300">
-                {isAr ? "منظومة قُوت الإغاثية المعتمدة" : "Verified QOUT Aid Card"}
+                {isAr ? "مؤسسة الفجر الخيرية المعتمدة" : "Verified Al-Fajr Foundation Aid Card"}
               </div>
             </div>
 

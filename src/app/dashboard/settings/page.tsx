@@ -88,7 +88,7 @@ export default function SettingsPage() {
               {isAr ? "اسم المشرف:" : "Manager Name:"}
             </span>
             <span className="font-black text-slate-900 text-sm">
-              {adminData?.name || (isAr ? "المشرف العام لمنظومة قُوت" : "General Administrator")}
+              {adminData?.name || (isAr ? "المشرف العام لمؤسسة الفجر الخيرية" : "General Administrator")}
             </span>
           </div>
 

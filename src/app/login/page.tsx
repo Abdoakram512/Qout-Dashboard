@@ -77,7 +77,7 @@ export default function LoginPage() {
                   dir="ltr"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  placeholder="admin@qout.org"
+                  placeholder="admin@alfajr.org"
                   className="w-full px-4 py-3 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-600 focus:border-transparent transition-all pl-10"
                 />
                 <Mail className="w-4 h-4 text-slate-400 absolute left-3.5 top-3.5" />
@@ -119,7 +119,7 @@ export default function LoginPage() {
 
           <div className="mt-8 pt-6 border-t border-slate-100 text-center">
             <p className="text-[11px] text-slate-400">
-              QOUT Relief Organization © 2026 • Highly Secure Admin Infrastructure
+              Al-Fajr Relief Organization © 2026 • Highly Secure Admin Infrastructure
             </p>
           </div>
         </div>
