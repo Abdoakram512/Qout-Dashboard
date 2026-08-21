@@ -511,14 +511,27 @@ kbd {
   animation: fadeIn var(--dur-base) var(--ease-out);
 }
 .qout-drawer {
-  position: fixed; top: 0; right: 0;
-  height: 100%; width: 380px; max-width: 92vw;
+  position: fixed; top: 0;
+  inset-inline-end: 0;
+  height: 100%; width: 420px; max-width: 94vw;
   background: #FFFFFF;
-  box-shadow: -10px 0 30px rgba(15, 23, 42, 0.08);
-  border-inline-start: 1px solid #E2E8F0;
+  box-shadow: 0 0 35px rgba(15, 23, 42, 0.15);
+  border-inline-start: 1.5px solid #E2E8F0;
   z-index: 50;
   overflow-y: auto;
   animation: slideInRight var(--dur-slow) var(--ease-out);
+}
+
+[dir="ltr"] .qout-drawer {
+  animation: slideInLeft var(--dur-slow) var(--ease-out);
+}
+
+.animate-slide-in {
+  animation: slideInRight var(--dur-slow) var(--ease-out);
+}
+
+[dir="ltr"] .animate-slide-in {
+  animation: slideInLeft var(--dur-slow) var(--ease-out);
 }
 
 /* ── Animations ── */

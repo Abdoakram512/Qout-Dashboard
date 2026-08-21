@@ -7,7 +7,7 @@ import { collection, onSnapshot, doc, updateDoc, setDoc } from "firebase/firesto
 import { useI18n } from "@/lib/i18n";
 import { UserModel, UserRole } from "@/types";
 import {
-  UserCheck, Search, Bell, Check, X, UserPlus,
+  UserCheck, Search, Bell, Check, X, UserPlus, Eye, EyeOff,
   ShieldCheck, Store, Users, UserCog, Mail, Phone,
   MapPin, Lock, Building2, Hash, AlertCircle, CheckCircle2,
 } from "lucide-react";
@@ -27,6 +27,7 @@ export default function AccountsPage() {
   const [newName, setNewName] = useState("");
   const [newEmail, setNewEmail] = useState("");
   const [newPass, setNewPass] = useState("");
+  const [showNewPass, setShowNewPass] = useState(false);
   const [newRole, setNewRole] = useState<UserRole>("merchant");
   const [newPhone, setNewPhone] = useState("");
   const [newCity, setNewCity] = useState(isAr ? "الرياض" : "Riyadh");
@@ -585,15 +586,25 @@ export default function AccountsPage() {
                   <label className="block text-slate-700 mb-1 font-black">
                     {isAr ? "كلمة المرور" : "Password"}
                   </label>
-                  <input
-                    type="password"
-                    required
-                    dir="ltr"
-                    value={newPass}
-                    onChange={(e) => setNewPass(e.target.value)}
-                    placeholder="••••••••"
-                    className="qout-input font-mono"
-                  />
+                  <div className="relative">
+                    <input
+                      type={showNewPass ? "text" : "password"}
+                      required
+                      dir="ltr"
+                      value={newPass}
+                      onChange={(e) => setNewPass(e.target.value)}
+                      placeholder="••••••••"
+                      className="qout-input font-mono pr-10"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowNewPass(!showNewPass)}
+                      className="absolute right-2.5 top-2.5 p-1 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors cursor-pointer"
+                      title={showNewPass ? (isAr ? "إخفاء كلمة المرور" : "Hide password") : (isAr ? "إظهار كلمة المرور" : "Show password")}
+                    >
+                      {showNewPass ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4 text-slate-500" />}
+                    </button>
+                  </div>
                 </div>
               </div>
 

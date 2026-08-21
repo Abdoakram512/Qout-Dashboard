@@ -615,23 +615,24 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         <SidebarInner />
       </aside>
 
-      {/* Mobile Sidebar */}
+      {/* Mobile Sidebar (Responsive Drawer with Smooth Start-Edge Docking) */}
       {mobileOpen && (
         <>
           <div
-            className="fixed inset-0 z-40 lg:hidden bg-slate-900/40 backdrop-blur-xs"
+            className="fixed inset-0 z-40 lg:hidden bg-slate-900/50 backdrop-blur-xs transition-opacity"
             onClick={() => setMobileOpen(false)}
           />
           <aside
-            className="fixed top-0 right-0 h-full w-72 z-50 flex flex-col lg:hidden qout-sidebar bg-white shadow-2xl border-l border-slate-200"
+            className="fixed inset-y-0 start-0 h-full w-72 z-50 flex flex-col lg:hidden qout-sidebar bg-white shadow-2xl border-inline-end border-slate-200 animate-slide-in"
           >
             <button
-              className="absolute top-4 left-4 btn btn-icon bg-slate-100 text-slate-600 hover:bg-slate-200"
+              className="absolute top-4 end-4 btn btn-icon bg-slate-100 text-slate-600 hover:bg-slate-200 z-10 p-2 rounded-xl"
               onClick={() => setMobileOpen(false)}
+              title={isAr ? "إغلاق القائمة" : "Close Menu"}
             >
-              <X className="w-4 h-4" />
+              <X className="w-5 h-5" />
             </button>
-            <div className="pt-10 flex flex-col h-full overflow-hidden">
+            <div className="pt-2 flex flex-col h-full overflow-hidden">
               <SidebarInner />
             </div>
           </aside>
@@ -641,19 +642,20 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       {/* Main Container */}
       <div className="flex-1 flex flex-col min-w-0">
 
-        {/* Topbar */}
-        <header className="qout-topbar sticky top-0 z-20 px-6 flex items-center justify-between bg-white/95 border-b border-slate-200/80 shadow-xs">
+        {/* Topbar (Responsive for Mobile, Tablet & Desktop) */}
+        <header className="qout-topbar sticky top-0 z-20 px-4 sm:px-6 flex items-center justify-between bg-white/95 backdrop-blur-xs border-b border-slate-200/80 shadow-xs h-16">
 
           {/* Left: Mobile Toggle & Page Title */}
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2.5 sm:gap-3.5">
             <button
-              className="lg:hidden btn btn-icon btn-secondary"
+              className="lg:hidden btn btn-icon btn-secondary p-2 rounded-xl"
               onClick={() => setMobileOpen(true)}
+              aria-label={isAr ? "فتح القائمة" : "Open Navigation"}
             >
-              <Menu className="w-4 h-4 text-slate-700" />
+              <Menu className="w-5 h-5 text-slate-800" />
             </button>
             {pageTitle && (
-              <h2 className="text-base lg:text-lg font-black text-slate-900 tracking-tight">
+              <h2 className="text-sm sm:text-base lg:text-lg font-black text-slate-900 truncate">
                 {pageTitle}
               </h2>
             )}
