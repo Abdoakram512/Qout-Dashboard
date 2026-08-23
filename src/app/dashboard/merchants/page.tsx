@@ -11,14 +11,33 @@ import { useI18n } from "@/lib/i18n";
 import { useAuth } from "@/lib/authContext";
 import { logAuditEvent } from "@/lib/auditLogger";
 import { UserModel, BudgetAllocation, PaymentReceipt } from "@/types";
+import { arabicMatch } from "@/lib/arabicNormalizer";
 import {
   Store, Upload, Trash2, Eye, Loader2, ImageIcon, Search, CheckCircle2, XCircle, Building2,
   MapPin, Mail, Hash, TrendingUp, CreditCard, ShieldCheck,
   PlusCircle, Send, FileText, AlertTriangle, ArrowUpRight,
-  Coins, X, DollarSign, Wallet, Check, AlertCircle,
+  Coins, X, DollarSign, Wallet, Check, AlertCircle, Edit, Phone,
 } from "lucide-react";
 import Link from "next/link";
 import { createPortal } from "react-dom";
+
+// Helper to generate dynamic, smart reference code based on payment method
+function generateReference(method: "instapay" | "vodafone_cash" | "bank_transfer" | "cash"): string {
+  const dateStr = new Date().toISOString().slice(0, 10).replace(/-/g, "");
+  const rand = Math.floor(1000 + Math.random() * 9000);
+  switch (method) {
+    case "instapay":
+      return `INSTA-${dateStr}-${rand}`;
+    case "vodafone_cash":
+      return `VF-${dateStr}-${rand}`;
+    case "bank_transfer":
+      return `BANK-${dateStr}-${rand}`;
+    case "cash":
+      return `CASH-${dateStr}-${rand}`;
+    default:
+      return `REF-${dateStr}-${rand}`;
+  }
+}
 
 export default function MerchantsPage() {
   const { t, locale } = useI18n();
@@ -55,6 +74,19 @@ export default function MerchantsPage() {
   const [sendingReceipt, setSendingReceipt] = useState(false);
   const [uploadingImg, setUploadingImg] = useState(false);
 
+  // Edit Merchant Modal State
+  const [editingMerchant, setEditingMerchant] = useState<UserModel | null>(null);
+  const [editStoreName, setEditStoreName] = useState("");
+  const [editName, setEditName] = useState("");
+  const [editPhone, setEditPhone] = useState("");
+  const [editEmail, setEditEmail] = useState("");
+  const [editCity, setEditCity] = useState("");
+  const [editInstapay, setEditInstapay] = useState("");
+  const [editVodafoneCash, setEditVodafoneCash] = useState("");
+  const [editCr, setEditCr] = useState("");
+  const [editIsActive, setEditIsActive] = useState(true);
+  const [savingMerchant, setSavingMerchant] = useState(false);
+
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
   const showToast = (msg: string) => {
@@ -77,476 +109,434 @@ export default function MerchantsPage() {
   const handleToggle = async (m: UserModel) => {
     setUpdatingId(m.uid);
     try {
+      const nextActive = !m.isActive;
       await updateDoc(doc(db, "users", m.uid), {
-        isActive: !m.isActive,
-        isApproved: !m.isActive,
+        isActive: nextActive,
+        isApproved: nextActive,
       });
-      showToast(m.isActive ? "تم تعطيل حساب الصراف" : "تم تفعيل حساب الصراف بنجاح");
+
+      if (adminData) {
+        await logAuditEvent({
+          adminId: adminData.uid,
+          adminEmail: adminData.email,
+          action: nextActive ? "approve_user" : "reject_user",
+          targetId: m.uid,
+          targetType: "merchant",
+          details: JSON.stringify({ storeName: m.storeName, name: m.name }),
+        });
+      }
     } catch (e) {
       console.error(e);
+      alert(isAr ? "حدث خطأ أثناء تعديل الحالة" : "Error toggling status");
+    } finally {
+      setUpdatingId(null);
     }
-    setUpdatingId(null);
   };
 
-  // Submit Budget Allocation
-  const handleSaveAllocation = async (e: React.FormEvent) => {
-    e.preventDefault();
-    const numAmount = Number(allocAmount);
-    if (!allocatingMerchant || isNaN(numAmount) || numAmount <= 0) {
-      alert(isAr ? "يرجى إدخال مبلغ مالي صحيح أكبر من صفر" : "Please enter a valid amount greater than zero");
-      return;
-    }
-    setAllocating(true);
+  // Open Receipt Modal with full reset and dynamic ref
+  const openReceiptModal = (m: UserModel) => {
+    setReceiptMerchant(m);
+    setReceiptAmount(5000);
+    const initialMethod = "instapay";
+    setPaymentMethod(initialMethod);
+    setReferenceNumber(generateReference(initialMethod));
+    setSenderAccount(isAr ? "حساب مؤسسة الفجر - إنستا باي" : "Al-Fajr Foundation Account");
+    setReceiverAccount(m.instapayAddress || m.vodafoneCashNumber || m.phone || "");
+    setReceiptImageUrl("");
+    setReceiptNotes("");
+  };
 
+  // Open Edit Merchant Modal
+  const openEditMerchant = (m: UserModel) => {
+    setEditingMerchant(m);
+    setEditStoreName(m.storeName || "");
+    setEditName(m.name || "");
+    setEditPhone(m.phone || "");
+    setEditEmail(m.email || "");
+    setEditCity(m.city || "");
+    setEditInstapay(m.instapayAddress || "");
+    setEditVodafoneCash(m.vodafoneCashNumber || "");
+    setEditCr(m.commercialReg || "");
+    setEditIsActive(m.isActive ?? true);
+  };
+
+  const handleSaveMerchant = async () => {
+    if (!editingMerchant) return;
+    setSavingMerchant(true);
     try {
-      const allocId = `ALLOC-${Date.now().toString().slice(-6)}`;
-      const allocRef = doc(db, "budget_allocations", allocId);
-      const merchantId = allocatingMerchant.uid || (allocatingMerchant as any).id;
-
-      const allocationData: any = {
-        id: allocId,
-        allocationId: allocId,
-        merchantId: merchantId,
-        merchantName: allocatingMerchant.name || "صراف",
-        merchantStoreName: allocatingMerchant.storeName || allocatingMerchant.name || "منفذ الفجر",
-        amount: numAmount,
-        type: allocType,
-        allocatedBy: {
-          adminId: adminData?.uid || "admin",
-          adminName: adminData?.name || "مشرف مؤسسة الفجر",
-        },
-        notes: allocNotes.trim() || "",
-        timestamp: serverTimestamp(),
-        createdAt: new Date().toISOString(),
-      };
-
-      await setDoc(allocRef, allocationData);
-
-      // Increment allocatedBudget on merchant doc with merge
-      await setDoc(
-        doc(db, "users", merchantId),
-        {
-          allocatedBudget: increment(numAmount),
-          lastAllocationDate: serverTimestamp(),
-        },
-        { merge: true }
-      );
-
-      // Audit Log
-      await logAuditEvent({
-        action: "MERCHANT_BUDGET_ALLOCATION",
-        adminName: adminData?.name || "مشرف النظام",
-        details: `تخصيص وتغذية ميزانية بمبلغ ${numAmount.toLocaleString()} ج.م لمنفذ ${allocatingMerchant.storeName || allocatingMerchant.name}`,
-        targetId: merchantId,
+      await updateDoc(doc(db, "users", editingMerchant.uid), {
+        storeName: editStoreName.trim(),
+        name: editName.trim(),
+        phone: editPhone.trim(),
+        email: editEmail.trim(),
+        city: editCity.trim(),
+        instapayAddress: editInstapay.trim(),
+        vodafoneCashNumber: editVodafoneCash.trim(),
+        commercialReg: editCr.trim(),
+        isActive: editIsActive,
+        isApproved: editIsActive,
       });
 
-      showToast(`تم تخصيص ميزانية بقيمة ${numAmount.toLocaleString()} ج.م لمنفذ ${allocatingMerchant.storeName || allocatingMerchant.name} بنجاح ✅`);
-      setAllocatingMerchant(null);
-      setAllocNotes("");
-    } catch (err: any) {
-      console.error("Allocation error:", err);
-      alert((isAr ? "حدث خطأ أثناء حفظ التخصيص: " : "Error saving allocation: ") + (err?.message || ""));
+      if (adminData) {
+        await logAuditEvent({
+          adminId: adminData.uid,
+          adminEmail: adminData.email,
+          action: "update_user_role",
+          targetId: editingMerchant.uid,
+          targetType: "merchant",
+          details: JSON.stringify({ storeName: editStoreName, name: editName }),
+        });
+      }
+
+      showToast(isAr ? "تم تحديث بيانات الصراف بنجاح ✅" : "Merchant updated successfully ✅");
+      setEditingMerchant(null);
+    } catch (e: any) {
+      console.error(e);
+      alert(isAr ? "فشل حفظ التعديلات: " + e.message : "Failed to update merchant");
+    } finally {
+      setSavingMerchant(false);
     }
-    setAllocating(false);
   };
 
-  // Client-side Instant Image Compression (Under 50ms)
-  const compressImageFile = (file: File): Promise<string> => {
-    return new Promise((resolve) => {
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        const img = new Image();
-        img.onload = () => {
-          const canvas = document.createElement("canvas");
-          let width = img.width;
-          let height = img.height;
-          const maxDim = 900;
-
-          if (width > maxDim || height > maxDim) {
-            if (width > height) {
-              height = Math.round((height * maxDim) / width);
-              width = maxDim;
-            } else {
-              width = Math.round((width * maxDim) / height);
-              height = maxDim;
-            }
-          }
-
-          canvas.width = width;
-          canvas.height = height;
-          const ctx = canvas.getContext("2d");
-          if (!ctx) {
-            resolve(e.target?.result as string);
-            return;
-          }
-
-          ctx.drawImage(img, 0, 0, width, height);
-          const dataUrl = canvas.toDataURL("image/jpeg", 0.78);
-          resolve(dataUrl);
-        };
-        img.onerror = () => resolve(e.target?.result as string);
-        img.src = e.target?.result as string;
-      };
-      reader.onerror = () => resolve("");
-      reader.readAsDataURL(file);
-    });
-  };
-
-  // Handle Receipt Image File Upload (Instant & Zero Hang)
-  const handleImageFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  // Handle Image Upload for Payment Receipt
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    if (file.size > 15 * 1024 * 1024) {
-      alert(isAr ? "حجم الصورة كبير جداً، الحد الأقصى 15 ميجابايت" : "Image size too large (max 15MB)");
-      return;
-    }
-
     setUploadingImg(true);
     try {
-      const compressedDataUrl = await compressImageFile(file);
-      if (compressedDataUrl) {
-        setReceiptImageUrl(compressedDataUrl);
-      }
-    } catch (err) {
-      console.error("Image compression error:", err);
+      const storageRef = ref(storage, `payment_receipts/${Date.now()}_${file.name}`);
+      await uploadBytes(storageRef, file);
+      const url = await getDownloadURL(storageRef);
+      setReceiptImageUrl(url);
+    } catch (err: any) {
+      console.error(err);
+      alert(isAr ? "فشل رفع الصورة، يرجى المحاولة لاحقاً" : "Failed to upload image");
     } finally {
       setUploadingImg(false);
     }
   };
 
-  // Submit Payment Receipt
-  const handleSendPaymentReceipt = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!receiptMerchant || receiptAmount <= 0) return;
-    setSendingReceipt(true);
-
+  // Submit Budget Allocation
+  const handleConfirmAllocation = async () => {
+    if (!allocatingMerchant || allocAmount <= 0) return;
+    setAllocating(true);
     try {
-      const receiptId = `REC-${Date.now().toString().slice(-6)}`;
-      const receiptRef = doc(db, "payment_receipts", receiptId);
+      const allocationRef = doc(collection(db, "budget_allocations"));
+      const allocData: BudgetAllocation = {
+        id: allocationRef.id,
+        merchantId: allocatingMerchant.uid,
+        merchantStoreName: allocatingMerchant.storeName || allocatingMerchant.name || "منفذ غير مسمى",
+        amount: allocAmount,
+        type: allocType,
+        timestamp: new Date().toISOString(),
+        allocatedByAdminId: adminData?.uid || "admin",
+        allocatedByAdminEmail: adminData?.email || "admin@alfajr.org",
+        notes: allocNotes.trim() || undefined,
+      };
 
-      const receiptData: any = {
-        id: receiptId,
-        receiptId: receiptId,
-        merchantId: receiptMerchant.uid || (receiptMerchant as any).id,
-        merchantName: receiptMerchant.name || "صراف",
-        merchantStoreName: receiptMerchant.storeName || receiptMerchant.name || "منفذ الفجر",
-        amount: Number(receiptAmount),
+      await setDoc(allocationRef, allocData);
+      await updateDoc(doc(db, "users", allocatingMerchant.uid), {
+        allocatedBudget: increment(allocAmount),
+      });
+
+      if (adminData) {
+        await logAuditEvent({
+          adminId: adminData.uid,
+          adminEmail: adminData.email,
+          action: "allocate_budget",
+          targetId: allocatingMerchant.uid,
+          targetType: "merchant",
+          details: JSON.stringify({ amount: allocAmount, type: allocType, notes: allocNotes }),
+        });
+      }
+
+      showToast(isAr ? `تم تخصيص ${allocAmount.toLocaleString()} ج.م بنجاح للتاجر ${allocatingMerchant.storeName || ""}` : "Budget allocated successfully");
+      setAllocatingMerchant(null);
+      setAllocAmount(10000);
+      setAllocNotes("");
+    } catch (err: any) {
+      console.error(err);
+      alert(isAr ? "فشل حفظ التخصيص: " + err.message : "Failed to allocate budget");
+    } finally {
+      setAllocating(false);
+    }
+  };
+
+  // Submit Payment Receipt
+  const handleConfirmSendReceipt = async () => {
+    if (!receiptMerchant || receiptAmount <= 0 || !referenceNumber.trim()) {
+      alert(isAr ? "يرجى تعبئة جميع الحقول الإلزامية والرقم المرجعي" : "Please fill all required fields");
+      return;
+    }
+
+    setSendingReceipt(true);
+    try {
+      const receiptRef = doc(collection(db, "payment_receipts"));
+      const receiptData: PaymentReceipt = {
+        receiptId: receiptRef.id,
+        merchantId: receiptMerchant.uid,
+        merchantStoreName: receiptMerchant.storeName || receiptMerchant.name || "منفذ",
+        amount: receiptAmount,
         paymentMethod: paymentMethod,
-        referenceNumber: referenceNumber.trim() || `REF-${Date.now().toString().slice(-4)}`,
-        senderAccountOrPhone: senderAccount.trim() || "",
-        receiverAccountOrPhone: receiverAccount.trim() || receiptMerchant.instapayAddress || receiptMerchant.vodafoneCashNumber || "",
-        receiptImageUrl: receiptImageUrl.trim() || "",
+        referenceNumber: referenceNumber.trim(),
+        senderAccount: senderAccount.trim() || undefined,
+        receiverAccount: receiverAccount.trim() || undefined,
+        receiptImageUrl: receiptImageUrl.trim() || undefined,
+        notes: receiptNotes.trim() || undefined,
         status: "sent",
-        sentBy: {
-          adminId: adminData?.uid || "admin",
-          adminName: adminData?.name || "مشرف مؤسسة الفجر",
-        },
-        notes: receiptNotes.trim() || "",
-        timestamp: serverTimestamp(),
-        createdAt: new Date().toISOString(),
+        sentByAdminId: adminData?.uid || "admin",
+        sentByAdminEmail: adminData?.email || "admin@alfajr.org",
+        timestamp: new Date().toISOString(),
       };
 
       await setDoc(receiptRef, receiptData);
 
-      showToast(`تم إرسال وصل الدفع بقيمة ${receiptAmount.toLocaleString()} ج.م بنجاح إلى منفذ ${receiptMerchant.storeName || receiptMerchant.name} 📤`);
+      if (adminData) {
+        await logAuditEvent({
+          adminId: adminData.uid,
+          adminEmail: adminData.email,
+          action: "send_payment_receipt",
+          targetId: receiptMerchant.uid,
+          targetType: "merchant",
+          details: JSON.stringify({ amount: receiptAmount, method: paymentMethod, ref: referenceNumber }),
+        });
+      }
+
+      showToast(isAr ? `تم إرسال إشعار وإيصال الدفع بقيمة ${receiptAmount.toLocaleString()} ج.م للصراف بنجاح ✅` : "Receipt sent successfully");
       setReceiptMerchant(null);
-      setReferenceNumber("");
+      setReceiptAmount(5000);
       setReceiptImageUrl("");
       setReceiptNotes("");
-    } catch (err) {
-      console.error("Receipt error:", err);
-      alert("حدث خطأ أثناء إرسال الوصل");
+    } catch (err: any) {
+      console.error(err);
+      alert(isAr ? "فشل إرسال الإيصال: " + err.message : "Failed to send receipt");
+    } finally {
+      setSendingReceipt(false);
     }
-    setSendingReceipt(false);
   };
 
-  // Helper for budget stats of a merchant
-  const getMerchantBudgetStats = (m: UserModel) => {
+  const getBudgetStats = (m: UserModel) => {
     const allocated = m.allocatedBudget || 0;
-    const disbursed = m.totalDisbursed || 0;
-    const remaining = Math.max(0, allocated - disbursed);
-    const spentPercentage = allocated > 0 ? Math.min(100, Math.round((disbursed / allocated) * 100)) : 0;
-    const remainingPercentage = allocated > 0 ? Math.max(0, 100 - spentPercentage) : 0;
-    const isLowLiquidity = allocated > 0 && remainingPercentage <= 15;
-
-    return {
-      allocated,
-      disbursed,
-      remaining,
-      spentPercentage,
-      remainingPercentage,
-      isLowLiquidity,
-    };
+    const spent = m.totalDisbursed || 0;
+    const remaining = Math.max(0, allocated - spent);
+    const spentPercentage = allocated > 0 ? Math.min(100, Math.round((spent / allocated) * 100)) : 0;
+    const remainingPercentage = Math.max(0, 100 - spentPercentage);
+    return { allocated, spent, remaining, spentPercentage, remainingPercentage };
   };
 
+  // Filter Merchants using Arabic Normalizer
   const filtered = merchants.filter((m) => {
-    const q = search.toLowerCase();
-    const matchSearch = !q ||
-      m.storeName?.toLowerCase().includes(q) ||
-      m.name?.toLowerCase().includes(q) ||
-      m.email?.toLowerCase().includes(q) ||
-      m.city?.toLowerCase().includes(q);
+    const matchesSearch =
+      !search.trim() ||
+      arabicMatch(m.storeName || "", search) ||
+      arabicMatch(m.name || "", search) ||
+      arabicMatch(m.phone || "", search) ||
+      arabicMatch(m.city || "", search) ||
+      arabicMatch(m.email || "", search) ||
+      arabicMatch(m.commercialReg || "", search);
 
-    const bStats = getMerchantBudgetStats(m);
+    if (!matchesSearch) return false;
 
-    let matchFilter = true;
-    if (filter === "active") matchFilter = m.isActive;
-    else if (filter === "suspended") matchFilter = !m.isActive;
-    else if (filter === "low_liquidity") matchFilter = bStats.isLowLiquidity;
-
-    return matchSearch && matchFilter;
+    if (filter === "active") return m.isActive === true;
+    if (filter === "suspended") return m.isActive === false;
+    if (filter === "low_liquidity") {
+      const stats = getBudgetStats(m);
+      return stats.allocated > 0 && stats.remaining <= 3000;
+    }
+    return true;
   });
 
-  const activeCount = merchants.filter((m) => m.isActive).length;
-  const suspendedCount = merchants.filter((m) => !m.isActive).length;
-  const totalAllocatedSum = merchants.reduce((a, m) => a + (m.allocatedBudget || 0), 0);
-  const totalDisbursedSum = merchants.reduce((a, m) => a + (m.totalDisbursed || 0), 0);
-  const totalRemainingSum = Math.max(0, totalAllocatedSum - totalDisbursedSum);
-  const lowLiquidityCount = merchants.filter((m) => getMerchantBudgetStats(m).isLowLiquidity).length;
-  const topMerchantId = filtered[0]?.uid;
+  const totalAllocatedAll = merchants.reduce((acc, m) => acc + (m.allocatedBudget || 0), 0);
+  const totalDisbursedAll = merchants.reduce((acc, m) => acc + (m.totalDisbursed || 0), 0);
+  const totalRemainingAll = Math.max(0, totalAllocatedAll - totalDisbursedAll);
 
   return (
-    <div className="space-y-6 page-enter">
-      {/* Toast */}
+    <div className="space-y-6">
+      {/* Toast Notification */}
       {toastMessage && (
-        <div className="fixed bottom-6 left-6 z-[120] px-4 py-3 rounded-2xl bg-[#0A734D] text-white font-black text-sm shadow-xl flex items-center gap-2 animate-bounce">
-          <CheckCircle2 className="w-5 h-5 text-amber-300" />
+        <div className="fixed top-5 left-1/2 -translate-x-1/2 z-[99999] bg-emerald-900 text-white px-5 py-3 rounded-2xl shadow-2xl flex items-center gap-2 border-2 border-emerald-400 font-bold text-sm animate-in slide-in-from-top-4">
+          <CheckCircle2 className="w-5 h-5 text-emerald-300 flex-shrink-0" />
           <span>{toastMessage}</span>
         </div>
       )}
 
-      {/* ── Header ── */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-        <div className="flex items-center gap-3">
-          <div
-            className="w-12 h-12 rounded-2xl flex items-center justify-center text-white shadow-sm flex-shrink-0"
-            style={{ background: "linear-gradient(135deg, #0A734D, #063A28)" }}
-          >
-            <Store className="w-6 h-6 text-amber-300" />
+      {/* Header & KPI Summary Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <div className="qout-card p-5 bg-white border border-slate-200">
+          <div className="flex items-center justify-between text-slate-500 mb-2">
+            <span className="text-xs font-bold">{isAr ? "إجمالي منافذ الصرف" : "Total Outlets"}</span>
+            <Store className="w-5 h-5 text-emerald-600" />
           </div>
-          <div>
-            <h1 className="text-xl lg:text-2xl font-black text-slate-900">
-              {isAr ? "المنافذ والصرافون والميزانيات المركزية" : "Merchants, Stores & Liquidity"}
-            </h1>
-            <p className="text-xs text-slate-500 mt-0.5 font-semibold">
-              {isAr
-                ? "مؤسسة الفجر الخيرية | تخصيص ميزانيات العهد، إرسال إيصالات إنستا باي وفودافون كاش، وتتبع المصروف والمتبقي"
-                : "Al-Fajr Foundation | Manage store allocations, send payment receipts, and track remaining liquidity"}
-            </p>
+          <p className="text-2xl font-black text-slate-900 font-mono">{merchants.length}</p>
+          <span className="text-[11px] text-emerald-700 font-bold mt-1 inline-block">
+            {merchants.filter((m) => m.isActive).length} {isAr ? "منفذ نشط ومعتمد" : "active"}
+          </span>
+        </div>
+
+        <div className="qout-card p-5 bg-white border border-slate-200">
+          <div className="flex items-center justify-between text-slate-500 mb-2">
+            <span className="text-xs font-bold">{isAr ? "إجمالي الميزانيات المخصصة" : "Total Allocated"}</span>
+            <Wallet className="w-5 h-5 text-[#0A734D]" />
+          </div>
+          <p className="text-2xl font-black text-[#0A734D] font-mono">{totalAllocatedAll.toLocaleString()} {isAr ? "ج.م" : "EGP"}</p>
+          <span className="text-[11px] text-slate-500 font-bold mt-1 inline-block">
+            {isAr ? "تغذية نقدية من الإدارة" : "Total Admin Allocations"}
+          </span>
+        </div>
+
+        <div className="qout-card p-5 bg-white border border-slate-200">
+          <div className="flex items-center justify-between text-slate-500 mb-2">
+            <span className="text-xs font-bold">{isAr ? "إجمالي المنصرف للمستفيدين" : "Total Disbursed"}</span>
+            <Coins className="w-5 h-5 text-amber-600" />
+          </div>
+          <p className="text-2xl font-black text-amber-700 font-mono">{totalDisbursedAll.toLocaleString()} {isAr ? "ج.م" : "EGP"}</p>
+          <span className="text-[11px] text-amber-800 font-bold mt-1 inline-block">
+            {isAr ? "تم تسليمها للمستحقين" : "Redeemed by Beneficiaries"}
+          </span>
+        </div>
+
+        <div className="qout-card p-5 bg-white border border-slate-200">
+          <div className="flex items-center justify-between text-slate-500 mb-2">
+            <span className="text-xs font-bold">{isAr ? "السيولة المتبقية لدى الصرافين" : "Remaining Liquidity"}</span>
+            <DollarSign className="w-5 h-5 text-blue-600" />
+          </div>
+          <p className="text-2xl font-black text-blue-700 font-mono">{totalRemainingAll.toLocaleString()} {isAr ? "ج.م" : "EGP"}</p>
+          <span className="text-[11px] text-blue-800 font-bold mt-1 inline-block">
+            {isAr ? "جاهزة لعمليات الصرف" : "Available in Stores"}
+          </span>
+        </div>
+      </div>
+
+      {/* Search & Filter Bar */}
+      <div className="qout-card p-4 bg-white shadow-xs space-y-3">
+        <div className="flex flex-col sm:flex-row gap-3">
+          <div className="relative flex-1">
+            <input
+              type="text"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder={isAr ? "بحث باسم الصراف، اسم المتجر، الهاتف، المدينة أو السجل التجاري..." : "Search merchant, store, phone, city..."}
+              className="qout-input ps-10"
+            />
+            <Search className="w-4 h-4 absolute start-3.5 top-3 text-slate-400" />
+          </div>
+
+          <div className="flex flex-wrap gap-2">
+            {[
+              { id: "all", label: isAr ? "الكل" : "All" },
+              { id: "active", label: isAr ? "النشطة" : "Active" },
+              { id: "suspended", label: isAr ? "المعطلة" : "Suspended" },
+              { id: "low_liquidity", label: isAr ? "سيولة منخفضة (<3k)" : "Low Liquidity" },
+            ].map((t) => (
+              <button
+                key={t.id}
+                onClick={() => setFilter(t.id as any)}
+                className={`btn btn-sm font-black ${
+                  filter === t.id
+                    ? "bg-[#0A734D] text-white shadow-xs"
+                    : "btn-secondary"
+                }`}
+              >
+                {t.label}
+              </button>
+            ))}
           </div>
         </div>
       </div>
 
-      {/* ── Summary KPI Cards ── */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 animate-slide-up">
-        {/* Total Allocated Budgets */}
-        <div className="qout-card p-4 bg-white border-r-4 border-r-emerald-700 shadow-xs flex items-center justify-between">
-          <div>
-            <p className="text-[11px] font-bold text-slate-500 uppercase tracking-wide">
-              {isAr ? "إجمالي الميزانيات المخصصة" : "Total Allocated Budget"}
-            </p>
-            <p className="text-2xl font-black text-emerald-800 font-mono mt-0.5">
-              {totalAllocatedSum.toLocaleString()} <span className="text-xs text-slate-500 font-bold">{isAr ? "ج.م" : "EGP"}</span>
-            </p>
-            <span className="text-[10px] text-slate-400 font-semibold">{activeCount} منافذ نشطة</span>
-          </div>
-          <div className="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-700 flex items-center justify-center font-bold">
-            <Wallet className="w-5 h-5" />
-          </div>
-        </div>
-
-        {/* Total Disbursed */}
-        <div className="qout-card p-4 bg-white border-r-4 border-r-blue-600 shadow-xs flex items-center justify-between">
-          <div>
-            <p className="text-[11px] font-bold text-slate-500 uppercase tracking-wide">
-              {isAr ? "إجمالي المصروف للمستفيدين" : "Total Disbursed"}
-            </p>
-            <p className="text-2xl font-black text-blue-900 font-mono mt-0.5">
-              {totalDisbursedSum.toLocaleString()} <span className="text-xs text-slate-500 font-bold">{isAr ? "ج.م" : "EGP"}</span>
-            </p>
-            <span className="text-[10px] text-blue-600 font-bold">
-              {totalAllocatedSum > 0 ? `${Math.round((totalDisbursedSum / totalAllocatedSum) * 100)}% من الميزانية` : "—"}
-            </span>
-          </div>
-          <div className="w-10 h-10 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center font-bold">
-            <TrendingUp className="w-5 h-5" />
-          </div>
-        </div>
-
-        {/* Total Remaining Liquidity */}
-        <div className="qout-card p-4 bg-white border-r-4 border-r-amber-600 shadow-xs flex items-center justify-between">
-          <div>
-            <p className="text-[11px] font-bold text-slate-500 uppercase tracking-wide">
-              {isAr ? "السيولة المتبقية بعهد الصرافين" : "Remaining Liquidity"}
-            </p>
-            <p className="text-2xl font-black text-amber-700 font-mono mt-0.5">
-              {totalRemainingSum.toLocaleString()} <span className="text-xs text-slate-500 font-bold">{isAr ? "ج.م" : "EGP"}</span>
-            </p>
-            <span className="text-[10px] text-amber-700 font-bold">جاهز للصرف فوراً</span>
-          </div>
-          <div className="w-10 h-10 rounded-xl bg-amber-50 text-amber-700 flex items-center justify-center font-bold">
-            <Coins className="w-5 h-5" />
-          </div>
-        </div>
-
-        {/* Low Liquidity Alerts */}
-        <div className="qout-card p-4 bg-white border-r-4 border-r-red-600 shadow-xs flex items-center justify-between">
-          <div>
-            <p className="text-[11px] font-bold text-slate-500 uppercase tracking-wide">
-              {isAr ? "إنذارات السيولة المنخفضة" : "Low Liquidity Stores"}
-            </p>
-            <p className="text-2xl font-black text-red-600 font-mono mt-0.5">{lowLiquidityCount}</p>
-            <span className="text-[10px] text-red-600 font-bold">{lowLiquidityCount > 0 ? (isAr ? "يتطلب إرسال دفعات" : "Needs recharge") : (isAr ? "السيولة مستقرة ✅" : "Optimal")}</span>
-          </div>
-          <div className="w-10 h-10 rounded-xl bg-red-50 text-red-600 flex items-center justify-center font-bold">
-            <AlertTriangle className="w-5 h-5" />
-          </div>
-        </div>
-      </div>
-
-      {/* ── Search & Filter Controls ── */}
-      <div className="flex flex-col sm:flex-row gap-3 animate-slide-up">
-        <div className="relative flex-1">
-          <input
-            type="text"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder={isAr ? "بحث باسم المتجر، المدينة، المسؤول، أو السجل التجاري..." : "Search store name, city, owner, CR..."}
-            className="qout-input ps-10"
-          />
-          <Search className="w-4 h-4 absolute start-3.5 top-3 text-slate-400" />
-        </div>
-        <div className="flex gap-2 flex-wrap">
-          {(
-            [
-              { id: "all", labelAr: "الكل", labelEn: "All" },
-              { id: "active", labelAr: "نشط", labelEn: "Active" },
-              { id: "low_liquidity", labelAr: "⚠️ سيولة منخفضة (<15%)", labelEn: "⚠️ Low Liquidity" },
-              { id: "suspended", labelAr: "موقوف", labelEn: "Suspended" },
-            ] as const
-          ).map((f) => (
-            <button
-              key={f.id}
-              onClick={() => setFilter(f.id)}
-              className={`btn btn-sm ${filter === f.id ? "btn-primary" : "btn-secondary"}`}
-            >
-              {isAr ? f.labelAr : f.labelEn}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {/* ── Merchant Cards Grid ── */}
+      {/* Merchants Grid */}
       {loading ? (
-        <div className="flex justify-center py-16">
-          <div className="w-7 h-7 border-2 border-emerald-600 border-t-transparent rounded-full animate-spin" />
+        <div className="text-center py-20">
+          <div className="w-8 h-8 border-3 border-emerald-600 border-t-transparent rounded-full animate-spin mx-auto mb-3" />
+          <p className="text-xs text-slate-500 font-bold">{isAr ? "جاري تحميل بيانات المنافذ..." : "Loading merchants..."}</p>
         </div>
       ) : filtered.length === 0 ? (
-        <div className="qout-card py-16 text-center bg-white">
-          <Store className="w-10 h-10 mx-auto mb-3 text-slate-300" />
-          <p className="text-sm font-bold text-slate-500">
-            {isAr ? "لا توجد منافذ صرف مطابقة للبحث" : "No matching merchants found"}
-          </p>
+        <div className="text-center py-16 bg-white rounded-3xl border border-slate-200 p-8 shadow-xs">
+          <Store className="w-12 h-12 text-slate-300 mx-auto mb-3" />
+          <h3 className="text-base font-black text-slate-800">{isAr ? "لم يتم العثور على منافذ مطابقة" : "No matching merchants"}</h3>
+          <p className="text-xs text-slate-500 mt-1">{isAr ? "تأكد من كتابة الكلمات بشكل صحيح أو قم بمسح الفلاتر" : "Check search query or reset filters"}</p>
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
           {filtered.map((m) => {
-            const isTop = m.uid === topMerchantId && m.isActive;
-            const bStats = getMerchantBudgetStats(m);
+            const bStats = getBudgetStats(m);
 
             return (
               <div
                 key={m.uid}
-                className={`qout-card p-5 bg-white flex flex-col justify-between transition-all relative ${
-                  bStats.isLowLiquidity ? "border-2 border-red-400 bg-red-50/10 shadow-md" : ""
-                } ${isTop && !bStats.isLowLiquidity ? "border-emerald-500 shadow-md" : ""} ${
-                  !m.isActive ? "border-red-200 bg-red-50/20" : ""
-                }`}
-                style={{
-                  borderRightWidth: isTop ? 4 : undefined,
-                  borderRightColor: isTop ? "#0A734D" : undefined,
-                }}
+                className="qout-card p-5 bg-white border border-slate-200/90 hover:border-emerald-500/50 transition-all flex flex-col justify-between shadow-xs hover:shadow-md group"
               >
                 <div>
-                  {/* Top Badges */}
-                  <div className="flex items-center justify-between gap-2 mb-3">
-                    {bStats.isLowLiquidity ? (
-                      <span className="text-[11px] font-black uppercase px-2.5 py-0.5 rounded-full bg-red-100 text-red-900 flex items-center gap-1 border border-red-300 animate-pulse">
-                        <AlertTriangle className="w-3.5 h-3.5 text-red-600" />
-                        {isAr ? "⚠️ سيولة حرجة (أقل من 15%)" : "Low Liquidity Alert"}
-                      </span>
-                    ) : isTop ? (
-                      <span className="text-[11px] font-black uppercase px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800 flex items-center gap-1 border border-emerald-200">
-                        <ShieldCheck className="w-3.5 h-3.5 text-emerald-700" />
-                        {isAr ? "المنفذ الأكثر نشاطاً" : "Top Performer"}
-                      </span>
-                    ) : (
-                      <span className="text-[11px] font-bold text-slate-400">منفذ معتمد</span>
-                    )}
+                  {/* Top Row: Store Badge + Status */}
+                  <div className="flex items-start justify-between gap-3 mb-3">
+                    <div className="flex items-center gap-3">
+                      <div className="w-12 h-12 rounded-2xl bg-emerald-50 text-[#0A734D] flex items-center justify-center border border-emerald-200 shadow-xs flex-shrink-0 group-hover:scale-105 transition-transform">
+                        <Store className="w-6 h-6" />
+                      </div>
+                      <div className="min-w-0">
+                        <h4 className="text-sm font-black text-slate-900 truncate leading-snug">
+                          {m.storeName || m.name || (isAr ? "منفذ بدون اسم" : "Unnamed Outlet")}
+                        </h4>
+                        <p className="text-xs font-bold text-slate-500 flex items-center gap-1 mt-0.5">
+                          <MapPin className="w-3 h-3 text-slate-400" />
+                          <span>{m.city || (isAr ? "مصر" : "Egypt")}</span>
+                          {m.name && <span className="text-slate-400">• {m.name}</span>}
+                        </p>
+                      </div>
+                    </div>
 
-                    <span className={`badge flex-shrink-0 ${m.isActive ? "badge-active" : "badge-suspended"}`}>
-                      {m.isActive ? (isAr ? "نشط" : "Active") : (isAr ? "موقوف" : "Suspended")}
+                    <span
+                      className={`badge font-black text-[10px] ${
+                        m.isActive
+                          ? "bg-emerald-100 text-emerald-800 border-emerald-300"
+                          : "bg-red-100 text-red-800 border-red-300"
+                      }`}
+                    >
+                      {m.isActive ? (isAr ? "معتمد نشط" : "Active") : (isAr ? "معطل" : "Disabled")}
                     </span>
                   </div>
 
-                  {/* Header */}
-                  <div className="flex items-start justify-between gap-3 mb-4">
-                    <div className="flex items-center gap-3">
-                      <div
-                        className={`w-12 h-12 rounded-2xl flex items-center justify-center flex-shrink-0 ${
-                          m.isActive ? "bg-emerald-50 text-[#0A734D] border border-emerald-200" : "bg-red-50 text-red-600 border border-red-200"
-                        }`}
-                      >
-                        <Building2 className="w-6 h-6" />
-                      </div>
-                      <div>
-                        <Link
-                          href={`/dashboard/merchants/${m.uid}`}
-                          className="font-black text-base text-slate-900 leading-snug hover:text-[#0A734D] transition-colors flex items-center gap-1"
-                        >
-                          <span>{m.storeName || m.name}</span>
-                          <ArrowUpRight className="w-3.5 h-3.5 text-slate-400" />
-                        </Link>
-                        <p className="text-xs text-slate-500 font-bold mt-0.5">{m.name} • {m.city || (isAr ? "الرياض" : "Riyadh")}</p>
-                      </div>
-                    </div>
+                  {/* Contact Info Pills */}
+                  <div className="flex flex-wrap gap-1.5 mb-4 text-[11px] font-bold text-slate-600">
+                    {m.phone && (
+                      <span className="px-2.5 py-1 rounded-lg bg-slate-50 border border-slate-200 flex items-center gap-1 font-mono">
+                        <Phone className="w-3 h-3 text-slate-400" />
+                        {m.phone}
+                      </span>
+                    )}
+                    {m.instapayAddress && (
+                      <span className="px-2.5 py-1 rounded-lg bg-emerald-50 text-emerald-900 border border-emerald-200 flex items-center gap-1 font-mono">
+                        <Coins className="w-3 h-3 text-emerald-600" />
+                        {m.instapayAddress}
+                      </span>
+                    )}
+                    {m.vodafoneCashNumber && (
+                      <span className="px-2.5 py-1 rounded-lg bg-red-50 text-red-900 border border-red-200 flex items-center gap-1 font-mono">
+                        VF: {m.vodafoneCashNumber}
+                      </span>
+                    )}
                   </div>
 
-                  {/* ── Liquidity & Budget Progress Bar (CORE FEATURE) ── */}
-                  <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200/80 mb-4 space-y-3">
-                    <div className="flex items-center justify-between text-xs">
-                      <span className="font-extrabold text-slate-600 flex items-center gap-1.5">
-                        <Wallet className="w-3.5 h-3.5 text-[#0A734D]" />
-                        <span>{isAr ? "الميزانية المخصصة:" : "Allocated Budget:"}</span>
-                      </span>
-                      <span className="font-black text-slate-900 font-mono">
-                        {bStats.allocated.toLocaleString()} {isAr ? "ج.م" : "EGP"}
-                      </span>
-                    </div>
-
-                    <div className="flex items-center justify-between text-xs">
-                      <span className="font-bold text-slate-500">{isAr ? "المصروف للمستفيدين:" : "Disbursed:"}</span>
-                      <span className="font-black text-blue-800 font-mono">
-                        {bStats.disbursed.toLocaleString()} {isAr ? "ج.م" : "EGP"}
-                      </span>
-                    </div>
-
-                    <div className="flex items-center justify-between text-xs pt-1.5 border-t border-slate-200">
-                      <span className="font-black text-slate-700">{isAr ? "الرصيد المتبقي بالعهدة:" : "Remaining Liquidity:"}</span>
-                      <span className={`font-black font-mono text-sm ${bStats.isLowLiquidity ? "text-red-600" : "text-emerald-800"}`}>
-                        {bStats.remaining.toLocaleString()} {isAr ? "ج.م" : "EGP"}
-                      </span>
+                  {/* Financial Liquidity Progress */}
+                  <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200/80 mb-4 space-y-2.5">
+                    <div className="flex items-center justify-between text-xs font-black">
+                      <span className="text-slate-600">{isAr ? "السيولة المتوفرة بالمنفذ:" : "Available Liquidity:"}</span>
+                      <span className="text-[#0A734D] font-mono text-sm font-extrabold">{bStats.remaining.toLocaleString()} {isAr ? "ج.م" : "EGP"}</span>
                     </div>
 
                     {/* Progress Bar */}
                     <div className="space-y-1">
-                      <div className="h-2.5 w-full bg-slate-200 rounded-full overflow-hidden flex">
+                      <div className="w-full h-2.5 rounded-full bg-slate-200 overflow-hidden flex">
                         <div
-                          className={`h-full transition-all ${
-                            bStats.isLowLiquidity ? "bg-red-500" : "bg-emerald-600"
-                          }`}
                           style={{ width: `${bStats.spentPercentage}%` }}
+                          className="h-full bg-amber-500 transition-all duration-500"
+                          title={isAr ? `تم صرف: ${bStats.spent.toLocaleString()} ج.م (${bStats.spentPercentage}%)` : "Disbursed"}
+                        />
+                        <div
+                          style={{ width: `${bStats.remainingPercentage}%` }}
+                          className="h-full bg-emerald-600 transition-all duration-500"
+                          title={isAr ? `متبقي: ${bStats.remaining.toLocaleString()} ج.م (${bStats.remainingPercentage}%)` : "Remaining"}
                         />
                       </div>
                       <div className="flex items-center justify-between text-[10px] text-slate-400 font-bold font-mono">
@@ -588,12 +578,7 @@ export default function MerchantsPage() {
 
                     {/* Send Payment Receipt Button */}
                     <button
-                      onClick={() => {
-                        setReceiptMerchant(m);
-                        setReceiptAmount(5000);
-                        setReferenceNumber(`INSTA-${Date.now().toString().slice(-6)}`);
-                        setReceiverAccount(m.instapayAddress || m.vodafoneCashNumber || "");
-                      }}
+                      onClick={() => openReceiptModal(m)}
                       className="btn btn-sm bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-200 font-black flex items-center justify-center gap-1.5 py-2"
                       title={isAr ? "إرسال وصل دفع إنستا باي / فودافون كاش" : "Send Receipt"}
                     >
@@ -602,16 +587,26 @@ export default function MerchantsPage() {
                     </button>
                   </div>
 
-                  {/* Profile Link and Toggle */}
-                  <div className="grid grid-cols-3 gap-2">
+                  {/* Profile Link, Edit & Toggle */}
+                  <div className="grid grid-cols-4 gap-2">
                     <Link
                       href={`/dashboard/merchants/${m.uid}`}
                       className="btn btn-sm btn-secondary col-span-2 justify-center font-black text-xs py-2 flex items-center gap-1.5"
                     >
                       <FileText className="w-3.5 h-3.5 text-slate-500" />
-                      <span>{isAr ? "بروفايل ومحفظة الصراف" : "View Ledger"}</span>
+                      <span>{isAr ? "المحفظة" : "Ledger"}</span>
                     </Link>
 
+                    {/* Edit Merchant Button */}
+                    <button
+                      onClick={() => openEditMerchant(m)}
+                      className="btn btn-sm btn-secondary justify-center font-black text-xs py-2 text-slate-700 hover:bg-slate-100"
+                      title={isAr ? "تعديل بيانات الصراف والمنفذ" : "Edit Merchant"}
+                    >
+                      <Edit className="w-4 h-4 text-emerald-700" />
+                    </button>
+
+                    {/* Toggle Active Button */}
                     <button
                       disabled={updatingId === m.uid}
                       onClick={() => handleToggle(m)}
@@ -650,110 +645,94 @@ export default function MerchantsPage() {
                 <Wallet className="w-6 h-6 text-amber-300" />
               </div>
               <div>
-                <h3 className="text-lg font-black text-slate-950">
-                  {isAr ? "تخصيص وتغذية ميزانية الصراف" : "Allocate Merchant Budget"}
+                <h3 className="text-lg font-black text-slate-900">
+                  {isAr ? "تخصيص ميزانية وتغذية سيولة" : "Allocate Merchant Budget"}
                 </h3>
-                <p className="text-xs text-slate-500 font-bold mt-0.5">
-                  منفذ: {allocatingMerchant.storeName || allocatingMerchant.name}
+                <p className="text-xs font-bold text-[#0A734D]">
+                  {allocatingMerchant.storeName || allocatingMerchant.name}
                 </p>
               </div>
             </div>
 
-            <form onSubmit={handleSaveAllocation} className="space-y-4">
+            <div className="space-y-4 text-xs font-bold">
               <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">
-                  {isAr ? "المبلغ المالي المراد إضافته للميزانية (ج.م):" : "Allocation Amount (EGP):"}
-                </label>
-                <div className="relative">
-                  <input
-                    type="number"
-                    min={1}
-                    step="any"
-                    required
-                    placeholder="أدخل أي قيمة مطلوبة..."
-                    value={allocAmount || ""}
-                    onChange={(e) => setAllocAmount(e.target.value === "" ? 0 : Number(e.target.value))}
-                    className="w-full pl-4 pr-12 py-3 rounded-xl bg-slate-50 border border-slate-200 text-lg font-black font-mono text-[#0A734D] focus:bg-white focus:border-emerald-500 focus:outline-none"
-                  />
-                  <span className="absolute right-3.5 top-3.5 text-xs font-bold text-slate-400">ج.م</span>
-                </div>
-                {/* Quick Preset Buttons */}
-                <div className="flex flex-wrap gap-1.5 mt-2">
-                  {[1000, 5000, 10000, 25000, 50000, 100000].map((preset) => (
+                <label className="block text-slate-700 mb-1.5">{isAr ? "المبلغ المراد إضافته (ج.م)" : "Amount to Allocate (EGP)"}</label>
+                <div className="grid grid-cols-4 gap-2 mb-2">
+                  {[5000, 10000, 25000, 50000].map((amt) => (
                     <button
-                      key={preset}
+                      key={amt}
                       type="button"
-                      onClick={() => setAllocAmount(preset)}
-                      className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer ${
-                        allocAmount === preset
-                          ? "bg-[#0A734D] text-white shadow-sm"
-                          : "bg-slate-100 text-slate-700 hover:bg-slate-200"
+                      onClick={() => setAllocAmount(amt)}
+                      className={`py-2 px-1 rounded-xl border text-xs font-black ${
+                        allocAmount === amt
+                          ? "bg-[#0A734D] text-white border-[#0A734D]"
+                          : "bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100"
                       }`}
                     >
-                      +{preset.toLocaleString()} ج.م
+                      {amt.toLocaleString()}
                     </button>
                   ))}
                 </div>
+                <input
+                  type="number"
+                  value={allocAmount}
+                  onChange={(e) => setAllocAmount(Number(e.target.value))}
+                  className="qout-input font-mono font-bold text-sm"
+                  min={100}
+                />
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">
-                  {isAr ? "نوع الحركة:" : "Allocation Type:"}
-                </label>
+                <label className="block text-slate-700 mb-1.5">{isAr ? "نوع العملية" : "Allocation Type"}</label>
                 <select
                   value={allocType}
                   onChange={(e) => setAllocType(e.target.value as any)}
-                  className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs font-bold text-slate-800"
+                  className="qout-select font-bold"
                 >
-                  <option value="recharge">تغذية دورية منتظمة (Recharge)</option>
-                  <option value="initial">ميزانية ابتدائية تأسيسية (Initial)</option>
-                  <option value="adjustment">تسوية مالية إدارية (Adjustment)</option>
+                  <option value="recharge">{isAr ? "تغذية دورية (Recharge)" : "Periodic Recharge"}</option>
+                  <option value="initial">{isAr ? "تخصيص مبدئي (Initial)" : "Initial Budget"}</option>
+                  <option value="adjustment">{isAr ? "تسوية إدارية (Adjustment)" : "Administrative Adjustment"}</option>
                 </select>
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">
-                  {isAr ? "ملاحظات وتوثيق الحركة:" : "Notes:"}
-                </label>
-                <textarea
-                  rows={2}
+                <label className="block text-slate-700 mb-1.5">{isAr ? "ملاحظات السند المالي (اختياري)" : "Notes (Optional)"}</label>
+                <input
+                  type="text"
                   value={allocNotes}
                   onChange={(e) => setAllocNotes(e.target.value)}
-                  placeholder={isAr ? "اكتب أي تفاصيل أو سبب الإيداع (اختياري)..." : "Optional notes..."}
-                  className="w-full p-3 rounded-xl bg-slate-50 border border-slate-200 text-xs font-bold text-slate-800 focus:bg-white focus:outline-none"
+                  placeholder={isAr ? "مثال: حوالة بنكية لشهر رمضان" : "e.g. Bank transfer for Ramadan"}
+                  className="qout-input"
                 />
               </div>
 
-              <div className="p-3.5 rounded-2xl bg-emerald-50 border border-emerald-200 text-xs text-emerald-950 font-semibold">
-                💡 سيتم زيادة ميزانية الصراف فورياً بمبلغ <b>{allocAmount.toLocaleString()} ج.م</b> لتصبح الميزانية الكلية: <b>{((allocatingMerchant.allocatedBudget || 0) + Number(allocAmount)).toLocaleString()} ج.م</b>.
-              </div>
-
-              <div className="flex items-center gap-3 pt-2">
-                <button
-                  type="submit"
-                  disabled={allocating || allocAmount <= 0}
-                  className="btn bg-[#0A734D] hover:bg-[#085E3E] text-white flex-1 justify-center font-black py-3 rounded-xl shadow-md disabled:opacity-50 cursor-pointer"
-                >
-                  {allocating ? "جاري الحفظ والاعتماد..." : isAr ? "اعتماد وتغذية الميزانية الآن" : "Confirm Allocation"}
-                </button>
+              <div className="pt-4 flex items-center justify-end gap-3 border-t border-slate-100">
                 <button
                   type="button"
                   onClick={() => setAllocatingMerchant(null)}
-                  className="btn btn-secondary py-3 px-5 rounded-xl font-bold cursor-pointer"
+                  className="btn btn-secondary px-5"
                 >
-                  إلغاء
+                  {isAr ? "إلغاء" : "Cancel"}
+                </button>
+                <button
+                  type="button"
+                  disabled={allocating || allocAmount <= 0}
+                  onClick={handleConfirmAllocation}
+                  className="btn btn-primary px-6"
+                >
+                  {allocating ? (isAr ? "جاري الحفظ..." : "Saving...") : (isAr ? "تأكيد إضافة الرصيد" : "Confirm Allocation")}
                 </button>
               </div>
-            </form>
+            </div>
           </div>
         </div>,
         document.body
       )}
 
-      {/* ── MODAL 2: Send Payment Receipt Modal ───────────────────────── */}
+      {/* ── MODAL 2: Send Payment Receipt Modal (Smart Ref + Fix) ────────── */}
       {receiptMerchant && mounted && createPortal(
         <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-sm animate-in fade-in duration-200">
-          <div className="bg-white rounded-3xl p-6 sm:p-7 max-w-lg w-full shadow-2xl border-2 border-slate-200 relative animate-in zoom-in-95 duration-200 max-h-[90vh] overflow-y-auto">
+          <div className="bg-white rounded-3xl p-6 sm:p-7 max-w-lg w-full shadow-2xl border-2 border-slate-200 relative animate-in zoom-in-95 duration-200 max-h-[92vh] overflow-y-auto">
             <button
               onClick={() => setReceiptMerchant(null)}
               className="absolute top-5 left-5 w-9 h-9 rounded-full bg-slate-100 text-slate-700 hover:bg-slate-200 flex items-center justify-center transition-all cursor-pointer"
@@ -762,203 +741,292 @@ export default function MerchantsPage() {
             </button>
 
             <div className="flex items-center gap-3.5 pb-4 border-b-2 border-slate-100 mb-5">
-              <div className="w-12 h-12 rounded-2xl bg-amber-500 text-white flex items-center justify-center shadow-lg shadow-amber-500/25 flex-shrink-0">
+              <div className="w-12 h-12 rounded-2xl bg-amber-500 text-white flex items-center justify-center shadow-lg shadow-amber-900/20 flex-shrink-0">
                 <Send className="w-6 h-6" />
               </div>
               <div>
-                <h3 className="text-lg font-black text-slate-950">
-                  {isAr ? "إرسال وصل دفع وتحويل للصراف" : "Send Payment Receipt"}
+                <h3 className="text-lg font-black text-slate-900">
+                  {isAr ? "إرسال إشعار وإيصال تحويل للصراف" : "Send Transfer Receipt to Merchant"}
                 </h3>
-                <p className="text-xs text-slate-500 font-bold mt-0.5">
-                  منفذ: {receiptMerchant.storeName || receiptMerchant.name}
+                <p className="text-xs font-bold text-amber-700">
+                  {receiptMerchant.storeName || receiptMerchant.name}
                 </p>
               </div>
             </div>
 
-            <form onSubmit={handleSendPaymentReceipt} className="space-y-4">
-              {/* Payment Method Selector */}
+            <div className="space-y-4 text-xs font-bold">
+              {/* Payment Method Selector (Updates Dynamic Reference Automatically) */}
               <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">
-                  {isAr ? "طريقة التحويل / الدفع:" : "Payment Method:"}
-                </label>
-                <div className="grid grid-cols-2 gap-2 text-xs font-bold">
-                  {[
-                    { id: "instapay", label: "⚡ إنستا باي (InstaPay)" },
-                    { id: "vodafone_cash", label: "📱 فودافون كاش" },
-                    { id: "bank_transfer", label: "🏛️ تحويل بنكي" },
-                    { id: "cash", label: "💵 نقدي باليد" },
-                  ].map((pm) => (
-                    <button
-                      key={pm.id}
-                      type="button"
-                      onClick={() => setPaymentMethod(pm.id as any)}
-                      className={`p-2.5 rounded-xl border text-center transition-all cursor-pointer ${
-                        paymentMethod === pm.id
-                          ? "bg-amber-50 border-amber-400 text-amber-950 font-black shadow-2xs"
-                          : "bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100"
-                      }`}
-                    >
-                      {pm.label}
-                    </button>
-                  ))}
-                </div>
+                <label className="block text-slate-700 mb-1.5">{isAr ? "طريقة التحويل" : "Payment Method"}</label>
+                <select
+                  value={paymentMethod}
+                  onChange={(e) => {
+                    const pm = e.target.value as any;
+                    setPaymentMethod(pm);
+                    setReferenceNumber(generateReference(pm));
+                    if (pm === "instapay") setReceiverAccount(receiptMerchant.instapayAddress || receiptMerchant.phone || "");
+                    else if (pm === "vodafone_cash") setReceiverAccount(receiptMerchant.vodafoneCashNumber || receiptMerchant.phone || "");
+                    else setReceiverAccount("");
+                  }}
+                  className="qout-select font-bold"
+                >
+                  <option value="instapay">إنستا باي (InstaPay)</option>
+                  <option value="vodafone_cash">محفظة فودافون كاش (Vodafone Cash)</option>
+                  <option value="bank_transfer">تحويل بنكي رسمي (Bank Transfer)</option>
+                  <option value="cash">تسليم نقدي مباشر (Cash Handover)</option>
+                </select>
               </div>
 
               {/* Amount */}
               <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">
-                  {isAr ? "قيمة الحوالة / الدفعة (ج.م):" : "Amount (EGP):"}
-                </label>
-                <div className="relative">
-                  <input
-                    type="number"
-                    min={100}
-                    step={100}
-                    required
-                    value={receiptAmount}
-                    onChange={(e) => setReceiptAmount(Number(e.target.value))}
-                    className="w-full pl-4 pr-10 py-3 rounded-xl bg-slate-50 border border-slate-200 text-base font-black font-mono text-amber-900 focus:bg-white focus:border-amber-500 focus:outline-none"
-                  />
-                  <span className="absolute right-3.5 top-3.5 text-xs font-bold text-slate-400">ج.م</span>
-                </div>
-              </div>
-
-              {/* Reference Number */}
-              <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">
-                  {isAr ? "الرقم المرجعي للحوالة (Transaction Ref):" : "Reference Number:"}
-                </label>
+                <label className="block text-slate-700 mb-1.5">{isAr ? "مبلغ الحوالة (ج.م)" : "Transfer Amount (EGP)"}</label>
                 <input
-                  type="text"
-                  required
-                  value={referenceNumber}
-                  onChange={(e) => setReferenceNumber(e.target.value)}
-                  placeholder="مثال: 94820194829"
-                  className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs font-mono font-bold text-slate-900 focus:bg-white focus:outline-none"
+                  type="number"
+                  value={receiptAmount}
+                  onChange={(e) => setReceiptAmount(Number(e.target.value))}
+                  className="qout-input font-mono font-bold text-sm"
+                  min={1}
                 />
               </div>
 
-              {/* Receiver Account / Phone */}
+              {/* Smart Reference Number */}
               <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">
-                  {isAr ? "رقم محفظة أو حساب الصراف المستلم:" : "Receiver Account / Wallet:"}
-                </label>
+                <div className="flex items-center justify-between mb-1.5">
+                  <label className="block text-slate-700">{isAr ? "الرقم المرجعي التلقائي للحوالة" : "Reference Number"}</label>
+                  <button
+                    type="button"
+                    onClick={() => setReferenceNumber(generateReference(paymentMethod))}
+                    className="text-[11px] text-emerald-700 hover:underline font-bold"
+                  >
+                    {isAr ? "توليد جديد 🔄" : "Regenerate 🔄"}
+                  </button>
+                </div>
+                <input
+                  type="text"
+                  value={referenceNumber}
+                  onChange={(e) => setReferenceNumber(e.target.value)}
+                  className="qout-input font-mono font-bold text-sm bg-amber-50/50 border-amber-300"
+                />
+              </div>
+
+              {/* Receiver Account */}
+              <div>
+                <label className="block text-slate-700 mb-1.5">{isAr ? "حساب / هاتف المستلم (الصراف)" : "Receiver Account / Phone"}</label>
                 <input
                   type="text"
                   value={receiverAccount}
                   onChange={(e) => setReceiverAccount(e.target.value)}
-                  placeholder="مثال: 01012345678 أو username@instapay"
-                  className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs font-mono font-bold text-slate-900 focus:bg-white focus:outline-none"
+                  placeholder={isAr ? "مثال: اسم المستخدم في إنستاباي أو رقم فودافون كاش" : "Instapay address or phone"}
+                  className="qout-input"
                 />
               </div>
 
-              {/* Receipt Image Upload & Preview */}
+              {/* Receipt Image Upload */}
               <div>
-                <div className="flex items-center justify-between mb-1">
-                  <label className="block text-xs font-bold text-slate-700">
-                    {isAr ? "صورة إيصال التحويل / الوصل (اختياري):" : "Receipt Image (Optional):"}
+                <label className="block text-slate-700 mb-1.5">{isAr ? "صورة إيصال التحويل (اختياري)" : "Receipt Screenshot (Optional)"}</label>
+                <div className="flex items-center gap-3">
+                  <label className="btn btn-secondary cursor-pointer flex items-center gap-2 py-2 px-3 text-xs">
+                    <Upload className="w-4 h-4" />
+                    <span>{uploadingImg ? (isAr ? "جاري الرفع..." : "Uploading...") : (isAr ? "اختيار صورة الوصل" : "Select Image")}</span>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={handleImageUpload}
+                      className="hidden"
+                      disabled={uploadingImg}
+                    />
                   </label>
                   {receiptImageUrl && (
-                    <button
-                      type="button"
-                      onClick={() => setReceiptImageUrl("")}
-                      className="text-[11px] text-rose-600 hover:text-rose-700 font-bold flex items-center gap-1 cursor-pointer"
-                    >
-                      <Trash2 className="w-3.5 h-3.5" />
-                      <span>{isAr ? "حذف الصورة" : "Remove"}</span>
-                    </button>
+                    <span className="text-[11px] text-emerald-600 font-bold flex items-center gap-1">
+                      <CheckCircle2 className="w-3.5 h-3.5" />
+                      {isAr ? "تم إرفاق الصورة" : "Image Attached"}
+                    </span>
                   )}
                 </div>
-
-                {receiptImageUrl ? (
-                  <div className="relative rounded-2xl overflow-hidden border-2 border-amber-300 bg-amber-50/50 p-2.5 flex items-center gap-3">
-                    <img
-                      src={receiptImageUrl}
-                      alt="Receipt preview"
-                      className="w-14 h-14 object-cover rounded-xl border border-amber-200 shadow-xs flex-shrink-0"
-                    />
-                    <div className="flex-1 min-w-0">
-                      <p className="text-xs font-black text-slate-900 truncate">
-                        {isAr ? "تم اختيار وصورة الإيصال جاهزة ✅" : "Receipt image ready"}
-                      </p>
-                      <p className="text-[10px] text-slate-500 font-mono truncate mt-0.5">
-                        {receiptImageUrl.startsWith("data:") ? (isAr ? "صورة مرفوعة من الجهاز" : "Local upload") : receiptImageUrl}
-                      </p>
-                    </div>
-                    <a
-                      href={receiptImageUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="p-2 rounded-xl bg-white hover:bg-slate-100 text-slate-700 border border-slate-200 transition-all cursor-pointer flex-shrink-0"
-                      title={isAr ? "معاينة بالحجم الكامل" : "View full size"}
-                    >
-                      <Eye className="w-4 h-4" />
-                    </a>
-                  </div>
-                ) : (
-                  <div className="relative">
-                    <label className="border-2 border-dashed border-slate-300 hover:border-amber-500 rounded-2xl p-4 flex flex-col items-center justify-center gap-2 bg-slate-50 hover:bg-amber-50/40 transition-all cursor-pointer text-center">
-                      <input
-                        type="file"
-                        accept="image/*"
-                        onChange={handleImageFileChange}
-                        disabled={uploadingImg}
-                        className="hidden"
-                      />
-                      {uploadingImg ? (
-                        <div className="flex items-center gap-2 text-xs font-bold text-amber-600 py-2">
-                          <Loader2 className="w-5 h-5 animate-spin" />
-                          <span>{isAr ? "جاري معالجة ورفع الصورة..." : "Uploading image..."}</span>
-                        </div>
-                      ) : (
-                        <>
-                          <div className="w-10 h-10 rounded-full bg-amber-100 text-amber-600 flex items-center justify-center">
-                            <Upload className="w-5 h-5" />
-                          </div>
-                          <div className="text-xs font-black text-slate-700">
-                            {isAr ? "اضغط هنا لاختيار أو رفع صورة الوصل من جهازك" : "Click to select receipt image from your device"}
-                          </div>
-                          <div className="text-[10px] text-slate-400 font-semibold">
-                            PNG, JPG, JPEG (بحد أقصى 5 ميجابايت)
-                          </div>
-                        </>
-                      )}
-                    </label>
-                  </div>
-                )}
               </div>
 
               {/* Notes */}
               <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">
-                  {isAr ? "ملاحظات إضافية:" : "Notes:"}
-                </label>
-                <textarea
-                  rows={2}
+                <label className="block text-slate-700 mb-1.5">{isAr ? "ملاحظات إضافية" : "Notes"}</label>
+                <input
+                  type="text"
                   value={receiptNotes}
                   onChange={(e) => setReceiptNotes(e.target.value)}
-                  placeholder={isAr ? "دفعة تصفية حساب الأسبوع الأول..." : "Optional notes..."}
-                  className="w-full p-3 rounded-xl bg-slate-50 border border-slate-200 text-xs font-bold text-slate-800 focus:bg-white focus:outline-none"
+                  placeholder={isAr ? "ملاحظات تظهر للصراف في التطبيق..." : "Notes visible to merchant in app..."}
+                  className="qout-input"
                 />
               </div>
 
-              <div className="flex items-center gap-3 pt-2">
-                <button
-                  type="submit"
-                  disabled={sendingReceipt || receiptAmount <= 0}
-                  className="btn bg-amber-500 hover:bg-amber-600 text-white flex-1 justify-center font-black py-3 rounded-xl shadow-md disabled:opacity-50 cursor-pointer"
-                >
-                  {sendingReceipt ? "جاري الإرسال والتوثيق..." : isAr ? "إرسال وتوثيق الوصل للصراف" : "Send Receipt"}
-                </button>
+              <div className="pt-4 flex items-center justify-end gap-3 border-t border-slate-100">
                 <button
                   type="button"
                   onClick={() => setReceiptMerchant(null)}
-                  className="btn btn-secondary py-3 px-5 rounded-xl font-bold cursor-pointer"
+                  className="btn btn-secondary px-5"
                 >
-                  إلغاء
+                  {isAr ? "إلغاء" : "Cancel"}
+                </button>
+                <button
+                  type="button"
+                  disabled={sendingReceipt || receiptAmount <= 0 || !referenceNumber.trim()}
+                  onClick={handleConfirmSendReceipt}
+                  className="btn bg-amber-600 hover:bg-amber-700 text-white px-6 font-bold"
+                >
+                  {sendingReceipt ? (isAr ? "جاري الإرسال..." : "Sending...") : (isAr ? "إرسال الإيصال للتطبيق" : "Send Receipt")}
                 </button>
               </div>
-            </form>
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
+
+      {/* ── MODAL 3: Edit Full Merchant Details ────────────────────────── */}
+      {editingMerchant && mounted && createPortal(
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="bg-white rounded-3xl p-6 sm:p-7 max-w-lg w-full shadow-2xl border-2 border-slate-200 relative animate-in zoom-in-95 duration-200 max-h-[92vh] overflow-y-auto">
+            <button
+              onClick={() => setEditingMerchant(null)}
+              className="absolute top-5 left-5 w-9 h-9 rounded-full bg-slate-100 text-slate-700 hover:bg-slate-200 flex items-center justify-center transition-all cursor-pointer"
+            >
+              <X className="w-5 h-5" />
+            </button>
+
+            <div className="flex items-center gap-3.5 pb-4 border-b-2 border-slate-100 mb-5">
+              <div className="w-12 h-12 rounded-2xl bg-emerald-600 text-white flex items-center justify-center shadow-lg shadow-emerald-900/20 flex-shrink-0">
+                <Edit className="w-6 h-6" />
+              </div>
+              <div>
+                <h3 className="text-lg font-black text-slate-900">
+                  {isAr ? "تعديل بيانات الصراف والمنفذ" : "Edit Merchant Profile"}
+                </h3>
+                <p className="text-xs font-bold text-emerald-700">
+                  {editingMerchant.storeName || editingMerchant.name}
+                </p>
+              </div>
+            </div>
+
+            <div className="space-y-4 text-xs font-bold">
+              {/* Store Name */}
+              <div>
+                <label className="block text-slate-700 mb-1.5">{isAr ? "اسم المتجر / المنفذ الرسمي" : "Store / Outlet Name"}</label>
+                <input
+                  type="text"
+                  value={editStoreName}
+                  onChange={(e) => setEditStoreName(e.target.value)}
+                  className="qout-input"
+                />
+              </div>
+
+              {/* Owner Name */}
+              <div>
+                <label className="block text-slate-700 mb-1.5">{isAr ? "اسم المسؤول / التاجر" : "Owner / Contact Name"}</label>
+                <input
+                  type="text"
+                  value={editName}
+                  onChange={(e) => setEditName(e.target.value)}
+                  className="qout-input"
+                />
+              </div>
+
+              {/* Phone & Email Grid */}
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-slate-700 mb-1.5">{isAr ? "رقم الهاتف" : "Phone"}</label>
+                  <input
+                    type="text"
+                    value={editPhone}
+                    onChange={(e) => setEditPhone(e.target.value)}
+                    className="qout-input font-mono"
+                  />
+                </div>
+                <div>
+                  <label className="block text-slate-700 mb-1.5">{isAr ? "البريد الإلكتروني" : "Email"}</label>
+                  <input
+                    type="email"
+                    value={editEmail}
+                    onChange={(e) => setEditEmail(e.target.value)}
+                    className="qout-input font-mono"
+                  />
+                </div>
+              </div>
+
+              {/* City / Location */}
+              <div>
+                <label className="block text-slate-700 mb-1.5">{isAr ? "المدينة / المحافظة / العنوان" : "City / Location"}</label>
+                <input
+                  type="text"
+                  value={editCity}
+                  onChange={(e) => setEditCity(e.target.value)}
+                  className="qout-input"
+                />
+              </div>
+
+              {/* Instapay & Vodafone Cash */}
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-slate-700 mb-1.5">{isAr ? "عنوان إنستا باي (IPA)" : "InstaPay Address"}</label>
+                  <input
+                    type="text"
+                    value={editInstapay}
+                    onChange={(e) => setEditInstapay(e.target.value)}
+                    placeholder="user@instapay"
+                    className="qout-input font-mono"
+                  />
+                </div>
+                <div>
+                  <label className="block text-slate-700 mb-1.5">{isAr ? "رقم فودافون كاش" : "Vodafone Cash No."}</label>
+                  <input
+                    type="text"
+                    value={editVodafoneCash}
+                    onChange={(e) => setEditVodafoneCash(e.target.value)}
+                    placeholder="010xxxxxxxx"
+                    className="qout-input font-mono"
+                  />
+                </div>
+              </div>
+
+              {/* Commercial Reg */}
+              <div>
+                <label className="block text-slate-700 mb-1.5">{isAr ? "رقم السجل التجاري / الهوية" : "Commercial Reg / Tax ID"}</label>
+                <input
+                  type="text"
+                  value={editCr}
+                  onChange={(e) => setEditCr(e.target.value)}
+                  className="qout-input font-mono"
+                />
+              </div>
+
+              {/* Status */}
+              <div>
+                <label className="block text-slate-700 mb-1.5">{isAr ? "حالة اعتماد المنفذ" : "Outlet Status"}</label>
+                <select
+                  value={editIsActive ? "active" : "suspended"}
+                  onChange={(e) => setEditIsActive(e.target.value === "active")}
+                  className="qout-select font-bold"
+                >
+                  <option value="active">{isAr ? "معتمد ونشط (Active)" : "Active & Approved"}</option>
+                  <option value="suspended">{isAr ? "معطل / موقوف (Suspended)" : "Suspended"}</option>
+                </select>
+              </div>
+
+              <div className="pt-4 flex items-center justify-end gap-3 border-t border-slate-100">
+                <button
+                  type="button"
+                  onClick={() => setEditingMerchant(null)}
+                  className="btn btn-secondary px-5"
+                >
+                  {isAr ? "إلغاء" : "Cancel"}
+                </button>
+                <button
+                  type="button"
+                  disabled={savingMerchant}
+                  onClick={handleSaveMerchant}
+                  className="btn btn-primary px-6"
+                >
+                  {savingMerchant ? (isAr ? "جاري الحفظ..." : "Saving...") : (isAr ? "حفظ التعديلات" : "Save Changes")}
+                </button>
+              </div>
+            </div>
           </div>
         </div>,
         document.body

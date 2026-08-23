@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { useAuth } from "@/lib/authContext";
 import { useI18n } from "@/lib/i18n";
@@ -9,12 +9,13 @@ import {
   Settings, LogOut, Bell, BarChart3, Activity, X, Menu,
   ShieldCheck, HeartHandshake, Sparkles, CreditCard,
   Clock, ArrowUpRight, CheckCircle2, UserPlus, AlertCircle,
-  PackageCheck,
+  PackageCheck, Volume2,
 } from "lucide-react";
 import { collection, query, where, orderBy, limit, onSnapshot } from "firebase/firestore";
 import { db } from "@/lib/firebase";
+import { notificationService } from "@/lib/notificationSound";
 
-// ─── Al-Fajr Foundation Brand Logo (Vector Insignia) ──────────────
+// ─── Al-Fajr Foundation Brand Logo (Vector Insignia) ──────────────────
 function AlFajrLogo({ isAr }: { isAr: boolean }) {
   return (
     <div className="flex items-center gap-3.5">
@@ -65,10 +66,10 @@ function AlFajrLogo({ isAr }: { isAr: boolean }) {
   );
 }
 
-// ─── Activity Item Type ───────────────────────────────────────────
+// ─── Activity Item Type ───────────────────────────────────────────────
 interface ActivityEvent {
   id: string;
-  type: "redemption" | "basket" | "user" | "card";
+  type: "redemption" | "basket" | "user" | "card" | "receipt";
   title: string;
   subtitle: string;
   time: string;
@@ -80,25 +81,22 @@ interface ActivityEvent {
   badgeType?: "emerald" | "amber" | "blue" | "purple";
 }
 
-// ─── Live Activity Drawer (Real-Time Functional Stream) ───────────
+// ─── Real-Time Live Activity Feed Drawer ──────────────────────────────
 function ActivityDrawer({ onClose }: { onClose: () => void }) {
   const { locale } = useI18n();
   const isAr = locale === "ar";
-  const [filter, setFilter] = useState<"all" | "redemptions" | "baskets" | "accounts" | "cards">("all");
   const [events, setEvents] = useState<ActivityEvent[]>([]);
   const [loading, setLoading] = useState(true);
+  const [filter, setFilter] = useState<"all" | "redemptions" | "baskets" | "accounts" | "cards">("all");
 
-  const formatTimeAgo = (dateMillis: number) => {
-    const diff = Math.floor((Date.now() - dateMillis) / 1000);
-    if (diff < 60) return isAr ? "الآن" : "Just now";
-    if (diff < 3600) {
-      const mins = Math.floor(diff / 60);
-      return isAr ? `منذ ${mins} دقيقة` : `${mins}m ago`;
-    }
-    const hours = Math.floor(diff / 3600);
-    if (hours < 24) {
-      return isAr ? `منذ ${hours} ساعة` : `${hours}h ago`;
-    }
+  const formatTimeAgo = (ts: number) => {
+    const diff = Math.max(0, Date.now() - ts);
+    const secs = Math.floor(diff / 1000);
+    if (secs < 60) return isAr ? "الآن" : "just now";
+    const mins = Math.floor(secs / 60);
+    if (mins < 60) return isAr ? `منذ ${mins} د` : `${mins}m ago`;
+    const hours = Math.floor(mins / 60);
+    if (hours < 24) return isAr ? `منذ ${hours} س` : `${hours}h ago`;
     const days = Math.floor(hours / 24);
     return isAr ? `منذ ${days} يوم` : `${days}d ago`;
   };
@@ -299,55 +297,47 @@ function ActivityDrawer({ onClose }: { onClose: () => void }) {
                     e.type === "redemption"
                       ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
                       : e.type === "basket"
-                      ? "bg-amber-50 text-amber-800 border border-amber-300"
+                      ? "bg-amber-50 text-amber-800 border border-amber-200"
                       : e.type === "user"
                       ? "bg-blue-50 text-blue-700 border border-blue-200"
                       : "bg-purple-50 text-purple-700 border border-purple-200"
                   }`}
                 >
-                  {e.type === "redemption" ? (
-                    <CreditCard className="w-5 h-5" />
-                  ) : e.type === "basket" ? (
-                    <PackageCheck className="w-5 h-5 text-amber-700" />
-                  ) : e.type === "user" ? (
-                    <UserCheck className="w-5 h-5" />
-                  ) : (
-                    <ShieldCheck className="w-5 h-5" />
-                  )}
+                  {e.type === "redemption" && <CreditCard className="w-5 h-5" />}
+                  {e.type === "basket" && <PackageCheck className="w-5 h-5" />}
+                  {e.type === "user" && <UserPlus className="w-5 h-5" />}
+                  {e.type === "card" && <Sparkles className="w-5 h-5" />}
                 </div>
 
-                {/* Content */}
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center justify-between gap-2 mb-1">
-                    <h4 className="text-xs font-black text-slate-900 leading-tight">
+                {/* Event Details */}
+                <div className="flex-1 min-w-0 space-y-1">
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-xs font-black text-slate-900 truncate">
                       {e.title}
-                    </h4>
-                    <span className="text-[10px] text-slate-500 font-mono font-bold flex-shrink-0 flex items-center gap-1">
-                      <Clock className="w-3 h-3 text-slate-400" />
+                    </span>
+                    <span className="text-[10px] font-bold text-slate-400 font-mono flex items-center gap-1 flex-shrink-0">
+                      <Clock className="w-3 h-3" />
                       {e.time}
                     </span>
                   </div>
 
-                  <p className="text-xs text-slate-600 font-semibold leading-relaxed mb-2">
+                  <p className="text-xs text-slate-600 font-semibold leading-relaxed line-clamp-2">
                     {e.subtitle}
                   </p>
 
-                  {/* Cash Redemption Details Row */}
-                  {e.type === "redemption" && (
+                  {/* Financial / Basket Metadata */}
+                  {e.amount !== undefined && (
                     <div className="flex items-center gap-2 pt-2 border-t border-slate-100 text-[11px] font-mono font-black">
-                      {e.amount !== undefined && (
-                        <span className="px-2 py-0.5 rounded-md bg-emerald-100 text-emerald-900 border border-emerald-300">
-                          +{e.amount.toLocaleString()} {isAr ? "ج.م" : "EGP"}
-                        </span>
-                      )}
-                      <span className="text-[10px] font-sans font-bold text-slate-400">
-                        {isAr ? "صرف مالي (صراف)" : "Cash POS"}
+                      <span className="text-[#0A734D] bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200">
+                        {e.amount.toLocaleString()} {isAr ? "ج.م" : "EGP"}
+                      </span>
+                      <span className="text-[10px] font-sans font-bold text-slate-500">
+                        {isAr ? "صرف نقدي" : "Cash Redemption"}
                       </span>
                     </div>
                   )}
 
-                  {/* Food Basket Details Row */}
-                  {e.type === "basket" && (
+                  {e.baskets !== undefined && (
                     <div className="flex items-center gap-2 pt-2 border-t border-slate-100 text-[11px] font-mono font-black">
                       {e.baskets !== undefined && (
                         <span className="px-2 py-0.5 rounded-md bg-amber-100 text-amber-900 border border-amber-300 font-sans font-bold">
@@ -393,7 +383,7 @@ function ActivityDrawer({ onClose }: { onClose: () => void }) {
   );
 }
 
-// ─── Sidebar Navigation Item (Guaranteed Pure White Active State) ──
+// ─── Sidebar Navigation Item (Guaranteed Pure White Active State) ──────
 function NavItem({
   href, icon: Icon, label, isActive, badge, badgeColor,
 }: {
@@ -432,27 +422,20 @@ function NavItem({
           {label}
         </span>
       </div>
+
       {badge !== undefined && badge > 0 && (
         <span
-          className="text-xs font-black px-2.5 py-0.5 rounded-full flex-shrink-0 min-w-[24px] text-center font-mono"
+          className={`sidebar-badge flex-shrink-0 ${
+            badgeColor === "amber" ? "amber" : "emerald"
+          }`}
           style={
             isActive
               ? {
                   backgroundColor: "rgba(255, 255, 255, 0.25)",
                   color: "#FFFFFF",
-                  border: "1px solid rgba(255, 255, 255, 0.45)",
+                  borderColor: "rgba(255, 255, 255, 0.4)",
                 }
-              : badgeColor === "amber"
-              ? {
-                  backgroundColor: "#FEF3C7",
-                  color: "#78350F",
-                  border: "1px solid #FDE68A",
-                }
-              : {
-                  backgroundColor: "#DCFCE7",
-                  color: "#14532D",
-                  border: "1px solid #BBF7D0",
-                }
+              : undefined
           }
         >
           {badge}
@@ -462,26 +445,39 @@ function NavItem({
   );
 }
 
-// ─── Main Layout ──────────────────────────────────────────────────
+// ─── Dashboard Main Shell Layout ──────────────────────────────────────
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
-  const { adminData, logout, loading } = useAuth();
-  const { locale, setLocale } = useI18n();
+  const { adminData, logout } = useAuth();
+  const { t, locale, setLocale } = useI18n();
   const pathname = usePathname();
   const router = useRouter();
   const isAr = locale === "ar";
 
-  const [pendingCount, setPendingCount]                 = useState(0);
+  const [mobileOpen, setMobileOpen] = useState(false);
+  const [activityOpen, setActivityOpen] = useState(false);
+  const [pendingCount, setPendingCount] = useState(0);
+  const [beneficiaryCount, setBeneficiaryCount] = useState(0);
+  const [merchantCount, setMerchantCount] = useState(0);
   const [pendingRequestsCount, setPendingRequestsCount] = useState(0);
-  const [beneficiaryCount, setBeneficiaryCount]         = useState(0);
-  const [merchantCount, setMerchantCount]               = useState(0);
-  const [mobileOpen, setMobileOpen]                     = useState(false);
-  const [activityOpen, setActivityOpen]                 = useState(false);
-  const [lastSync, setLastSync]                         = useState<string>("—");
+  const [lastSync, setLastSync] = useState<string>("");
+  const [loading, setLoading] = useState(true);
+
+  // Live Toast State for Real-Time Confirmation Alerts
+  const [liveToast, setLiveToast] = useState<{
+    id: string;
+    title: string;
+    message: string;
+    type: "receipt" | "alert";
+  } | null>(null);
+
+  const initialReceiptsLoaded = useRef(false);
 
   useEffect(() => {
-    if (!loading && !adminData) router.push("/login");
-  }, [adminData, loading, router]);
+    const timer = setTimeout(() => setLoading(false), 250);
+    return () => clearTimeout(timer);
+  }, []);
 
+  // ─── Live Listeners for Real-Time Badges & Receipts ───────────────
   useEffect(() => {
     // 1. Pending accounts
     const qPend = query(collection(db, "users"), where("isApproved", "==", false));
@@ -501,7 +497,44 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     const qReq = query(collection(db, "extra_disbursement_requests"), where("status", "==", "pending"));
     const u4 = onSnapshot(qReq, (s) => setPendingRequestsCount(s.size));
 
-    return () => { u1(); u2(); u3(); u4(); };
+    // 5. Live Payment Receipts Confirmation Listener with Audio Alert & Notification
+    const qReceipts = query(collection(db, "payment_receipts"), orderBy("timestamp", "desc"), limit(10));
+    const u5 = onSnapshot(qReceipts, (snap) => {
+      if (!initialReceiptsLoaded.current) {
+        initialReceiptsLoaded.current = true;
+        return;
+      }
+
+      snap.docChanges().forEach((change) => {
+        if (change.type === "added" || change.type === "modified") {
+          const rData = change.doc.data();
+          if (rData.status === "confirmed_by_merchant") {
+            // Trigger audio sound and browser desktop notification
+            notificationService.notify(
+              isAr ? "تأكيد استلام حوالة من الصراف ✅" : "Merchant Confirmed Receipt ✅",
+              {
+                body: `${rData.merchantStoreName || "الصراف"} أكد استلام مبلغ ${rData.amount?.toLocaleString() || 0} ج.م (مرجع: ${rData.referenceNumber || rData.receiptId || "—"})`,
+              },
+              "receipt"
+            );
+
+            // Trigger floating Toast
+            setLiveToast({
+              id: change.doc.id,
+              title: isAr ? "تأكيد حوالة من الصراف ✅" : "Receipt Confirmed ✅",
+              message: isAr
+                ? `قام الصراف "${rData.merchantStoreName || "المنفذ"}" بتأكيد استلام حوالة بقيمة ${rData.amount?.toLocaleString() || 0} ج.م بنجاح.`
+                : `Merchant "${rData.merchantStoreName || "Store"}" confirmed payment receipt of ${rData.amount?.toLocaleString() || 0} EGP.`,
+              type: "receipt",
+            });
+
+            setTimeout(() => setLiveToast(null), 6000);
+          }
+        }
+      });
+    });
+
+    return () => { u1(); u2(); u3(); u4(); u5(); };
   }, [isAr]);
 
   const navSections = [
@@ -579,8 +612,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                   icon={item.icon}
                   label={item.label}
                   isActive={pathname === item.href || (item.href !== "/dashboard" && pathname.startsWith(item.href))}
-                  badge={"badge" in item ? item.badge : undefined}
-                  badgeColor={"badgeColor" in item ? item.badgeColor : undefined}
+                  badge={item.badge}
+                  badgeColor={item.badgeColor}
                 />
               ))}
             </div>
@@ -588,37 +621,27 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         ))}
       </nav>
 
-      {/* Footer Profile & Logout */}
-      <div className="p-4 border-t border-slate-200/80 bg-slate-50/80">
-        <div className="flex items-center gap-3 mb-3 p-3 rounded-xl bg-white border border-slate-200 shadow-xs">
-          <div
-            className="w-10 h-10 rounded-xl flex items-center justify-center text-sm font-black bg-[#0A734D] text-white shadow-xs flex-shrink-0"
-          >
-            {adminData?.name?.[0]?.toUpperCase() || "A"}
+      {/* User Profile Card & Signout Footer */}
+      <div className="p-4 border-t border-slate-200/80 bg-slate-50/80 space-y-3">
+        <div className="flex items-center gap-3 px-2">
+          <div className="w-10 h-10 rounded-xl bg-emerald-100 text-[#0A734D] flex items-center justify-center font-black text-sm border border-emerald-300">
+            {adminData?.name?.[0] || "A"}
           </div>
-          <div className="flex-1 min-w-0">
-            <p className="text-sm font-black text-slate-900 leading-tight">
-              {adminData?.name || (isAr ? "مشرف مؤسسة الفجر" : "Administrator")}
+          <div className="min-w-0 flex-1">
+            <p className="text-xs font-black text-slate-900 truncate">
+              {adminData?.name || (isAr ? "مشرف المنظومة" : "Admin")}
             </p>
-            <p className="text-xs text-slate-500 font-mono mt-1 font-semibold break-all">
-              {adminData?.email}
+            <p className="text-[11px] font-bold text-slate-400 truncate">
+              {adminData?.email || "admin@alfajr.org"}
             </p>
           </div>
-        </div>
-
-        <div className="flex items-center justify-between text-xs text-slate-500 px-1 mb-2.5 font-mono font-bold">
-          <span>{isAr ? "المزامنة:" : "Sync:"} {lastSync}</span>
-          <span className="text-emerald-700 font-black flex items-center gap-1.5">
-            <span className="w-2 h-2 rounded-full bg-emerald-500 inline-block animate-pulse" />
-            Online
-          </span>
         </div>
 
         <button
           onClick={logout}
-          className="btn btn-sm w-full justify-center bg-white hover:bg-red-50 text-slate-700 hover:text-red-700 border border-slate-200 hover:border-red-200 font-black transition-all shadow-xs py-2"
+          className="btn btn-sm btn-secondary w-full justify-center text-xs font-bold text-red-600 hover:bg-red-50 hover:border-red-200 transition-all flex items-center gap-2"
         >
-          <LogOut className="w-4 h-4" />
+          <LogOut className="w-3.5 h-3.5" />
           <span>{isAr ? "تسجيل الخروج" : "Sign Out"}</span>
         </button>
       </div>
@@ -626,27 +649,50 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   );
 
   return (
-    <div className="min-h-screen flex bg-[#F8FAF9]">
+    <div className="flex min-h-screen bg-[#F8FAF9]" dir={isAr ? "rtl" : "ltr"}>
 
-      {/* Desktop Sidebar (Width 288px / w-72 for complete text visibility) */}
-      <aside className="hidden lg:flex flex-col w-72 shrink-0 sticky top-0 h-screen z-30 qout-sidebar bg-white border-r border-slate-200 shadow-xs">
+      {/* Floating Live Alert Toast */}
+      {liveToast && (
+        <div className="fixed top-5 left-1/2 -translate-x-1/2 z-[99999] max-w-md w-full px-4 animate-in slide-in-from-top-4 duration-300">
+          <div className="p-4 rounded-2xl bg-white border-2 border-emerald-500 shadow-2xl flex items-start gap-3 relative">
+            <div className="w-9 h-9 rounded-xl bg-emerald-100 text-[#0A734D] flex items-center justify-center flex-shrink-0">
+              <CheckCircle2 className="w-5 h-5" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center justify-between">
+                <span className="text-sm font-black text-slate-900">{liveToast.title}</span>
+                <button
+                  onClick={() => setLiveToast(null)}
+                  className="w-6 h-6 rounded-full hover:bg-slate-100 flex items-center justify-center text-slate-400"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+              <p className="text-xs font-bold text-slate-600 mt-1 leading-relaxed">
+                {liveToast.message}
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Desktop Persistent Sidebar */}
+      <aside className="hidden lg:flex flex-col w-64 flex-shrink-0 bg-white border-e border-slate-200/80 shadow-xs h-screen sticky top-0 z-30">
         <SidebarInner />
       </aside>
 
-      {/* Mobile Sidebar (Responsive Drawer with Smooth Start-Edge Docking) */}
+      {/* Mobile Drawer Navigation */}
       {mobileOpen && (
         <>
           <div
-            className="fixed inset-0 z-40 lg:hidden bg-slate-900/50 backdrop-blur-xs transition-opacity"
+            className="fixed inset-0 z-40 bg-slate-950/50 backdrop-blur-xs lg:hidden"
             onClick={() => setMobileOpen(false)}
           />
-          <aside
-            className="fixed inset-y-0 start-0 h-full w-72 z-50 flex flex-col lg:hidden qout-sidebar bg-white shadow-2xl border-inline-end border-slate-200 animate-slide-in"
-          >
+          <aside className="fixed inset-y-0 start-0 z-50 w-72 bg-white flex flex-col shadow-2xl lg:hidden">
             <button
-              className="absolute top-4 end-4 btn btn-icon bg-slate-100 text-slate-600 hover:bg-slate-200 z-10 p-2 rounded-xl"
               onClick={() => setMobileOpen(false)}
-              title={isAr ? "إغلاق القائمة" : "Close Menu"}
+              className="absolute top-4 end-4 p-2 rounded-xl bg-slate-100 text-slate-600 hover:bg-slate-200 transition-all z-10"
+              aria-label="Close"
             >
               <X className="w-5 h-5" />
             </button>
@@ -681,6 +727,19 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
           {/* Right: Actions */}
           <div className="flex items-center gap-1.5 sm:gap-2.5 flex-shrink-0">
+
+            {/* Audio Alert Activator Button */}
+            <button
+              onClick={async () => {
+                const granted = await notificationService.requestPermission();
+                notificationService.playChime("success");
+              }}
+              className="btn btn-sm bg-emerald-50 hover:bg-emerald-100 text-[#0A734D] border border-emerald-200 font-bold text-xs px-2.5 py-1.5 flex items-center gap-1.5 rounded-xl shadow-xs"
+              title={isAr ? "تفعيل التنبيهات الصوتية والإشعارات لعمليات الصراف" : "Enable Audio & Desktop Notifications"}
+            >
+              <Volume2 className="w-3.5 h-3.5 text-emerald-600" />
+              <span className="hidden md:inline">{isAr ? "التنبيهات الصوتية" : "Audio Alerts"}</span>
+            </button>
 
             {/* Pending Accounts Alert */}
             {pendingCount > 0 && (

@@ -108,7 +108,7 @@ export default function TransactionsPage() {
       const ws = XLSX.utils.json_to_sheet(rows);
       const wb = XLSX.utils.book_new();
       XLSX.utils.book_append_sheet(wb, ws, "عمليات الصرف المالي");
-      XLSX.writeFile(wb, `QOUT_Cash_Redemptions_${Date.now()}.xlsx`);
+      XLSX.writeFile(wb, `ALFAJR_Cash_Redemptions_${Date.now()}.xlsx`);
     } else {
       const rows = filteredBaskets.map((x, idx) => ({
         "م": idx + 1,
@@ -127,7 +127,7 @@ export default function TransactionsPage() {
       const ws = XLSX.utils.json_to_sheet(rows);
       const wb = XLSX.utils.book_new();
       XLSX.utils.book_append_sheet(wb, ws, "تسليم السلال الغذائية");
-      XLSX.writeFile(wb, `QOUT_Basket_Distributions_${Date.now()}.xlsx`);
+      XLSX.writeFile(wb, `ALFAJR_Basket_Distributions_${Date.now()}.xlsx`);
     }
   };
 

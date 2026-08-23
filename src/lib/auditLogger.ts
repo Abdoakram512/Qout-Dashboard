@@ -3,9 +3,11 @@ import { collection, addDoc } from "firebase/firestore";
 
 export interface AuditLogEntry {
   id?: string;
-  action: string; // e.g. "تفعيل بطاقة", "حذف حساب", "شحن رصيد جماعي", "تعديل جنسيات"
+  action: string;
   targetName?: string;
   targetId?: string;
+  targetType?: string;
+  adminId?: string;
   details?: string;
   adminEmail?: string;
   adminName?: string;

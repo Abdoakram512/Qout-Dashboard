@@ -18,7 +18,7 @@ import {
   Store, Upload, Trash2, Eye, Loader2, ImageIcon, ArrowLeft, ArrowRight, Printer, Wallet, TrendingUp,
   Coins, CheckCircle2, AlertTriangle, Building2, MapPin, Mail,
   Hash, CreditCard, Send, PlusCircle, FileText, Check, X,
-  Clock, ShieldCheck, Download, Users, Phone, ExternalLink,
+  Clock, ShieldCheck, Download, Users, Phone, ExternalLink, Edit,
 } from "lucide-react";
 import Link from "next/link";
 import { createPortal } from "react-dom";
@@ -32,6 +32,23 @@ function parseDate(raw: any): Date {
     return isNaN(d.getTime()) ? new Date() : d;
   }
   return new Date();
+}
+
+function generateReference(method: "instapay" | "vodafone_cash" | "bank_transfer" | "cash"): string {
+  const dateStr = new Date().toISOString().slice(0, 10).replace(/-/g, "");
+  const rand = Math.floor(1000 + Math.random() * 9000);
+  switch (method) {
+    case "instapay":
+      return `INSTA-${dateStr}-${rand}`;
+    case "vodafone_cash":
+      return `VF-${dateStr}-${rand}`;
+    case "bank_transfer":
+      return `BANK-${dateStr}-${rand}`;
+    case "cash":
+      return `CASH-${dateStr}-${rand}`;
+    default:
+      return `REF-${dateStr}-${rand}`;
+  }
 }
 
 export default function MerchantProfilePage() {
@@ -61,16 +78,30 @@ export default function MerchantProfilePage() {
   const [allocNotes, setAllocNotes] = useState("");
   const [allocating, setAllocating] = useState(false);
 
-  // Receipt Modal
+  // Send Receipt Modal
   const [showReceiptModal, setShowReceiptModal] = useState(false);
   const [receiptAmount, setReceiptAmount] = useState<number>(5000);
   const [paymentMethod, setPaymentMethod] = useState<"instapay" | "vodafone_cash" | "bank_transfer" | "cash">("instapay");
   const [referenceNumber, setReferenceNumber] = useState("");
+  const [senderAccount, setSenderAccount] = useState("حساب مؤسسة الفجر - إنستا باي");
   const [receiverAccount, setReceiverAccount] = useState("");
   const [receiptImageUrl, setReceiptImageUrl] = useState("");
   const [receiptNotes, setReceiptNotes] = useState("");
   const [sendingReceipt, setSendingReceipt] = useState(false);
   const [uploadingImg, setUploadingImg] = useState(false);
+
+  // Edit Merchant Modal
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [editStoreName, setEditStoreName] = useState("");
+  const [editName, setEditName] = useState("");
+  const [editPhone, setEditPhone] = useState("");
+  const [editEmail, setEditEmail] = useState("");
+  const [editCity, setEditCity] = useState("");
+  const [editInstapay, setEditInstapay] = useState("");
+  const [editVodafoneCash, setEditVodafoneCash] = useState("");
+  const [editCr, setEditCr] = useState("");
+  const [editIsActive, setEditIsActive] = useState(true);
+  const [savingMerchant, setSavingMerchant] = useState(false);
 
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
@@ -84,7 +115,17 @@ export default function MerchantProfilePage() {
     if (!merchantIdParam) return;
     const unsub = onSnapshot(doc(db, "users", merchantIdParam), (snap) => {
       if (snap.exists()) {
-        setMerchant({ uid: snap.id, ...snap.data() } as UserModel);
+        const mData = { uid: snap.id, ...snap.data() } as UserModel;
+        setMerchant(mData);
+        setEditStoreName(mData.storeName || "");
+        setEditName(mData.name || "");
+        setEditPhone(mData.phone || "");
+        setEditEmail(mData.email || "");
+        setEditCity(mData.city || "");
+        setEditInstapay(mData.instapayAddress || "");
+        setEditVodafoneCash(mData.vodafoneCashNumber || "");
+        setEditCr(mData.commercialReg || "");
+        setEditIsActive(mData.isActive ?? true);
       }
       setLoading(false);
     });
@@ -139,630 +180,384 @@ export default function MerchantProfilePage() {
     return () => unsub();
   }, [merchantIdParam]);
 
-  // Financial calculations
-  const allocatedBudget = merchant?.allocatedBudget || 0;
-  const totalDisbursed = redemptions.reduce((acc, r) => acc + (r.amountDeducted || r.amount || 0), 0);
-  const remainingLiquidity = Math.max(0, allocatedBudget - totalDisbursed);
-  const spentPct = allocatedBudget > 0 ? Math.min(100, Math.round((totalDisbursed / allocatedBudget) * 100)) : 0;
-  const remPct = allocatedBudget > 0 ? Math.max(0, 100 - spentPct) : 0;
-  const isLowLiquidity = allocatedBudget > 0 && remPct <= 15;
-  const totalReceiptsAmount = receipts.reduce((acc, r) => acc + (r.amount || 0), 0);
+  const handleOpenReceiptModal = () => {
+    if (!merchant) return;
+    setReceiptAmount(5000);
+    const initialMethod = "instapay";
+    setPaymentMethod(initialMethod);
+    setReferenceNumber(generateReference(initialMethod));
+    setSenderAccount(isAr ? "حساب مؤسسة الفجر - إنستا باي" : "Al-Fajr Foundation Account");
+    setReceiverAccount(merchant.instapayAddress || merchant.vodafoneCashNumber || merchant.phone || "");
+    setReceiptImageUrl("");
+    setReceiptNotes("");
+    setShowReceiptModal(true);
+  };
 
-  // Submit Budget Allocation
-  const handleSaveAllocation = async (e: React.FormEvent) => {
-    e.preventDefault();
-    const numAmount = Number(allocAmount);
-    if (!merchant || isNaN(numAmount) || numAmount <= 0) {
-      alert(isAr ? "يرجى إدخال مبلغ مالي صحيح أكبر من صفر" : "Please enter a valid amount greater than zero");
-      return;
-    }
-    setAllocating(true);
-
+  const handleSaveMerchantDetails = async () => {
+    if (!merchant) return;
+    setSavingMerchant(true);
     try {
-      const allocId = `ALLOC-${Date.now().toString().slice(-6)}`;
-      const allocRef = doc(db, "budget_allocations", allocId);
-      const merchantId = merchant.uid || (merchant as any).id;
-
-      const allocationData: any = {
-        id: allocId,
-        allocationId: allocId,
-        merchantId: merchantId,
-        merchantName: merchant.name || "صراف",
-        merchantStoreName: merchant.storeName || merchant.name || "منفذ الفجر",
-        amount: numAmount,
-        type: allocType,
-        allocatedBy: {
-          adminId: adminData?.uid || "admin",
-          adminName: adminData?.name || "مشرف مؤسسة الفجر",
-        },
-        notes: allocNotes.trim() || "",
-        timestamp: serverTimestamp(),
-        createdAt: new Date().toISOString(),
-      };
-
-      await setDoc(allocRef, allocationData);
-
-      await setDoc(
-        doc(db, "users", merchantId),
-        {
-          allocatedBudget: increment(numAmount),
-          lastAllocationDate: serverTimestamp(),
-        },
-        { merge: true }
-      );
-
-      // Audit Log
-      await logAuditEvent({
-        action: "MERCHANT_BUDGET_ALLOCATION",
-        adminName: adminData?.name || "مشرف النظام",
-        details: `تخصيص وتغذية ميزانية بمبلغ ${numAmount.toLocaleString()} ج.م لمنفذ ${merchant.storeName || merchant.name}`,
-        targetId: merchantId,
+      await updateDoc(doc(db, "users", merchant.uid), {
+        storeName: editStoreName.trim(),
+        name: editName.trim(),
+        phone: editPhone.trim(),
+        email: editEmail.trim(),
+        city: editCity.trim(),
+        instapayAddress: editInstapay.trim(),
+        vodafoneCashNumber: editVodafoneCash.trim(),
+        commercialReg: editCr.trim(),
+        isActive: editIsActive,
+        isApproved: editIsActive,
       });
 
-      showToast(`تمت إضافة ${numAmount.toLocaleString()} ج.م إلى ميزانية الصراف بنجاح ✅`);
-      setShowAllocModal(false);
-      setAllocNotes("");
-    } catch (err: any) {
-      console.error("Allocation error:", err);
-      alert((isAr ? "حدث خطأ أثناء حفظ التخصيص: " : "Error saving allocation: ") + (err?.message || ""));
+      if (adminData) {
+        await logAuditEvent({
+          adminId: adminData.uid,
+          adminEmail: adminData.email,
+          action: "update_user_role",
+          targetId: merchant.uid,
+          targetType: "merchant",
+          details: JSON.stringify({ storeName: editStoreName, name: editName }),
+        });
+      }
+
+      showToast(isAr ? "تم حفظ وتحديث بيانات الصراف بنجاح ✅" : "Merchant updated successfully ✅");
+      setShowEditModal(false);
+    } catch (e: any) {
+      console.error(e);
+      alert(isAr ? "فشل حفظ التعديلات: " + e.message : "Failed to update merchant");
+    } finally {
+      setSavingMerchant(false);
     }
-    setAllocating(false);
   };
 
-  // Client-side Instant Image Compression (Under 50ms)
-  const compressImageFile = (file: File): Promise<string> => {
-    return new Promise((resolve) => {
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        const img = new Image();
-        img.onload = () => {
-          const canvas = document.createElement("canvas");
-          let width = img.width;
-          let height = img.height;
-          const maxDim = 900;
-
-          if (width > maxDim || height > maxDim) {
-            if (width > height) {
-              height = Math.round((height * maxDim) / width);
-              width = maxDim;
-            } else {
-              width = Math.round((width * maxDim) / height);
-              height = maxDim;
-            }
-          }
-
-          canvas.width = width;
-          canvas.height = height;
-          const ctx = canvas.getContext("2d");
-          if (!ctx) {
-            resolve(e.target?.result as string);
-            return;
-          }
-
-          ctx.drawImage(img, 0, 0, width, height);
-          const dataUrl = canvas.toDataURL("image/jpeg", 0.78);
-          resolve(dataUrl);
-        };
-        img.onerror = () => resolve(e.target?.result as string);
-        img.src = e.target?.result as string;
-      };
-      reader.onerror = () => resolve("");
-      reader.readAsDataURL(file);
-    });
-  };
-
-  // Handle Receipt Image File Upload (Instant & Zero Hang)
-  const handleImageFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  // Image upload
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    if (file.size > 15 * 1024 * 1024) {
-      alert(isAr ? "حجم الصورة كبير جداً، الحد الأقصى 15 ميجابايت" : "Image size too large (max 15MB)");
-      return;
-    }
-
     setUploadingImg(true);
     try {
-      const compressedDataUrl = await compressImageFile(file);
-      if (compressedDataUrl) {
-        setReceiptImageUrl(compressedDataUrl);
-      }
-    } catch (err) {
-      console.error("Image compression error:", err);
+      const storageRef = ref(storage, `payment_receipts/${Date.now()}_${file.name}`);
+      await uploadBytes(storageRef, file);
+      const url = await getDownloadURL(storageRef);
+      setReceiptImageUrl(url);
+    } catch (err: any) {
+      console.error(err);
+      alert(isAr ? "فشل رفع الصورة" : "Failed to upload image");
     } finally {
       setUploadingImg(false);
     }
   };
 
-  // Submit Payment Receipt
-  const handleSendReceipt = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!merchant || receiptAmount <= 0) return;
-    setSendingReceipt(true);
-
+  // Submit Budget Allocation
+  const handleConfirmAllocation = async () => {
+    if (!merchant || allocAmount <= 0) return;
+    setAllocating(true);
     try {
-      const receiptId = `REC-${Date.now().toString().slice(-6)}`;
-      const receiptRef = doc(db, "payment_receipts", receiptId);
-
-      const receiptData: PaymentReceipt = {
-        id: receiptId,
-        receiptId: receiptId,
+      const allocationRef = doc(collection(db, "budget_allocations"));
+      const allocData: BudgetAllocation = {
+        id: allocationRef.id,
         merchantId: merchant.uid,
-        merchantName: merchant.name || "صراف",
-        merchantStoreName: merchant.storeName || merchant.name || "منفذ الفجر",
-        amount: Number(receiptAmount),
+        merchantStoreName: merchant.storeName || merchant.name || "منفذ",
+        amount: allocAmount,
+        type: allocType,
+        timestamp: new Date().toISOString(),
+        allocatedByAdminId: adminData?.uid || "admin",
+        allocatedByAdminEmail: adminData?.email || "admin@alfajr.org",
+        notes: allocNotes.trim() || undefined,
+      };
+
+      await setDoc(allocationRef, allocData);
+      await updateDoc(doc(db, "users", merchant.uid), {
+        allocatedBudget: increment(allocAmount),
+      });
+
+      if (adminData) {
+        await logAuditEvent({
+          adminId: adminData.uid,
+          adminEmail: adminData.email,
+          action: "allocate_budget",
+          targetId: merchant.uid,
+          targetType: "merchant",
+          details: JSON.stringify({ amount: allocAmount, type: allocType }),
+        });
+      }
+
+      showToast(isAr ? `تم تخصيص ${allocAmount.toLocaleString()} ج.م بنجاح` : "Budget allocated successfully");
+      setShowAllocModal(false);
+      setAllocAmount(10000);
+      setAllocNotes("");
+    } catch (err: any) {
+      console.error(err);
+      alert(isAr ? "فشل حفظ التخصيص" : "Failed to allocate");
+    } finally {
+      setAllocating(false);
+    }
+  };
+
+  // Submit Payment Receipt
+  const handleConfirmSendReceipt = async () => {
+    if (!merchant || receiptAmount <= 0 || !referenceNumber.trim()) {
+      alert(isAr ? "يرجى تعبئة جميع الحقول المطلوبة" : "Please fill all fields");
+      return;
+    }
+
+    setSendingReceipt(true);
+    try {
+      const receiptRef = doc(collection(db, "payment_receipts"));
+      const receiptData: PaymentReceipt = {
+        receiptId: receiptRef.id,
+        merchantId: merchant.uid,
+        merchantStoreName: merchant.storeName || merchant.name || "منفذ",
+        amount: receiptAmount,
         paymentMethod: paymentMethod,
-        referenceNumber: referenceNumber.trim() || `REF-${Date.now().toString().slice(-4)}`,
-        receiverAccountOrPhone: receiverAccount.trim() || merchant.instapayAddress || merchant.vodafoneCashNumber || undefined,
+        referenceNumber: referenceNumber.trim(),
+        senderAccount: senderAccount.trim() || undefined,
+        receiverAccount: receiverAccount.trim() || undefined,
         receiptImageUrl: receiptImageUrl.trim() || undefined,
-        status: "sent",
-        sentBy: {
-          adminId: adminData?.uid || "admin",
-          adminName: adminData?.name || "مشرف مؤسسة الفجر",
-        },
         notes: receiptNotes.trim() || undefined,
-        timestamp: serverTimestamp(),
-        createdAt: new Date().toISOString(),
+        status: "sent",
+        sentByAdminId: adminData?.uid || "admin",
+        sentByAdminEmail: adminData?.email || "admin@alfajr.org",
+        timestamp: new Date().toISOString(),
       };
 
       await setDoc(receiptRef, receiptData);
 
-      showToast(`تم إرسال وتوثيق وصل الدفع بقيمة ${receiptAmount.toLocaleString()} ج.م بنجاح 📤`);
+      if (adminData) {
+        await logAuditEvent({
+          adminId: adminData.uid,
+          adminEmail: adminData.email,
+          action: "send_payment_receipt",
+          targetId: merchant.uid,
+          targetType: "merchant",
+          details: JSON.stringify({ amount: receiptAmount, method: paymentMethod, ref: referenceNumber }),
+        });
+      }
+
+      showToast(isAr ? "تم إرسال إشعار وإيصال الدفع للصراف بنجاح ✅" : "Receipt sent successfully");
       setShowReceiptModal(false);
-      setReferenceNumber("");
+      setReceiptAmount(5000);
       setReceiptImageUrl("");
       setReceiptNotes("");
-    } catch (err) {
+    } catch (err: any) {
       console.error(err);
-      alert("حدث خطأ أثناء إرسال الوصل");
+      alert(isAr ? "فشل إرسال الإيصال" : "Failed to send receipt");
+    } finally {
+      setSendingReceipt(false);
     }
-    setSendingReceipt(false);
-  };
-
-  // Official PDF Print
-  const handlePrintStatement = () => {
-    if (!merchant) return;
-    const printWindow = window.open("", "_blank");
-    if (!printWindow) return;
-
-    const redemptionsHtml = redemptions
-      .map(
-        (r, idx) => `
-      <tr>
-        <td style="text-align: center;">${idx + 1}</td>
-        <td>${parseDate(r.timestamp).toLocaleDateString("ar-EG", { year: "numeric", month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}</td>
-        <td style="font-family: monospace; font-weight: bold;">${r.cardId}</td>
-        <td style="font-weight: bold;">${r.beneficiaryName || "مستفيد"}</td>
-        <td style="font-weight: bold; color: #0A734D; text-align: left;">${(r.amountDeducted || r.amount || 0).toLocaleString()} ج.م</td>
-        <td style="text-align: center;">${r.foodBasketsDeducted || 0}</td>
-      </tr>
-    `
-      )
-      .join("");
-
-    const htmlContent = `
-      <!DOCTYPE html>
-      <html dir="rtl" lang="ar">
-      <head>
-        <meta charset="utf-8">
-        <title>كشف حساب منفذ وصراف معتمد - مؤسسة الفجر الخيرية</title>
-        <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800;900&display=swap" rel="stylesheet">
-        <style>
-          @page { size: A4 portrait; margin: 12mm; }
-          body { font-family: 'Cairo', sans-serif; margin: 0; padding: 10px; color: #0f172a; background: #fff; font-size: 11px; }
-          .header { display: flex; justify-content: space-between; align-items: center; border-bottom: 3px solid #0A734D; padding-bottom: 12px; margin-bottom: 16px; }
-          .brand-title { font-size: 20px; font-weight: 900; color: #0A734D; margin: 0; }
-          .brand-sub { font-size: 11px; color: #64748b; margin: 2px 0 0 0; }
-          .summary-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px; margin-bottom: 16px; text-align: center; }
-          .summary-card { padding: 8px; background: #fff; border-radius: 6px; border: 1px solid #cbd5e1; }
-          .summary-label { font-size: 10px; color: #64748b; font-weight: bold; }
-          .summary-val { font-size: 16px; font-weight: 900; margin-top: 4px; font-family: monospace; }
-          table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 10px; }
-          th { background-color: #0A734D; color: #ffffff; padding: 7px 5px; text-align: right; border: 1px solid #064E3B; font-weight: 700; }
-          td { padding: 5px; border: 1px solid #e2e8f0; text-align: right; }
-          tr:nth-child(even) { background-color: #f8fafc; }
-          .footer-box { margin-top: 24px; display: flex; justify-content: space-between; align-items: center; border-top: 2px solid #e2e8f0; padding-top: 12px; }
-        </style>
-      </head>
-      <body>
-        <div class="header">
-          <div>
-            <h1 class="brand-title">مؤسسة الفجر الخيرية (Al-Fajr Foundation)</h1>
-            <p class="brand-sub">كشف تسوية ومطابقة حساب الصراف والمنفذ المعتمد</p>
-          </div>
-          <div style="text-align: left; font-size: 11px;">
-            <div>تاريخ الكشف: <b>${new Date().toLocaleDateString("ar-EG")}</b></div>
-            <div>المنفذ: <b>${merchant.storeName || merchant.name}</b></div>
-          </div>
-        </div>
-
-        <div class="summary-grid">
-          <div class="summary-card">
-            <div class="summary-label">إجمالي الميزانية المخصصة</div>
-            <div class="summary-val" style="color: #0f172a;">${allocatedBudget.toLocaleString()} ج.م</div>
-          </div>
-          <div class="summary-card">
-            <div class="summary-label">إجمالي المصروف للمستفيدين</div>
-            <div class="summary-val" style="color: #0A734D;">${totalDisbursed.toLocaleString()} ج.م</div>
-          </div>
-          <div class="summary-card">
-            <div class="summary-label">السيولة المتبقية بالعهدة</div>
-            <div class="summary-val" style="color: #b45309;">${remainingLiquidity.toLocaleString()} ج.م</div>
-          </div>
-        </div>
-
-        <h3 style="font-size: 13px; font-weight: 900; margin-bottom: 6px; color: #0A734D;">سجل عمليات الصرف المنفذة للمستفيدين (${redemptions.length} عملية)</h3>
-        <table>
-          <thead>
-            <tr>
-              <th style="width: 25px; text-align: center;">#</th>
-              <th>التاريخ والوقت</th>
-              <th>رقم الكارت</th>
-              <th>اسم المستفيد</th>
-              <th style="text-align: left;">المبلغ المصروف</th>
-              <th style="text-align: center;">السلال</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${redemptionsHtml || '<tr><td colspan="6" style="text-align: center; padding: 15px;">لا توجد عمليات صرف مسجلة</td></tr>'}
-          </tbody>
-        </table>
-
-        <div class="footer-box">
-          <div>
-            <p style="margin: 0; font-weight: bold; color: #475569;">مؤسسة الفجر الخيرية - الإدارة المالية</p>
-            <p style="margin: 2px 0 0 0; color: #94a3b8; font-size: 10px;">كشف حساب صادر ومعتمد من المنظومة المركزية</p>
-          </div>
-          <div style="border: 2px dashed #0A734D; padding: 8px 16px; border-radius: 8px; text-align: center; color: #0A734D; font-weight: 900;">
-            اعتماد الإدارة المالية<br>مؤسسة الفجر
-          </div>
-        </div>
-
-        <script>
-          window.onload = function() {
-            setTimeout(function() { window.print(); }, 500);
-          };
-        </script>
-      </body>
-      </html>
-    `;
-
-    printWindow.document.open();
-    printWindow.document.write(htmlContent);
-    printWindow.document.close();
   };
 
   if (loading) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4">
-        <div className="w-12 h-12 rounded-2xl bg-[#0A734D] text-white flex items-center justify-center font-black animate-pulse shadow-lg">
-          الفجر
-        </div>
-        <div className="w-6 h-6 border-3 border-emerald-600 border-t-transparent rounded-full animate-spin" />
-        <p className="text-sm font-bold text-slate-500">{isAr ? "جاري تحميل محفظة وبيانات الصراف..." : "Loading merchant wallet..."}</p>
+      <div className="flex h-96 items-center justify-center">
+        <div className="w-8 h-8 border-3 border-emerald-600 border-t-transparent rounded-full animate-spin" />
       </div>
     );
   }
 
   if (!merchant) {
     return (
-      <div className="p-8 text-center bg-white rounded-3xl border border-slate-200 shadow-xs max-w-lg mx-auto my-12">
-        <AlertTriangle className="w-14 h-14 text-amber-500 mx-auto mb-3" />
-        <h2 className="text-xl font-black text-slate-900">{isAr ? "لم يتم العثور على هذا المنفذ" : "Merchant Not Found"}</h2>
-        <button
-          onClick={() => router.push("/dashboard/merchants")}
-          className="btn btn-sm bg-[#0A734D] text-white font-black px-5 py-2.5 rounded-xl shadow-md mt-4"
-        >
-          {isAr ? "العودة لقائمة المنافذ" : "Back to Merchants"}
-        </button>
+      <div className="text-center py-20 bg-white rounded-3xl border border-slate-200 p-8">
+        <Store className="w-12 h-12 text-slate-300 mx-auto mb-3" />
+        <h3 className="text-base font-black text-slate-800">{isAr ? "الصراف غير موجود" : "Merchant not found"}</h3>
+        <Link href="/dashboard/merchants" className="btn btn-secondary mt-4 inline-flex items-center gap-2">
+          <ArrowRight className="w-4 h-4" />
+          <span>{isAr ? "العودة لقائمة الصرافين" : "Back to Merchants"}</span>
+        </Link>
       </div>
     );
   }
 
+  const allocated = merchant.allocatedBudget || 0;
+  const spent = merchant.totalDisbursed || 0;
+  const remaining = Math.max(0, allocated - spent);
+  const spentPercentage = allocated > 0 ? Math.min(100, Math.round((spent / allocated) * 100)) : 0;
+  const remainingPercentage = Math.max(0, 100 - spentPercentage);
+
   return (
-    <div className="space-y-6 max-w-7xl mx-auto pb-16">
-      {/* Toast */}
+    <div className="space-y-6">
+      {/* Toast Notification */}
       {toastMessage && (
-        <div className="fixed bottom-6 left-6 z-[120] px-4 py-3 rounded-2xl bg-[#0A734D] text-white font-black text-sm shadow-xl flex items-center gap-2 animate-bounce">
-          <CheckCircle2 className="w-5 h-5 text-amber-300" />
+        <div className="fixed top-5 left-1/2 -translate-x-1/2 z-[99999] bg-emerald-900 text-white px-5 py-3 rounded-2xl shadow-2xl flex items-center gap-2 border-2 border-emerald-400 font-bold text-sm animate-in slide-in-from-top-4">
+          <CheckCircle2 className="w-5 h-5 text-emerald-300 flex-shrink-0" />
           <span>{toastMessage}</span>
         </div>
       )}
 
-      {/* Top Header & Navigation */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b border-slate-200/80">
-        <div className="flex items-center gap-3">
-          <button
-            onClick={() => router.push("/dashboard/merchants")}
-            className="p-2.5 rounded-xl bg-white hover:bg-slate-100 text-slate-700 border border-slate-200 shadow-2xs transition-colors cursor-pointer"
-            title={isAr ? "رجوع للقائمة" : "Back"}
-          >
-            {isAr ? <ArrowRight className="w-5 h-5" /> : <ArrowLeft className="w-5 h-5" />}
-          </button>
-          <div>
-            <div className="flex items-center gap-2">
-              <span className="text-xs font-black text-emerald-800 bg-emerald-100 px-2.5 py-0.5 rounded-md">
-                منفذ معتمد
-              </span>
-              <span className="text-xs font-bold text-slate-400">•</span>
-              <span className="text-xs font-bold text-slate-500 font-mono">
-                CR: {merchant.commercialReg || "—"}
-              </span>
-            </div>
-            <h1 className="text-2xl font-black text-slate-950 tracking-tight mt-0.5">
-              {merchant.storeName || merchant.name}
-            </h1>
-          </div>
-        </div>
+      {/* Back Button & Top Action Row */}
+      <div className="flex items-center justify-between gap-4 flex-wrap">
+        <Link
+          href="/dashboard/merchants"
+          className="btn btn-sm btn-secondary font-bold inline-flex items-center gap-2 text-xs"
+        >
+          <ArrowRight className="w-4 h-4" />
+          <span>{isAr ? "العودة لقائمة الصرافين والمنافذ" : "Back to Merchants"}</span>
+        </Link>
 
-        <div className="flex items-center gap-2.5 flex-wrap">
+        <div className="flex items-center gap-2">
+          {/* Edit Merchant Button */}
+          <button
+            onClick={() => setShowEditModal(true)}
+            className="btn btn-sm btn-secondary font-bold text-xs flex items-center gap-1.5"
+          >
+            <Edit className="w-3.5 h-3.5 text-emerald-700" />
+            <span>{isAr ? "تعديل البيانات" : "Edit Profile"}</span>
+          </button>
+
+          {/* Send Receipt Button */}
+          <button
+            onClick={handleOpenReceiptModal}
+            className="btn btn-sm bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-300 font-bold text-xs flex items-center gap-1.5"
+          >
+            <Send className="w-3.5 h-3.5" />
+            <span>{isAr ? "إرسال وصل دفع" : "Send Receipt"}</span>
+          </button>
+
+          {/* Allocate Budget Button */}
           <button
             onClick={() => {
               setAllocAmount(10000);
               setShowAllocModal(true);
             }}
-            className="btn btn-sm bg-[#0A734D] hover:bg-[#085E3E] text-white font-black flex items-center gap-2 px-3.5 py-2 rounded-xl shadow-md"
+            className="btn btn-sm btn-primary font-bold text-xs flex items-center gap-1.5"
           >
-            <PlusCircle className="w-4 h-4 text-amber-300" />
+            <PlusCircle className="w-3.5 h-3.5" />
             <span>{isAr ? "تخصيص رصيد" : "Allocate Budget"}</span>
           </button>
-
-          <button
-            onClick={() => {
-              setReceiptAmount(5000);
-              setReferenceNumber(`INSTA-${Date.now().toString().slice(-6)}`);
-              setReceiverAccount(merchant.instapayAddress || merchant.vodafoneCashNumber || "");
-              setShowReceiptModal(true);
-            }}
-            className="btn btn-sm bg-amber-500 hover:bg-amber-600 text-white font-black flex items-center gap-2 px-3.5 py-2 rounded-xl shadow-md"
-          >
-            <Send className="w-4 h-4" />
-            <span>{isAr ? "إرسال وصل دفع" : "Send Receipt"}</span>
-          </button>
-
-          <button
-            onClick={handlePrintStatement}
-            className="btn btn-sm btn-secondary font-black flex items-center gap-2 px-3.5 py-2 rounded-xl shadow-2xs"
-          >
-            <Printer className="w-4 h-4 text-slate-700" />
-            <span>{isAr ? "طباعة كشف الحساب" : "Print Statement"}</span>
-          </button>
         </div>
       </div>
 
-      {/* ── 1. Hero Identity & Financial Health Card ──────────────── */}
-      <div className="p-6 rounded-3xl bg-gradient-to-br from-white via-slate-50 to-emerald-50/40 border border-slate-200 shadow-xs relative overflow-hidden">
-        <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-6 relative z-10">
-          <div className="flex items-center gap-4">
-            <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-[#0A734D] to-[#064E3B] text-white flex items-center justify-center font-black text-2xl shadow-md flex-shrink-0">
-              <Store className="w-8 h-8 text-amber-300" />
+      {/* Hero Merchant Card */}
+      <div className="qout-card p-6 bg-white border border-slate-200 shadow-xs">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+          <div className="flex items-start gap-4">
+            <div className="w-16 h-16 rounded-2xl bg-emerald-50 text-[#0A734D] flex items-center justify-center border-2 border-emerald-200 flex-shrink-0 shadow-xs">
+              <Store className="w-8 h-8" />
             </div>
             <div>
-              <div className="flex items-center gap-2.5 flex-wrap">
-                <h2 className="text-xl font-black text-slate-950">{merchant.storeName || merchant.name}</h2>
+              <div className="flex items-center gap-3">
+                <h2 className="text-xl font-black text-slate-900">
+                  {merchant.storeName || merchant.name || "منفذ معتمد"}
+                </h2>
                 <span
-                  className={`inline-block text-xs font-black px-2.5 py-0.5 rounded-full ${
+                  className={`badge font-bold text-xs ${
                     merchant.isActive
-                      ? "bg-emerald-100 text-emerald-900 border border-emerald-300"
-                      : "bg-red-100 text-red-900 border border-red-300"
+                      ? "bg-emerald-100 text-emerald-800 border-emerald-300"
+                      : "bg-red-100 text-red-800 border-red-300"
                   }`}
                 >
-                  {merchant.isActive ? (isAr ? "🟢 نشط ومعتمد" : "Active") : (isAr ? "🔴 موقوف" : "Suspended")}
+                  {merchant.isActive ? (isAr ? "معتمد ونشط" : "Active") : (isAr ? "معطل" : "Suspended")}
                 </span>
-                {isLowLiquidity && (
-                  <span className="text-xs font-black px-2.5 py-0.5 rounded-full bg-red-100 text-red-900 border border-red-300 animate-pulse flex items-center gap-1">
-                    <AlertTriangle className="w-3.5 h-3.5 text-red-600" />
-                    {isAr ? "⚠️ سيولة منخفضة (<15%)" : "Low Liquidity"}
-                  </span>
-                )}
               </div>
-              <div className="flex items-center gap-4 text-xs font-bold text-slate-500 mt-2 flex-wrap">
-                <span className="flex items-center gap-1.5">
-                  <MapPin className="w-3.5 h-3.5 text-slate-400" />
-                  {merchant.city || (isAr ? "الرياض" : "Riyadh")}
-                </span>
-                <span className="flex items-center gap-1.5 font-mono text-slate-700">
-                  <Mail className="w-3.5 h-3.5 text-slate-400" />
-                  {merchant.email}
-                </span>
-                {merchant.instapayAddress && (
-                  <span className="flex items-center gap-1.5 font-mono text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200">
-                    ⚡ {merchant.instapayAddress}
-                  </span>
+              <p className="text-xs font-bold text-slate-500 mt-1 flex items-center gap-2">
+                <span>{isAr ? "المسؤول:" : "Owner:"} {merchant.name || "—"}</span>
+                <span>•</span>
+                <span>{merchant.city || (isAr ? "مصر" : "Egypt")}</span>
+                {merchant.commercialReg && (
+                  <>
+                    <span>•</span>
+                    <span className="font-mono">CR: {merchant.commercialReg}</span>
+                  </>
                 )}
-              </div>
+              </p>
             </div>
           </div>
 
-          {/* Quick Stat Pill */}
-          <div className="flex items-center gap-4 bg-white p-4 rounded-2xl border border-slate-200 shadow-2xs self-stretch lg:self-auto justify-around lg:justify-start">
-            <div className="text-center">
-              <span className="text-[10px] font-extrabold text-slate-400 block">{isAr ? "إجمالي الوصلات المرسلة" : "Sent Receipts"}</span>
-              <span className="text-base font-black text-amber-700 font-mono">{totalReceiptsAmount.toLocaleString()} ج.م</span>
-            </div>
-            <div className="h-8 w-px bg-slate-200" />
-            <div className="text-center">
-              <span className="text-[10px] font-extrabold text-slate-400 block">{isAr ? "عدد المستفيدين المخدومين" : "Served Beneficiaries"}</span>
-              <span className="text-base font-black text-emerald-800 font-mono">{redemptions.length}</span>
-            </div>
+          {/* Fast Contact Chips */}
+          <div className="flex flex-wrap gap-2 text-xs font-bold">
+            {merchant.phone && (
+              <span className="px-3 py-1.5 rounded-xl bg-slate-50 border border-slate-200 text-slate-700 flex items-center gap-1.5 font-mono">
+                <Phone className="w-3.5 h-3.5 text-slate-400" />
+                {merchant.phone}
+              </span>
+            )}
+            {merchant.instapayAddress && (
+              <span className="px-3 py-1.5 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-900 flex items-center gap-1.5 font-mono">
+                <Coins className="w-3.5 h-3.5 text-emerald-600" />
+                IPA: {merchant.instapayAddress}
+              </span>
+            )}
+            {merchant.vodafoneCashNumber && (
+              <span className="px-3 py-1.5 rounded-xl bg-red-50 border border-red-200 text-red-900 flex items-center gap-1.5 font-mono">
+                VF: {merchant.vodafoneCashNumber}
+              </span>
+            )}
+          </div>
+        </div>
+
+        {/* Financial KPI Cards */}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mt-6 pt-6 border-t border-slate-100">
+          <div className="p-4 rounded-2xl bg-emerald-50/50 border border-emerald-200">
+            <span className="text-xs font-bold text-slate-500 block mb-1">{isAr ? "إجمالي الميزانية المخصصة" : "Total Allocated"}</span>
+            <p className="text-2xl font-black text-[#0A734D] font-mono">{allocated.toLocaleString()} {isAr ? "ج.م" : "EGP"}</p>
+          </div>
+          <div className="p-4 rounded-2xl bg-amber-50/50 border border-amber-200">
+            <span className="text-xs font-bold text-slate-500 block mb-1">{isAr ? "إجمالي المصروف للمستفيدين" : "Total Disbursed"}</span>
+            <p className="text-2xl font-black text-amber-700 font-mono">{spent.toLocaleString()} {isAr ? "ج.م" : "EGP"}</p>
+          </div>
+          <div className="p-4 rounded-2xl bg-blue-50/50 border border-blue-200">
+            <span className="text-xs font-bold text-slate-500 block mb-1">{isAr ? "السيولة المتبقية الجاهزة للصرف" : "Available Balance"}</span>
+            <p className="text-2xl font-black text-blue-700 font-mono">{remaining.toLocaleString()} {isAr ? "ج.م" : "EGP"}</p>
           </div>
         </div>
       </div>
 
-      {/* ── 2. Primary 4 Financial KPIs ─────────────────────────── */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        {/* Allocated Budget */}
-        <div className="p-5 rounded-2xl bg-white border border-slate-200 shadow-xs">
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-xs font-extrabold text-slate-500">{isAr ? "إجمالي الميزانية المخصصة" : "Allocated Budget"}</span>
-            <div className="w-9 h-9 rounded-xl bg-emerald-50 text-[#0A734D] flex items-center justify-center font-bold">
-              <Wallet className="w-4 h-4" />
-            </div>
-          </div>
-          <p className="text-2xl font-black text-slate-900 font-mono">
-            {allocatedBudget.toLocaleString()} <span className="text-xs text-slate-500 font-sans">{isAr ? "ج.م" : "EGP"}</span>
-          </p>
-          <span className="text-[11px] font-bold text-slate-400 mt-1 block">
-            {isAr ? `عبر ${allocations.length} حركات تغذية` : `${allocations.length} allocations`}
-          </span>
-        </div>
-
-        {/* Total Disbursed */}
-        <div className="p-5 rounded-2xl bg-white border border-slate-200 shadow-xs">
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-xs font-extrabold text-slate-500">{isAr ? "إجمالي المنصرف للمستفيدين" : "Disbursed to Beneficiaries"}</span>
-            <div className="w-9 h-9 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center font-bold">
-              <TrendingUp className="w-4 h-4" />
-            </div>
-          </div>
-          <p className="text-2xl font-black text-blue-900 font-mono">
-            {totalDisbursed.toLocaleString()} <span className="text-xs text-slate-500 font-sans">{isAr ? "ج.م" : "EGP"}</span>
-          </p>
-          <span className="text-[11px] font-bold text-blue-700 mt-1 block">
-            {isAr ? `نسبة الصرف: ${spentPct}%` : `${spentPct}% spent`}
-          </span>
-        </div>
-
-        {/* Remaining Liquidity */}
-        <div className="p-5 rounded-2xl bg-white border border-slate-200 shadow-xs">
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-xs font-extrabold text-slate-500">{isAr ? "السيولة المتبقية بعهدة الصراف" : "Remaining Liquidity"}</span>
-            <div className="w-9 h-9 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center font-bold">
-              <Coins className="w-4 h-4" />
-            </div>
-          </div>
-          <p className={`text-2xl font-black font-mono ${isLowLiquidity ? "text-red-600" : "text-[#0A734D]"}`}>
-            {remainingLiquidity.toLocaleString()} <span className="text-xs text-slate-500 font-sans">{isAr ? "ج.م" : "EGP"}</span>
-          </p>
-          <span className="text-[11px] font-bold text-slate-400 mt-1 block">
-            {isAr ? `المتبقي: ${remPct}% من الميزانية` : `${remPct}% remaining`}
-          </span>
-        </div>
-
-        {/* Transactions Count */}
-        <div className="p-5 rounded-2xl bg-white border border-slate-200 shadow-xs">
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-xs font-extrabold text-slate-500">{isAr ? "إجمالي عمليات الصرف" : "Total Redemptions"}</span>
-            <div className="w-9 h-9 rounded-xl bg-purple-50 text-purple-600 flex items-center justify-center font-bold">
-              <CreditCard className="w-4 h-4" />
-            </div>
-          </div>
-          <p className="text-2xl font-black text-slate-900 font-mono">
-            {redemptions.length} <span className="text-xs text-slate-500 font-sans">{isAr ? "عملية" : "txns"}</span>
-          </p>
-          <span className="text-[11px] font-bold text-emerald-700 mt-1 block">
-            {isAr ? "عمليات موثقة رقمياً" : "Verified ledger"}
-          </span>
-        </div>
+      {/* Tabs Navigation */}
+      <div className="flex items-center gap-2 border-b border-slate-200">
+        {[
+          { id: "redemptions", label: isAr ? `عمليات الصرف (${redemptions.length})` : `Redemptions (${redemptions.length})`, icon: CreditCard },
+          { id: "allocations", label: isAr ? `سندات التخصيص (${allocations.length})` : `Allocations (${allocations.length})`, icon: Wallet },
+          { id: "receipts", label: isAr ? `إيصالات التحويل (${receipts.length})` : `Receipts (${receipts.length})`, icon: Send },
+        ].map((tab) => (
+          <button
+            key={tab.id}
+            onClick={() => setActiveTab(tab.id as any)}
+            className={`py-3 px-4 font-black text-xs border-b-2 flex items-center gap-2 transition-all ${
+              activeTab === tab.id
+                ? "border-[#0A734D] text-[#0A734D] bg-emerald-50/30"
+                : "border-transparent text-slate-500 hover:text-slate-800"
+            }`}
+          >
+            <tab.icon className="w-4 h-4" />
+            <span>{tab.label}</span>
+          </button>
+        ))}
       </div>
 
-      {/* ── 3. Interactive Tabs Section ──────────────────────────── */}
-      <div className="bg-white rounded-3xl border border-slate-200 shadow-xs overflow-hidden">
-        <div className="flex items-center gap-2 p-3 border-b border-slate-200 bg-slate-50/60 overflow-x-auto">
-          <button
-            onClick={() => setActiveTab("redemptions")}
-            className={`px-4 py-2 rounded-xl text-xs font-black transition-all flex items-center gap-2 cursor-pointer ${
-              activeTab === "redemptions"
-                ? "bg-white text-[#0A734D] shadow-xs border border-slate-200"
-                : "text-slate-600 hover:bg-slate-200/60"
-            }`}
-          >
-            <CreditCard className="w-4 h-4" />
-            <span>{isAr ? "سجل الصرف للمستفيدين" : "Redemptions Ledger"}</span>
-            <span className="px-1.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800 text-[10px] font-mono">
-              {redemptions.length}
-            </span>
-          </button>
-
-          <button
-            onClick={() => setActiveTab("allocations")}
-            className={`px-4 py-2 rounded-xl text-xs font-black transition-all flex items-center gap-2 cursor-pointer ${
-              activeTab === "allocations"
-                ? "bg-white text-[#0A734D] shadow-xs border border-slate-200"
-                : "text-slate-600 hover:bg-slate-200/60"
-            }`}
-          >
-            <Wallet className="w-4 h-4" />
-            <span>{isAr ? "سجل حركات الميزانية والتغذية" : "Budget Allocations"}</span>
-            <span className="px-1.5 py-0.5 rounded-full bg-blue-100 text-blue-800 text-[10px] font-mono">
-              {allocations.length}
-            </span>
-          </button>
-
-          <button
-            onClick={() => setActiveTab("receipts")}
-            className={`px-4 py-2 rounded-xl text-xs font-black transition-all flex items-center gap-2 cursor-pointer ${
-              activeTab === "receipts"
-                ? "bg-white text-[#0A734D] shadow-xs border border-slate-200"
-                : "text-slate-600 hover:bg-slate-200/60"
-            }`}
-          >
-            <Send className="w-4 h-4" />
-            <span>{isAr ? "وصولات الدفع وإيصالات التحويل" : "Payment Receipts"}</span>
-            <span className="px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-800 text-[10px] font-mono">
-              {receipts.length}
-            </span>
-          </button>
-        </div>
-
-        {/* Tab 1: Redemptions Ledger */}
-        {activeTab === "redemptions" && (
+      {/* Tab 1: Redemptions Table */}
+      {activeTab === "redemptions" && (
+        <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-xs">
           <div className="overflow-x-auto">
-            <table className="w-full text-sm text-slate-800 text-start">
-              <thead className="bg-slate-50/90 text-slate-700 font-extrabold border-b border-slate-200 text-xs">
+            <table className="w-full text-xs font-bold text-slate-800">
+              <thead className="bg-slate-50 text-slate-700 border-b border-slate-200">
                 <tr>
-                  <th className="py-3 px-4 text-start whitespace-nowrap">{isAr ? "التاريخ والوقت" : "Date"}</th>
-                  <th className="py-3 px-4 text-start whitespace-nowrap">{isAr ? "رقم الكارت" : "Card ID"}</th>
-                  <th className="py-3 px-4 text-start whitespace-nowrap">{isAr ? "اسم المستفيد" : "Beneficiary"}</th>
-                  <th className="py-3 px-4 text-start whitespace-nowrap">{isAr ? "المبلغ المخصوم" : "Amount"}</th>
-                  <th className="py-3 px-4 text-start whitespace-nowrap">{isAr ? "السلال المخصومة" : "Baskets"}</th>
-                  <th className="py-3 px-4 text-start whitespace-nowrap">{isAr ? "الرصيد المتبقي بالكارت" : "Card Balance After"}</th>
-                  <th className="py-3 px-4 text-center whitespace-nowrap">{isAr ? "ملف المستفيد" : "Profile"}</th>
+                  <th className="py-3 px-4 text-start">{isAr ? "رقم العملية" : "Txn ID"}</th>
+                  <th className="py-3 px-4 text-start">{isAr ? "المستفيد" : "Beneficiary"}</th>
+                  <th className="py-3 px-4 text-start">{isAr ? "رقم الكارت" : "Card ID"}</th>
+                  <th className="py-3 px-4 text-start">{isAr ? "المبلغ المصروف" : "Amount"}</th>
+                  <th className="py-3 px-4 text-start">{isAr ? "التاريخ والوقت" : "Timestamp"}</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-100 font-semibold">
+              <tbody className="divide-y divide-slate-100 font-medium">
                 {redemptions.length === 0 ? (
                   <tr>
-                    <td colSpan={7} className="py-12 text-center text-slate-400 font-bold">
-                      {isAr ? "لا توجد عمليات صرف مسجلة لهذا المنفذ بعد" : "No redemptions recorded yet"}
+                    <td colSpan={5} className="py-12 text-center text-slate-400 font-bold">
+                      {isAr ? "لا توجد عمليات صرف مسجلة لهذا الصراف حتى الآن" : "No redemptions found"}
                     </td>
                   </tr>
                 ) : (
                   redemptions.map((r) => (
-                    <tr key={r.id} className="hover:bg-slate-50/80 transition-colors">
-                      <td className="py-3.5 px-4 whitespace-nowrap font-mono text-xs text-slate-600">
-                        {parseDate(r.timestamp).toLocaleDateString(isAr ? "ar-EG" : "en-US", {
-                          year: "numeric",
-                          month: "short",
-                          day: "numeric",
-                          hour: "2-digit",
-                          minute: "2-digit",
-                        })}
+                    <tr key={r.id} className="hover:bg-slate-50/80">
+                      <td className="py-3 px-4 font-mono font-bold text-slate-900">{r.id?.slice(-8) || "—"}</td>
+                      <td className="py-3 px-4 font-bold text-slate-900">{r.beneficiaryName || "—"}</td>
+                      <td className="py-3 px-4 font-mono text-emerald-800">{r.cardId}</td>
+                      <td className="py-3 px-4 font-mono font-extrabold text-[#0A734D]">
+                        {r.amountDeducted?.toLocaleString()} {isAr ? "ج.م" : "EGP"}
                       </td>
-                      <td className="py-3.5 px-4 whitespace-nowrap">
-                        <span className="font-mono font-black text-xs px-2 py-0.5 rounded bg-slate-100 text-slate-900 border border-slate-200">
-                          {r.cardId}
-                        </span>
-                      </td>
-                      <td className="py-3.5 px-4 whitespace-nowrap font-black text-slate-900">
-                        {r.beneficiaryName || "مستفيد"}
-                      </td>
-                      <td className="py-3.5 px-4 whitespace-nowrap font-mono font-black text-emerald-800 text-sm">
-                        {(r.amountDeducted || r.amount || 0).toLocaleString()} {isAr ? "ج.م" : "EGP"}
-                      </td>
-                      <td className="py-3.5 px-4 whitespace-nowrap font-mono font-bold text-amber-800">
-                        {r.foodBasketsDeducted || 0} {isAr ? "سلة" : "baskets"}
-                      </td>
-                      <td className="py-3.5 px-4 whitespace-nowrap font-mono text-xs text-slate-500">
-                        {r.remainingBalance !== undefined ? `${r.remainingBalance.toLocaleString()} ج.م` : "—"}
-                      </td>
-                      <td className="py-3.5 px-4 text-center whitespace-nowrap">
-                        <Link
-                          href={`/dashboard/beneficiaries/${r.cardId}`}
-                          className="btn btn-sm bg-emerald-50 text-[#0A734D] hover:bg-emerald-100 font-bold text-xs py-1 px-2.5 rounded-lg border border-emerald-200"
-                        >
-                          عرض الملف ↗
-                        </Link>
+                      <td className="py-3 px-4 text-slate-500 font-mono">
+                        {parseDate(r.timestamp).toLocaleString(isAr ? "ar-EG" : "en-US")}
                       </td>
                     </tr>
                   ))
@@ -770,143 +565,103 @@ export default function MerchantProfilePage() {
               </tbody>
             </table>
           </div>
-        )}
+        </div>
+      )}
 
-        {/* Tab 2: Budget Allocations */}
-        {activeTab === "allocations" && (
+      {/* Tab 2: Allocations Table */}
+      {activeTab === "allocations" && (
+        <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-xs">
           <div className="overflow-x-auto">
-            <table className="w-full text-sm text-slate-800 text-start">
-              <thead className="bg-slate-50/90 text-slate-700 font-extrabold border-b border-slate-200 text-xs">
+            <table className="w-full text-xs font-bold text-slate-800">
+              <thead className="bg-slate-50 text-slate-700 border-b border-slate-200">
                 <tr>
-                  <th className="py-3 px-4 text-start whitespace-nowrap">{isAr ? "رقم الإيداع" : "Allocation ID"}</th>
-                  <th className="py-3 px-4 text-start whitespace-nowrap">{isAr ? "التاريخ والوقت" : "Date"}</th>
-                  <th className="py-3 px-4 text-start whitespace-nowrap">{isAr ? "المبلغ المضاف" : "Amount Added"}</th>
-                  <th className="py-3 px-4 text-start whitespace-nowrap">{isAr ? "نوع الحركة" : "Type"}</th>
-                  <th className="py-3 px-4 text-start whitespace-nowrap">{isAr ? "المشرف المعتمد" : "Approved By"}</th>
-                  <th className="py-3 px-4 text-start whitespace-nowrap">{isAr ? "ملاحظات" : "Notes"}</th>
+                  <th className="py-3 px-4 text-start">{isAr ? "رقم السند" : "Allocation ID"}</th>
+                  <th className="py-3 px-4 text-start">{isAr ? "المبلغ المضاف" : "Amount"}</th>
+                  <th className="py-3 px-4 text-start">{isAr ? "النوع" : "Type"}</th>
+                  <th className="py-3 px-4 text-start">{isAr ? "المشرف الإداري" : "Allocated By"}</th>
+                  <th className="py-3 px-4 text-start">{isAr ? "التاريخ" : "Date"}</th>
+                  <th className="py-3 px-4 text-start">{isAr ? "ملاحظات" : "Notes"}</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-100 font-semibold">
+              <tbody className="divide-y divide-slate-100 font-medium">
                 {allocations.length === 0 ? (
                   <tr>
                     <td colSpan={6} className="py-12 text-center text-slate-400 font-bold">
-                      {isAr ? "لا توجد حركات تغذية ميزانية مسجلة حتى الآن" : "No budget allocations recorded"}
+                      {isAr ? "لا توجد سندات تخصيص مسجلة" : "No allocations found"}
                     </td>
                   </tr>
                 ) : (
                   allocations.map((a) => (
-                    <tr key={a.id} className="hover:bg-slate-50/80 transition-colors">
-                      <td className="py-3.5 px-4 whitespace-nowrap font-mono text-xs font-black text-slate-900">
-                        {a.allocationId || a.id}
+                    <tr key={a.id} className="hover:bg-slate-50/80">
+                      <td className="py-3 px-4 font-mono font-bold text-slate-900">{a.id?.slice(-8) || "—"}</td>
+                      <td className="py-3 px-4 font-mono font-extrabold text-[#0A734D]">
+                        +{a.amount?.toLocaleString()} {isAr ? "ج.م" : "EGP"}
                       </td>
-                      <td className="py-3.5 px-4 whitespace-nowrap font-mono text-xs text-slate-600">
-                        {parseDate(a.timestamp).toLocaleDateString(isAr ? "ar-EG" : "en-US", {
-                          year: "numeric",
-                          month: "short",
-                          day: "numeric",
-                          hour: "2-digit",
-                          minute: "2-digit",
-                        })}
-                      </td>
-                      <td className="py-3.5 px-4 whitespace-nowrap font-mono font-black text-emerald-800 text-sm">
-                        +{(a.amount || 0).toLocaleString()} {isAr ? "ج.م" : "EGP"}
-                      </td>
-                      <td className="py-3.5 px-4 whitespace-nowrap">
-                        <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-blue-50 text-blue-800 border border-blue-200">
-                          {a.type === "recharge" ? "تغذية دورية" : a.type === "initial" ? "ابتدائية" : "تسوية"}
+                      <td className="py-3 px-4">
+                        <span className="badge bg-emerald-50 text-emerald-800 border-emerald-200 font-bold">
+                          {a.type === "recharge" ? (isAr ? "تغذية دورية" : "Recharge") : a.type}
                         </span>
                       </td>
-                      <td className="py-3.5 px-4 whitespace-nowrap text-xs font-bold text-slate-700">
-                        {a.allocatedBy?.adminName || "مشرف الإدارة"}
+                      <td className="py-3 px-4 text-slate-600">{a.allocatedByAdminEmail || "admin"}</td>
+                      <td className="py-3 px-4 text-slate-500 font-mono">
+                        {parseDate(a.timestamp).toLocaleString(isAr ? "ar-EG" : "en-US")}
                       </td>
-                      <td className="py-3.5 px-4 whitespace-nowrap text-xs text-slate-500">
-                        {a.notes || "—"}
-                      </td>
+                      <td className="py-3 px-4 text-slate-600">{a.notes || "—"}</td>
                     </tr>
                   ))
                 )}
               </tbody>
             </table>
           </div>
-        )}
+        </div>
+      )}
 
-        {/* Tab 3: Payment Receipts */}
-        {activeTab === "receipts" && (
+      {/* Tab 3: Receipts Table */}
+      {activeTab === "receipts" && (
+        <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-xs">
           <div className="overflow-x-auto">
-            <table className="w-full text-sm text-slate-800 text-start">
-              <thead className="bg-slate-50/90 text-slate-700 font-extrabold border-b border-slate-200 text-xs">
+            <table className="w-full text-xs font-bold text-slate-800">
+              <thead className="bg-slate-50 text-slate-700 border-b border-slate-200">
                 <tr>
-                  <th className="py-3 px-4 text-start whitespace-nowrap">{isAr ? "رقم الوصل" : "Receipt ID"}</th>
-                  <th className="py-3 px-4 text-start whitespace-nowrap">{isAr ? "التاريخ" : "Date"}</th>
-                  <th className="py-3 px-4 text-start whitespace-nowrap">{isAr ? "المبلغ" : "Amount"}</th>
-                  <th className="py-3 px-4 text-start whitespace-nowrap">{isAr ? "طريقة الدفع" : "Method"}</th>
-                  <th className="py-3 px-4 text-start whitespace-nowrap">{isAr ? "الرقم المرجعي" : "Ref Number"}</th>
-                  <th className="py-3 px-4 text-start whitespace-nowrap">{isAr ? "حالة الاستلام" : "Status"}</th>
-                  <th className="py-3 px-4 text-start whitespace-nowrap">{isAr ? "صورة الإيصال" : "Image"}</th>
+                  <th className="py-3 px-4 text-start">{isAr ? "المرجع" : "Ref"}</th>
+                  <th className="py-3 px-4 text-start">{isAr ? "طريقة التحويل" : "Method"}</th>
+                  <th className="py-3 px-4 text-start">{isAr ? "المبلغ" : "Amount"}</th>
+                  <th className="py-3 px-4 text-start">{isAr ? "حساب المستلم" : "Receiver"}</th>
+                  <th className="py-3 px-4 text-start">{isAr ? "الحالة" : "Status"}</th>
+                  <th className="py-3 px-4 text-start">{isAr ? "التاريخ" : "Date"}</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-100 font-semibold">
+              <tbody className="divide-y divide-slate-100 font-medium">
                 {receipts.length === 0 ? (
                   <tr>
-                    <td colSpan={7} className="py-12 text-center text-slate-400 font-bold">
-                      {isAr ? "لا توجد وصولات دفع مرسلة لهذا المنفذ بعد" : "No payment receipts found"}
+                    <td colSpan={6} className="py-12 text-center text-slate-400 font-bold">
+                      {isAr ? "لا توجد إيصالات تحويل مسجلة" : "No receipts found"}
                     </td>
                   </tr>
                 ) : (
                   receipts.map((rc) => (
-                    <tr key={rc.id} className="hover:bg-slate-50/80 transition-colors">
-                      <td className="py-3.5 px-4 whitespace-nowrap font-mono text-xs font-black text-slate-900">
-                        {rc.receiptId || rc.id}
-                      </td>
-                      <td className="py-3.5 px-4 whitespace-nowrap font-mono text-xs text-slate-600">
-                        {parseDate(rc.timestamp).toLocaleDateString(isAr ? "ar-EG" : "en-US", {
-                          year: "numeric",
-                          month: "short",
-                          day: "numeric",
-                          hour: "2-digit",
-                          minute: "2-digit",
-                        })}
-                      </td>
-                      <td className="py-3.5 px-4 whitespace-nowrap font-mono font-black text-amber-900 text-sm">
-                        {(rc.amount || 0).toLocaleString()} {isAr ? "ج.م" : "EGP"}
-                      </td>
-                      <td className="py-3.5 px-4 whitespace-nowrap">
-                        <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-amber-50 text-amber-900 border border-amber-200">
-                          {rc.paymentMethod === "instapay"
-                            ? "⚡ إنستا باي"
-                            : rc.paymentMethod === "vodafone_cash"
-                            ? "📱 فودافون كاش"
-                            : "🏛️ تحويل بنكي"}
+                    <tr key={rc.receiptId} className="hover:bg-slate-50/80">
+                      <td className="py-3 px-4 font-mono font-bold text-slate-900">{rc.referenceNumber || rc.receiptId?.slice(-8)}</td>
+                      <td className="py-3 px-4">
+                        <span className="badge bg-amber-50 text-amber-900 border-amber-200 font-bold">
+                          {rc.paymentMethod === "instapay" ? "إنستا باي" : rc.paymentMethod === "vodafone_cash" ? "فودافون كاش" : rc.paymentMethod}
                         </span>
                       </td>
-                      <td className="py-3.5 px-4 whitespace-nowrap font-mono text-xs text-slate-700 font-bold">
-                        {rc.referenceNumber}
+                      <td className="py-3 px-4 font-mono font-extrabold text-slate-900">
+                        {rc.amount?.toLocaleString()} {isAr ? "ج.م" : "EGP"}
                       </td>
-                      <td className="py-3.5 px-4 whitespace-nowrap">
-                        <span
-                          className={`px-2.5 py-0.5 rounded-full text-xs font-black ${
-                            rc.status === "confirmed_by_merchant"
-                              ? "bg-emerald-100 text-emerald-900 border border-emerald-300"
-                              : "bg-blue-100 text-blue-900 border border-blue-300"
-                          }`}
-                        >
-                          {rc.status === "confirmed_by_merchant" ? (isAr ? "تم التأكيد ✅" : "Confirmed") : (isAr ? "تم الإرسال 📤" : "Sent")}
+                      <td className="py-3 px-4 font-mono text-slate-600">{rc.receiverAccount || "—"}</td>
+                      <td className="py-3 px-4">
+                        <span className={`badge ${
+                          rc.status === "confirmed_by_merchant"
+                            ? "bg-emerald-100 text-emerald-800 border-emerald-300"
+                            : "bg-amber-100 text-amber-800 border-amber-300"
+                        }`}>
+                          {rc.status === "confirmed_by_merchant" ? (isAr ? "تم التأكيد من الصراف ✅" : "Confirmed") : (isAr ? "بانتظار التأكيد" : "Pending")}
                         </span>
                       </td>
-                      <td className="py-3.5 px-4 whitespace-nowrap text-xs">
-                        {rc.receiptImageUrl ? (
-                          <a
-                            href={rc.receiptImageUrl}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="text-emerald-700 font-bold hover:underline flex items-center gap-1"
-                          >
-                            <span>معاينة</span>
-                            <ExternalLink className="w-3 h-3" />
-                          </a>
-                        ) : (
-                          <span className="text-slate-400">—</span>
-                        )}
+                      <td className="py-3 px-4 text-slate-500 font-mono">
+                        {parseDate(rc.timestamp).toLocaleString(isAr ? "ar-EG" : "en-US")}
                       </td>
                     </tr>
                   ))
@@ -914,11 +669,11 @@ export default function MerchantProfilePage() {
               </tbody>
             </table>
           </div>
-        )}
-      </div>
+        </div>
+      )}
 
-      {/* ── MODAL: Allocate Budget ───────────────────────────────── */}
-      {showAllocModal && mounted && merchant && createPortal(
+      {/* ── MODAL 1: Allocate Budget Modal ────────────────────────────── */}
+      {showAllocModal && mounted && createPortal(
         <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-sm animate-in fade-in duration-200">
           <div className="bg-white rounded-3xl p-6 sm:p-7 max-w-lg w-full shadow-2xl border-2 border-slate-200 relative animate-in zoom-in-95 duration-200">
             <button
@@ -933,106 +688,94 @@ export default function MerchantProfilePage() {
                 <Wallet className="w-6 h-6 text-amber-300" />
               </div>
               <div>
-                <h3 className="text-lg font-black text-slate-950">
-                  {isAr ? "تخصيص وتغذية ميزانية الصراف" : "Allocate Merchant Budget"}
+                <h3 className="text-lg font-black text-slate-900">
+                  {isAr ? "تخصيص ميزانية وتغذية سيولة" : "Allocate Merchant Budget"}
                 </h3>
-                <p className="text-xs text-slate-500 font-bold mt-0.5">
-                  منفذ: {merchant.storeName || merchant.name}
+                <p className="text-xs font-bold text-[#0A734D]">
+                  {merchant.storeName || merchant.name}
                 </p>
               </div>
             </div>
 
-            <form onSubmit={handleSaveAllocation} className="space-y-4">
+            <div className="space-y-4 text-xs font-bold">
               <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">
-                  {isAr ? "المبلغ المالي المراد إضافته (ج.م):" : "Allocation Amount (EGP):"}
-                </label>
-                <div className="relative">
-                  <input
-                    type="number"
-                    min={1}
-                    step="any"
-                    required
-                    placeholder="أدخل أي قيمة مطلوبة..."
-                    value={allocAmount || ""}
-                    onChange={(e) => setAllocAmount(e.target.value === "" ? 0 : Number(e.target.value))}
-                    className="w-full pl-4 pr-12 py-3 rounded-xl bg-slate-50 border border-slate-200 text-lg font-black font-mono text-[#0A734D] focus:bg-white focus:border-emerald-500 focus:outline-none"
-                  />
-                  <span className="absolute right-3.5 top-3.5 text-xs font-bold text-slate-400">ج.م</span>
-                </div>
-                {/* Quick Preset Buttons */}
-                <div className="flex flex-wrap gap-1.5 mt-2">
-                  {[1000, 5000, 10000, 25000, 50000, 100000].map((preset) => (
+                <label className="block text-slate-700 mb-1.5">{isAr ? "المبلغ المراد إضافته (ج.م)" : "Amount to Allocate (EGP)"}</label>
+                <div className="grid grid-cols-4 gap-2 mb-2">
+                  {[5000, 10000, 25000, 50000].map((amt) => (
                     <button
-                      key={preset}
+                      key={amt}
                       type="button"
-                      onClick={() => setAllocAmount(preset)}
-                      className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer ${
-                        allocAmount === preset
-                          ? "bg-[#0A734D] text-white shadow-sm"
-                          : "bg-slate-100 text-slate-700 hover:bg-slate-200"
+                      onClick={() => setAllocAmount(amt)}
+                      className={`py-2 px-1 rounded-xl border text-xs font-black ${
+                        allocAmount === amt
+                          ? "bg-[#0A734D] text-white border-[#0A734D]"
+                          : "bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100"
                       }`}
                     >
-                      +{preset.toLocaleString()} ج.م
+                      {amt.toLocaleString()}
                     </button>
                   ))}
                 </div>
+                <input
+                  type="number"
+                  value={allocAmount}
+                  onChange={(e) => setAllocAmount(Number(e.target.value))}
+                  className="qout-input font-mono font-bold text-sm"
+                  min={100}
+                />
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">
-                  {isAr ? "نوع الحركة:" : "Allocation Type:"}
-                </label>
+                <label className="block text-slate-700 mb-1.5">{isAr ? "نوع العملية" : "Allocation Type"}</label>
                 <select
                   value={allocType}
                   onChange={(e) => setAllocType(e.target.value as any)}
-                  className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs font-bold text-slate-800"
+                  className="qout-select font-bold"
                 >
-                  <option value="recharge">تغذية دورية منتظمة (Recharge)</option>
-                  <option value="initial">ميزانية ابتدائية تأسيسية (Initial)</option>
-                  <option value="adjustment">تسوية مالية إدارية (Adjustment)</option>
+                  <option value="recharge">{isAr ? "تغذية دورية (Recharge)" : "Periodic Recharge"}</option>
+                  <option value="initial">{isAr ? "تخصيص مبدئي (Initial)" : "Initial Budget"}</option>
+                  <option value="adjustment">{isAr ? "تسوية إدارية (Adjustment)" : "Administrative Adjustment"}</option>
                 </select>
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">
-                  {isAr ? "ملاحظات وتوثيق الحركة:" : "Notes:"}
-                </label>
-                <textarea
-                  rows={2}
+                <label className="block text-slate-700 mb-1.5">{isAr ? "ملاحظات السند المالي (اختياري)" : "Notes (Optional)"}</label>
+                <input
+                  type="text"
                   value={allocNotes}
                   onChange={(e) => setAllocNotes(e.target.value)}
-                  placeholder={isAr ? "اكتب أي تفاصيل إضافية..." : "Notes..."}
-                  className="w-full p-3 rounded-xl bg-slate-50 border border-slate-200 text-xs font-bold text-slate-800 focus:bg-white focus:outline-none"
+                  placeholder={isAr ? "مثال: حوالة بنكية لشهر رمضان" : "e.g. Bank transfer for Ramadan"}
+                  className="qout-input"
                 />
               </div>
 
-              <div className="flex items-center gap-3 pt-2">
-                <button
-                  type="submit"
-                  disabled={allocating || allocAmount <= 0}
-                  className="btn bg-[#0A734D] hover:bg-[#085E3E] text-white flex-1 justify-center font-black py-3 rounded-xl shadow-md disabled:opacity-50 cursor-pointer"
-                >
-                  {allocating ? "جاري الحفظ..." : isAr ? "اعتماد وتغذية الميزانية" : "Confirm"}
-                </button>
+              <div className="pt-4 flex items-center justify-end gap-3 border-t border-slate-100">
                 <button
                   type="button"
                   onClick={() => setShowAllocModal(false)}
-                  className="btn btn-secondary py-3 px-5 rounded-xl font-bold cursor-pointer"
+                  className="btn btn-secondary px-5"
                 >
-                  إلغاء
+                  {isAr ? "إلغاء" : "Cancel"}
+                </button>
+                <button
+                  type="button"
+                  disabled={allocating || allocAmount <= 0}
+                  onClick={handleConfirmAllocation}
+                  className="btn btn-primary px-6"
+                >
+                  {allocating ? (isAr ? "جاري الحفظ..." : "Saving...") : (isAr ? "تأكيد إضافة الرصيد" : "Confirm Allocation")}
                 </button>
               </div>
-            </form>
+            </div>
           </div>
         </div>,
         document.body
       )}
 
-      {/* ── MODAL: Send Payment Receipt ──────────────────────────── */}
-      {showReceiptModal && mounted && merchant && createPortal(
+      {/* ── MODAL 2: Send Payment Receipt Modal (Smart Ref) ──────────────── */}
+      {showReceiptModal && mounted && createPortal(
         <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-sm animate-in fade-in duration-200">
-          <div className="bg-white rounded-3xl p-6 sm:p-7 max-w-lg w-full shadow-2xl border-2 border-slate-200 relative animate-in zoom-in-95 duration-200 max-h-[90vh] overflow-y-auto">
+          <div className="bg-white rounded-3xl p-6 sm:p-7 max-w-lg w-full shadow-2xl border-2 border-slate-200 relative animate-in zoom-in-95 duration-200 max-h-[92vh] overflow-y-auto">
             <button
               onClick={() => setShowReceiptModal(false)}
               className="absolute top-5 left-5 w-9 h-9 rounded-full bg-slate-100 text-slate-700 hover:bg-slate-200 flex items-center justify-center transition-all cursor-pointer"
@@ -1041,122 +784,277 @@ export default function MerchantProfilePage() {
             </button>
 
             <div className="flex items-center gap-3.5 pb-4 border-b-2 border-slate-100 mb-5">
-              <div className="w-12 h-12 rounded-2xl bg-amber-500 text-white flex items-center justify-center shadow-lg shadow-amber-500/25 flex-shrink-0">
+              <div className="w-12 h-12 rounded-2xl bg-amber-500 text-white flex items-center justify-center shadow-lg shadow-amber-900/20 flex-shrink-0">
                 <Send className="w-6 h-6" />
               </div>
               <div>
-                <h3 className="text-lg font-black text-slate-950">
-                  {isAr ? "إرسال وصل دفع وتحويل للصراف" : "Send Payment Receipt"}
+                <h3 className="text-lg font-black text-slate-900">
+                  {isAr ? "إرسال إشعار وإيصال تحويل للصراف" : "Send Transfer Receipt"}
                 </h3>
-                <p className="text-xs text-slate-500 font-bold mt-0.5">
-                  منفذ: {merchant.storeName || merchant.name}
+                <p className="text-xs font-bold text-amber-700">
+                  {merchant.storeName || merchant.name}
                 </p>
               </div>
             </div>
 
-            <form onSubmit={handleSendReceipt} className="space-y-4">
+            <div className="space-y-4 text-xs font-bold">
               <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">
-                  {isAr ? "طريقة التحويل / الدفع:" : "Payment Method:"}
-                </label>
-                <div className="grid grid-cols-2 gap-2 text-xs font-bold">
-                  {[
-                    { id: "instapay", label: "⚡ إنستا باي (InstaPay)" },
-                    { id: "vodafone_cash", label: "📱 فودافون كاش" },
-                    { id: "bank_transfer", label: "🏛️ تحويل بنكي" },
-                    { id: "cash", label: "💵 نقدي باليد" },
-                  ].map((pm) => (
-                    <button
-                      key={pm.id}
-                      type="button"
-                      onClick={() => setPaymentMethod(pm.id as any)}
-                      className={`p-2.5 rounded-xl border text-center transition-all cursor-pointer ${
-                        paymentMethod === pm.id
-                          ? "bg-amber-50 border-amber-400 text-amber-950 font-black shadow-2xs"
-                          : "bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100"
-                      }`}
-                    >
-                      {pm.label}
-                    </button>
-                  ))}
-                </div>
+                <label className="block text-slate-700 mb-1.5">{isAr ? "طريقة التحويل" : "Payment Method"}</label>
+                <select
+                  value={paymentMethod}
+                  onChange={(e) => {
+                    const pm = e.target.value as any;
+                    setPaymentMethod(pm);
+                    setReferenceNumber(generateReference(pm));
+                    if (pm === "instapay") setReceiverAccount(merchant.instapayAddress || merchant.phone || "");
+                    else if (pm === "vodafone_cash") setReceiverAccount(merchant.vodafoneCashNumber || merchant.phone || "");
+                    else setReceiverAccount("");
+                  }}
+                  className="qout-select font-bold"
+                >
+                  <option value="instapay">إنستا باي (InstaPay)</option>
+                  <option value="vodafone_cash">محفظة فودافون كاش (Vodafone Cash)</option>
+                  <option value="bank_transfer">تحويل بنكي رسمي (Bank Transfer)</option>
+                  <option value="cash">تسليم نقدي مباشر (Cash Handover)</option>
+                </select>
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">
-                  {isAr ? "قيمة الحوالة / الدفعة (ج.م):" : "Amount (EGP):"}
-                </label>
-                <div className="relative">
-                  <input
-                    type="number"
-                    min={100}
-                    step={100}
-                    required
-                    value={receiptAmount}
-                    onChange={(e) => setReceiptAmount(Number(e.target.value))}
-                    className="w-full pl-4 pr-10 py-3 rounded-xl bg-slate-50 border border-slate-200 text-base font-black font-mono text-amber-900 focus:bg-white focus:outline-none"
-                  />
-                  <span className="absolute right-3.5 top-3.5 text-xs font-bold text-slate-400">ج.م</span>
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">
-                  {isAr ? "الرقم المرجعي للحوالة:" : "Reference Number:"}
-                </label>
+                <label className="block text-slate-700 mb-1.5">{isAr ? "مبلغ الحوالة (ج.م)" : "Transfer Amount (EGP)"}</label>
                 <input
-                  type="text"
-                  required
-                  value={referenceNumber}
-                  onChange={(e) => setReferenceNumber(e.target.value)}
-                  placeholder="مثال: 94820194829"
-                  className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs font-mono font-bold text-slate-900 focus:bg-white focus:outline-none"
+                  type="number"
+                  value={receiptAmount}
+                  onChange={(e) => setReceiptAmount(Number(e.target.value))}
+                  className="qout-input font-mono font-bold text-sm"
+                  min={1}
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">
-                  {isAr ? "رقم محفظة أو حساب الصراف المستلم:" : "Receiver Account / Wallet:"}
-                </label>
+                <div className="flex items-center justify-between mb-1.5">
+                  <label className="block text-slate-700">{isAr ? "الرقم المرجعي التلقائي للحوالة" : "Reference Number"}</label>
+                  <button
+                    type="button"
+                    onClick={() => setReferenceNumber(generateReference(paymentMethod))}
+                    className="text-[11px] text-emerald-700 hover:underline font-bold"
+                  >
+                    {isAr ? "توليد جديد 🔄" : "Regenerate 🔄"}
+                  </button>
+                </div>
+                <input
+                  type="text"
+                  value={referenceNumber}
+                  onChange={(e) => setReferenceNumber(e.target.value)}
+                  className="qout-input font-mono font-bold text-sm bg-amber-50/50 border-amber-300"
+                />
+              </div>
+
+              <div>
+                <label className="block text-slate-700 mb-1.5">{isAr ? "حساب / هاتف المستلم (الصراف)" : "Receiver Account / Phone"}</label>
                 <input
                   type="text"
                   value={receiverAccount}
                   onChange={(e) => setReceiverAccount(e.target.value)}
-                  placeholder="01012345678 أو username@instapay"
-                  className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs font-mono font-bold text-slate-900 focus:bg-white focus:outline-none"
+                  className="qout-input"
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">
-                  {isAr ? "رابط صورة الإيصال (اختياري):" : "Receipt Image URL:"}
-                </label>
+                <label className="block text-slate-700 mb-1.5">{isAr ? "صورة إيصال التحويل (اختياري)" : "Receipt Screenshot"}</label>
+                <div className="flex items-center gap-3">
+                  <label className="btn btn-secondary cursor-pointer flex items-center gap-2 py-2 px-3 text-xs">
+                    <Upload className="w-4 h-4" />
+                    <span>{uploadingImg ? (isAr ? "جاري الرفع..." : "Uploading...") : (isAr ? "اختيار صورة الوصل" : "Select Image")}</span>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={handleImageUpload}
+                      className="hidden"
+                      disabled={uploadingImg}
+                    />
+                  </label>
+                  {receiptImageUrl && (
+                    <span className="text-[11px] text-emerald-600 font-bold flex items-center gap-1">
+                      <CheckCircle2 className="w-3.5 h-3.5" />
+                      {isAr ? "تم إرفاق الصورة" : "Image Attached"}
+                    </span>
+                  )}
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-slate-700 mb-1.5">{isAr ? "ملاحظات إضافية" : "Notes"}</label>
                 <input
-                  type="url"
-                  value={receiptImageUrl}
-                  onChange={(e) => setReceiptImageUrl(e.target.value)}
-                  placeholder="https://..."
-                  className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs font-mono text-slate-700 focus:bg-white focus:outline-none"
+                  type="text"
+                  value={receiptNotes}
+                  onChange={(e) => setReceiptNotes(e.target.value)}
+                  className="qout-input"
                 />
               </div>
 
-              <div className="flex items-center gap-3 pt-2">
-                <button
-                  type="submit"
-                  disabled={sendingReceipt || receiptAmount <= 0}
-                  className="btn bg-amber-500 hover:bg-amber-600 text-white flex-1 justify-center font-black py-3 rounded-xl shadow-md disabled:opacity-50 cursor-pointer"
-                >
-                  {sendingReceipt ? "جاري الإرسال..." : isAr ? "إرسال وتوثيق الوصل" : "Send Receipt"}
-                </button>
+              <div className="pt-4 flex items-center justify-end gap-3 border-t border-slate-100">
                 <button
                   type="button"
                   onClick={() => setShowReceiptModal(false)}
-                  className="btn btn-secondary py-3 px-5 rounded-xl font-bold cursor-pointer"
+                  className="btn btn-secondary px-5"
                 >
-                  إلغاء
+                  {isAr ? "إلغاء" : "Cancel"}
+                </button>
+                <button
+                  type="button"
+                  disabled={sendingReceipt || receiptAmount <= 0 || !referenceNumber.trim()}
+                  onClick={handleConfirmSendReceipt}
+                  className="btn bg-amber-600 hover:bg-amber-700 text-white px-6 font-bold"
+                >
+                  {sendingReceipt ? (isAr ? "جاري الإرسال..." : "Sending...") : (isAr ? "إرسال الإيصال للتطبيق" : "Send Receipt")}
                 </button>
               </div>
-            </form>
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
+
+      {/* ── MODAL 3: Edit Full Merchant Details ────────────────────────── */}
+      {showEditModal && mounted && createPortal(
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="bg-white rounded-3xl p-6 sm:p-7 max-w-lg w-full shadow-2xl border-2 border-slate-200 relative animate-in zoom-in-95 duration-200 max-h-[92vh] overflow-y-auto">
+            <button
+              onClick={() => setShowEditModal(false)}
+              className="absolute top-5 left-5 w-9 h-9 rounded-full bg-slate-100 text-slate-700 hover:bg-slate-200 flex items-center justify-center transition-all cursor-pointer"
+            >
+              <X className="w-5 h-5" />
+            </button>
+
+            <div className="flex items-center gap-3.5 pb-4 border-b-2 border-slate-100 mb-5">
+              <div className="w-12 h-12 rounded-2xl bg-emerald-600 text-white flex items-center justify-center shadow-lg shadow-emerald-900/20 flex-shrink-0">
+                <Edit className="w-6 h-6" />
+              </div>
+              <div>
+                <h3 className="text-lg font-black text-slate-900">
+                  {isAr ? "تعديل بيانات الصراف والمنفذ" : "Edit Merchant Profile"}
+                </h3>
+                <p className="text-xs font-bold text-emerald-700">
+                  {merchant.storeName || merchant.name}
+                </p>
+              </div>
+            </div>
+
+            <div className="space-y-4 text-xs font-bold">
+              <div>
+                <label className="block text-slate-700 mb-1.5">{isAr ? "اسم المتجر / المنفذ الرسمي" : "Store Name"}</label>
+                <input
+                  type="text"
+                  value={editStoreName}
+                  onChange={(e) => setEditStoreName(e.target.value)}
+                  className="qout-input"
+                />
+              </div>
+
+              <div>
+                <label className="block text-slate-700 mb-1.5">{isAr ? "اسم المسؤول / التاجر" : "Owner Name"}</label>
+                <input
+                  type="text"
+                  value={editName}
+                  onChange={(e) => setEditName(e.target.value)}
+                  className="qout-input"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-slate-700 mb-1.5">{isAr ? "رقم الهاتف" : "Phone"}</label>
+                  <input
+                    type="text"
+                    value={editPhone}
+                    onChange={(e) => setEditPhone(e.target.value)}
+                    className="qout-input font-mono"
+                  />
+                </div>
+                <div>
+                  <label className="block text-slate-700 mb-1.5">{isAr ? "البريد الإلكتروني" : "Email"}</label>
+                  <input
+                    type="email"
+                    value={editEmail}
+                    onChange={(e) => setEditEmail(e.target.value)}
+                    className="qout-input font-mono"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-slate-700 mb-1.5">{isAr ? "المدينة / المحافظة / العنوان" : "City / Location"}</label>
+                <input
+                  type="text"
+                  value={editCity}
+                  onChange={(e) => setEditCity(e.target.value)}
+                  className="qout-input"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-slate-700 mb-1.5">{isAr ? "عنوان إنستا باي (IPA)" : "InstaPay Address"}</label>
+                  <input
+                    type="text"
+                    value={editInstapay}
+                    onChange={(e) => setEditInstapay(e.target.value)}
+                    placeholder="user@instapay"
+                    className="qout-input font-mono"
+                  />
+                </div>
+                <div>
+                  <label className="block text-slate-700 mb-1.5">{isAr ? "رقم فودافون كاش" : "Vodafone Cash No."}</label>
+                  <input
+                    type="text"
+                    value={editVodafoneCash}
+                    onChange={(e) => setEditVodafoneCash(e.target.value)}
+                    placeholder="010xxxxxxxx"
+                    className="qout-input font-mono"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-slate-700 mb-1.5">{isAr ? "رقم السجل التجاري / الهوية" : "Commercial Reg / Tax ID"}</label>
+                <input
+                  type="text"
+                  value={editCr}
+                  onChange={(e) => setEditCr(e.target.value)}
+                  className="qout-input font-mono"
+                />
+              </div>
+
+              <div>
+                <label className="block text-slate-700 mb-1.5">{isAr ? "حالة اعتماد المنفذ" : "Outlet Status"}</label>
+                <select
+                  value={editIsActive ? "active" : "suspended"}
+                  onChange={(e) => setEditIsActive(e.target.value === "active")}
+                  className="qout-select font-bold"
+                >
+                  <option value="active">{isAr ? "معتمد ونشط (Active)" : "Active & Approved"}</option>
+                  <option value="suspended">{isAr ? "معطل / موقوف (Suspended)" : "Suspended"}</option>
+                </select>
+              </div>
+
+              <div className="pt-4 flex items-center justify-end gap-3 border-t border-slate-100">
+                <button
+                  type="button"
+                  onClick={() => setShowEditModal(false)}
+                  className="btn btn-secondary px-5"
+                >
+                  {isAr ? "إلغاء" : "Cancel"}
+                </button>
+                <button
+                  type="button"
+                  disabled={savingMerchant}
+                  onClick={handleSaveMerchantDetails}
+                  className="btn btn-primary px-6"
+                >
+                  {savingMerchant ? (isAr ? "جاري الحفظ..." : "Saving...") : (isAr ? "حفظ التعديلات" : "Save Changes")}
+                </button>
+              </div>
+            </div>
           </div>
         </div>,
         document.body

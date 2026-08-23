@@ -20,7 +20,6 @@ export interface UserModel {
   commercialReg?: string;
   totalDisbursed?: number;
   totalTransactions?: number;
-  // New Liquidity and Budget fields for merchants
   allocatedBudget?: number;
   currentRemainingBudget?: number;
   lastAllocationDate?: any;
@@ -36,24 +35,27 @@ export type AidCardStatus = "active" | "frozen" | "depleted" | "expired" | "pend
 
 export interface AidCardModel {
   cardId: string;
-  beneficiaryId: string;
-  beneficiaryName: string;
-  nationalId: string;
-  familyCount: number;
+  beneficiaryId?: string;
+  beneficiaryName?: string;
+  nationalId?: string;
+  phone?: string;
+  balance?: number;
+  familyCount?: number;
   residence?: string;
-  totalBalance: number;
-  foodBasketsQuota: number;
+  totalBalance?: number;
+  foodBasketsQuota?: number;
   totalBasketsDelivered?: number;
-  status: AidCardStatus;
+  status?: AidCardStatus;
   socialStatus?: string;
   nationality?: string;
   fieldResearchStatus?: string;
   issuedByVolunteerId?: string;
   activatedAt?: string;
-  expiresAt: string;
-  securityHash: string;
+  expiresAt?: string;
+  securityHash?: string;
   lastCashRedemptionDate?: any;
   lastBasketDistributionDate?: any;
+  isActive?: boolean;
 }
 
 export interface RedemptionTransaction {
@@ -80,59 +82,65 @@ export interface RedemptionTransaction {
 export interface BasketDistribution {
   distributionId: string;
   cardId: string;
-  beneficiaryId: string;
-  beneficiaryName: string;
+  beneficiaryId?: string;
+  beneficiaryName?: string;
   familyCount?: number;
   residence?: string;
-  basketsCount: number;
-  remainingBasketsAfter: number;
-  distributedBy: {
+  basketsCount?: number;
+  remainingBasketsAfter?: number;
+  distributedBy?: {
     adminId: string;
     adminName: string;
   };
-  distributionCenter: string;
-  timestamp: any;
+  distributionCenter?: string;
+  timestamp?: any;
   createdAt?: string;
   notes?: string;
 }
 
 export interface BudgetAllocation {
-  id: string;
+  id?: string;
   allocationId?: string;
-  merchantId: string;
-  merchantName: string;
+  merchantId?: string;
+  merchantName?: string;
   merchantStoreName?: string;
-  amount: number;
-  type: "initial" | "recharge" | "adjustment";
-  allocatedBy: {
+  amount?: number;
+  type?: "initial" | "recharge" | "adjustment";
+  allocatedBy?: {
     adminId: string;
     adminName: string;
   };
+  allocatedByAdminId?: string;
+  allocatedByAdminEmail?: string;
   notes?: string;
-  timestamp: any;
+  timestamp?: any;
   createdAt?: string;
 }
 
 export interface PaymentReceipt {
-  id: string;
+  id?: string;
   receiptId?: string;
-  merchantId: string;
-  merchantName: string;
+  merchantId?: string;
+  merchantName?: string;
   merchantStoreName?: string;
-  amount: number;
-  paymentMethod: "instapay" | "vodafone_cash" | "bank_transfer" | "cash";
-  referenceNumber: string;
+  amount?: number;
+  paymentMethod?: "instapay" | "vodafone_cash" | "bank_transfer" | "cash";
+  referenceNumber?: string;
+  senderAccount?: string;
+  receiverAccount?: string;
   senderAccountOrPhone?: string;
   receiverAccountOrPhone?: string;
   receiptImageUrl?: string;
-  status: "sent" | "confirmed_by_merchant" | "disputed";
+  status?: "sent" | "confirmed_by_merchant" | "disputed" | "pending_merchant_confirmation";
   confirmedAt?: any;
-  sentBy: {
+  sentBy?: {
     adminId: string;
     adminName: string;
   };
+  sentByAdminId?: string;
+  sentByAdminEmail?: string;
   notes?: string;
-  timestamp: any;
+  timestamp?: any;
   createdAt?: string;
 }
 
