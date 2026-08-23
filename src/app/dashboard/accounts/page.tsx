@@ -9,7 +9,7 @@ import { UserModel, UserRole } from "@/types";
 import {
   UserCheck, Search, Bell, Check, X, UserPlus, Eye, EyeOff,
   ShieldCheck, Store, Users, UserCog, Mail, Phone,
-  MapPin, Lock, Building2, Hash, AlertCircle, CheckCircle2, Trash2,
+  MapPin, Lock, Building2, Hash, AlertCircle, CheckCircle2, Trash2, AlertTriangle,
 } from "lucide-react";
 
 export default function AccountsPage() {
@@ -486,45 +486,73 @@ export default function AccountsPage() {
         </div>
       </div>
 
-      {/* ── Delete Confirmation Modal ── */}
+      {/* ── Premium Delete Confirmation Modal ── */}
       {mounted && deletingUser && createPortal(
-        <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs animate-fade-in">
+        <div 
+          className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-fade-in"
+          onClick={() => !isDeleting && setDeletingUser(null)}
+        >
           <div
-            className="bg-white rounded-3xl p-6 max-w-md w-full shadow-2xl border border-red-100 relative animate-scale-in text-center"
+            className="bg-white rounded-[28px] p-7 max-w-md w-full shadow-2xl border border-slate-100 relative animate-scale-in text-center overflow-hidden"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="w-14 h-14 bg-red-100 text-red-600 rounded-full flex items-center justify-center mx-auto mb-4">
-              <Trash2 className="w-7 h-7" />
+            {/* Top Warning Glow & Icon */}
+            <div className="relative mb-5 flex justify-center">
+              <div className="w-16 h-16 bg-red-50 text-red-600 rounded-2xl flex items-center justify-center relative border border-red-100 shadow-sm">
+                <Trash2 className="w-8 h-8 stroke-[2.2]" />
+              </div>
             </div>
-            <h3 className="text-xl font-bold text-slate-900 mb-2">
-              {isAr ? "تأكيد حذف الحساب نهائياً" : "Confirm Account Deletion"}
+
+            {/* Title */}
+            <h3 className="text-2xl font-black text-slate-900 mb-2 tracking-tight">
+              {isAr ? "تأكيد حذف الحساب" : "Confirm Deletion"}
             </h3>
-            <p className="text-sm text-slate-600 mb-6 leading-relaxed">
+
+            {/* Target Account Info Card */}
+            <div className="bg-slate-50 border border-slate-200/80 rounded-2xl p-4 mb-4 text-center">
+              <p className="font-bold text-slate-900 text-base">{deletingUser.name}</p>
+              <p className="text-xs text-slate-500 font-mono mt-0.5" dir="ltr">{deletingUser.email}</p>
+              <div className="mt-2.5 inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-amber-50 text-amber-700 border border-amber-200/70">
+                <AlertTriangle className="w-3.5 h-3.5" />
+                <span>
+                  {isAr 
+                    ? "سيتم حذف بيانات الحساب والبطاقة نهائياً" 
+                    : "Account & aid card will be permanently erased"}
+                </span>
+              </div>
+            </div>
+
+            <p className="text-xs text-slate-500 mb-6 leading-relaxed">
               {isAr
-                ? `هل أنت متأكد من رغبتك في حذف حساب "${deletingUser.name}" (${deletingUser.email}) نهائياً من قاعدة البيانات؟ لا يمكن التراجع عن هذا الإجراء.`
-                : `Are you sure you want to permanently delete "${deletingUser.name}" (${deletingUser.email}) from the database? This action cannot be undone.`}
+                ? "هذا الإجراء نهائي ولا يمكن التراجع عنه. لن يتمكن المستخدم من تسجيل الدخول مجدداً."
+                : "This action is permanent and cannot be undone. The user will lose all access."}
             </p>
-            <div className="flex items-center justify-center gap-3">
+
+            {/* Action Buttons */}
+            <div className="flex items-center gap-3">
               <button
                 type="button"
                 onClick={() => setDeletingUser(null)}
                 disabled={isDeleting}
-                className="btn btn-outline flex-1"
+                className="flex-1 py-3 px-4 rounded-xl font-bold text-sm text-slate-700 bg-slate-100 hover:bg-slate-200 active:scale-[0.98] transition-all cursor-pointer disabled:opacity-50"
               >
-                {isAr ? "إلغاء" : "Cancel"}
+                {isAr ? "إلغاء التراجع" : "Cancel"}
               </button>
               <button
                 type="button"
                 onClick={handleDeleteUser}
                 disabled={isDeleting}
-                className="btn btn-danger flex-1 flex items-center justify-center gap-2 font-bold"
+                className="flex-1 py-3 px-4 rounded-xl font-bold text-sm text-white bg-red-600 hover:bg-red-700 active:scale-[0.98] shadow-lg shadow-red-600/25 transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
               >
                 {isDeleting ? (
-                  <span>{isAr ? "جاري الحذف..." : "Deleting..."}</span>
+                  <div className="flex items-center gap-2">
+                    <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></span>
+                    <span>{isAr ? "جاري الحذف..." : "Deleting..."}</span>
+                  </div>
                 ) : (
                   <>
                     <Trash2 className="w-4 h-4" />
-                    <span>{isAr ? "حذف نهائي" : "Delete"}</span>
+                    <span>{isAr ? "حذف نهائي" : "Delete Account"}</span>
                   </>
                 )}
               </button>
