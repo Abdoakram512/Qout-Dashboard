@@ -1,7 +1,8 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { db } from "@/lib/firebase";
+import { db, storage } from "@/lib/firebase";
+import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import {
   collection, query, where, onSnapshot, doc, updateDoc,
   setDoc, increment, serverTimestamp,
@@ -11,7 +12,7 @@ import { useAuth } from "@/lib/authContext";
 import { logAuditEvent } from "@/lib/auditLogger";
 import { UserModel, BudgetAllocation, PaymentReceipt } from "@/types";
 import {
-  Store, Search, CheckCircle2, XCircle, Building2,
+  Store, Upload, Trash2, Eye, Loader2, ImageIcon, Search, CheckCircle2, XCircle, Building2,
   MapPin, Mail, Hash, TrendingUp, CreditCard, ShieldCheck,
   PlusCircle, Send, FileText, AlertTriangle, ArrowUpRight,
   Coins, X, DollarSign, Wallet, Check, AlertCircle,
@@ -52,6 +53,7 @@ export default function MerchantsPage() {
   const [receiptImageUrl, setReceiptImageUrl] = useState("");
   const [receiptNotes, setReceiptNotes] = useState("");
   const [sendingReceipt, setSendingReceipt] = useState(false);
+  const [uploadingImg, setUploadingImg] = useState(false);
 
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
@@ -146,6 +148,36 @@ export default function MerchantsPage() {
       alert((isAr ? "حدث خطأ أثناء حفظ التخصيص: " : "Error saving allocation: ") + (err?.message || ""));
     }
     setAllocating(false);
+  };
+
+  // Handle Receipt Image File Upload
+  const handleImageFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (file.size > 5 * 1024 * 1024) {
+      alert(isAr ? "حجم الصورة كبير جداً، الحد الأقصى 5 ميجابايت" : "Image size too large (max 5MB)");
+      return;
+    }
+
+    setUploadingImg(true);
+    try {
+      const storageRef = ref(storage, `receipts/${Date.now()}_${file.name.replace(/\s+/g, "_")}`);
+      await uploadBytes(storageRef, file);
+      const downloadUrl = await getDownloadURL(storageRef);
+      setReceiptImageUrl(downloadUrl);
+    } catch (storageErr) {
+      console.warn("Storage upload fallback to base64:", storageErr);
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        if (event.target?.result) {
+          setReceiptImageUrl(event.target.result as string);
+        }
+      };
+      reader.readAsDataURL(file);
+    } finally {
+      setUploadingImg(false);
+    }
   };
 
   // Submit Payment Receipt
@@ -785,18 +817,80 @@ export default function MerchantsPage() {
                 />
               </div>
 
-              {/* Optional Receipt Image URL */}
+              {/* Receipt Image Upload & Preview */}
               <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">
-                  {isAr ? "رابط صورة الإيصال (اختياري):" : "Receipt Image URL (Optional):"}
-                </label>
-                <input
-                  type="url"
-                  value={receiptImageUrl}
-                  onChange={(e) => setReceiptImageUrl(e.target.value)}
-                  placeholder="https://... رابط صورة الوصل"
-                  className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs font-mono text-slate-700 focus:bg-white focus:outline-none"
-                />
+                <div className="flex items-center justify-between mb-1">
+                  <label className="block text-xs font-bold text-slate-700">
+                    {isAr ? "صورة إيصال التحويل / الوصل (اختياري):" : "Receipt Image (Optional):"}
+                  </label>
+                  {receiptImageUrl && (
+                    <button
+                      type="button"
+                      onClick={() => setReceiptImageUrl("")}
+                      className="text-[11px] text-rose-600 hover:text-rose-700 font-bold flex items-center gap-1 cursor-pointer"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                      <span>{isAr ? "حذف الصورة" : "Remove"}</span>
+                    </button>
+                  )}
+                </div>
+
+                {receiptImageUrl ? (
+                  <div className="relative rounded-2xl overflow-hidden border-2 border-amber-300 bg-amber-50/50 p-2.5 flex items-center gap-3">
+                    <img
+                      src={receiptImageUrl}
+                      alt="Receipt preview"
+                      className="w-14 h-14 object-cover rounded-xl border border-amber-200 shadow-xs flex-shrink-0"
+                    />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs font-black text-slate-900 truncate">
+                        {isAr ? "تم اختيار وصورة الإيصال جاهزة ✅" : "Receipt image ready"}
+                      </p>
+                      <p className="text-[10px] text-slate-500 font-mono truncate mt-0.5">
+                        {receiptImageUrl.startsWith("data:") ? (isAr ? "صورة مرفوعة من الجهاز" : "Local upload") : receiptImageUrl}
+                      </p>
+                    </div>
+                    <a
+                      href={receiptImageUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="p-2 rounded-xl bg-white hover:bg-slate-100 text-slate-700 border border-slate-200 transition-all cursor-pointer flex-shrink-0"
+                      title={isAr ? "معاينة بالحجم الكامل" : "View full size"}
+                    >
+                      <Eye className="w-4 h-4" />
+                    </a>
+                  </div>
+                ) : (
+                  <div className="relative">
+                    <label className="border-2 border-dashed border-slate-300 hover:border-amber-500 rounded-2xl p-4 flex flex-col items-center justify-center gap-2 bg-slate-50 hover:bg-amber-50/40 transition-all cursor-pointer text-center">
+                      <input
+                        type="file"
+                        accept="image/*"
+                        onChange={handleImageFileChange}
+                        disabled={uploadingImg}
+                        className="hidden"
+                      />
+                      {uploadingImg ? (
+                        <div className="flex items-center gap-2 text-xs font-bold text-amber-600 py-2">
+                          <Loader2 className="w-5 h-5 animate-spin" />
+                          <span>{isAr ? "جاري معالجة ورفع الصورة..." : "Uploading image..."}</span>
+                        </div>
+                      ) : (
+                        <>
+                          <div className="w-10 h-10 rounded-full bg-amber-100 text-amber-600 flex items-center justify-center">
+                            <Upload className="w-5 h-5" />
+                          </div>
+                          <div className="text-xs font-black text-slate-700">
+                            {isAr ? "اضغط هنا لاختيار أو رفع صورة الوصل من جهازك" : "Click to select receipt image from your device"}
+                          </div>
+                          <div className="text-[10px] text-slate-400 font-semibold">
+                            PNG, JPG, JPEG (بحد أقصى 5 ميجابايت)
+                          </div>
+                        </>
+                      )}
+                    </label>
+                  </div>
+                )}
               </div>
 
               {/* Notes */}

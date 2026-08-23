@@ -2,7 +2,8 @@
 
 import React, { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { db } from "@/lib/firebase";
+import { db, storage } from "@/lib/firebase";
+import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import {
   doc, getDoc, collection, query, where, onSnapshot, updateDoc,
   setDoc, increment, serverTimestamp,
@@ -14,7 +15,7 @@ import {
   UserModel, BudgetAllocation, PaymentReceipt, RedemptionTransaction,
 } from "@/types";
 import {
-  Store, ArrowLeft, ArrowRight, Printer, Wallet, TrendingUp,
+  Store, Upload, Trash2, Eye, Loader2, ImageIcon, ArrowLeft, ArrowRight, Printer, Wallet, TrendingUp,
   Coins, CheckCircle2, AlertTriangle, Building2, MapPin, Mail,
   Hash, CreditCard, Send, PlusCircle, FileText, Check, X,
   Clock, ShieldCheck, Download, Users, Phone, ExternalLink,
@@ -69,6 +70,7 @@ export default function MerchantProfilePage() {
   const [receiptImageUrl, setReceiptImageUrl] = useState("");
   const [receiptNotes, setReceiptNotes] = useState("");
   const [sendingReceipt, setSendingReceipt] = useState(false);
+  const [uploadingImg, setUploadingImg] = useState(false);
 
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
@@ -205,6 +207,36 @@ export default function MerchantProfilePage() {
       alert((isAr ? "حدث خطأ أثناء حفظ التخصيص: " : "Error saving allocation: ") + (err?.message || ""));
     }
     setAllocating(false);
+  };
+
+  // Handle Receipt Image File Upload
+  const handleImageFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (file.size > 5 * 1024 * 1024) {
+      alert(isAr ? "حجم الصورة كبير جداً، الحد الأقصى 5 ميجابايت" : "Image size too large (max 5MB)");
+      return;
+    }
+
+    setUploadingImg(true);
+    try {
+      const storageRef = ref(storage, `receipts/${Date.now()}_${file.name.replace(/\s+/g, "_")}`);
+      await uploadBytes(storageRef, file);
+      const downloadUrl = await getDownloadURL(storageRef);
+      setReceiptImageUrl(downloadUrl);
+    } catch (storageErr) {
+      console.warn("Storage upload fallback to base64:", storageErr);
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        if (event.target?.result) {
+          setReceiptImageUrl(event.target.result as string);
+        }
+      };
+      reader.readAsDataURL(file);
+    } finally {
+      setUploadingImg(false);
+    }
   };
 
   // Submit Payment Receipt
