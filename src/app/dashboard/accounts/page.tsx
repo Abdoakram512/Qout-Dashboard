@@ -7,6 +7,7 @@ import { collection, onSnapshot, doc, updateDoc, setDoc, deleteDoc, query, where
 import { useI18n } from "@/lib/i18n";
 import { UserModel, UserRole } from "@/types";
 import { arabicMatch } from "@/lib/arabicNormalizer";
+import { logAuditEvent } from "@/lib/auditLogger";
 import {
   UserCheck, Search, Bell, Check, X, UserPlus, Eye, EyeOff,
   ShieldCheck, Store, Users, UserCog, Mail, Phone,
@@ -215,9 +216,30 @@ export default function AccountsPage() {
     setCreateError(null);
 
     const cleanEmail = newEmail.trim().toLowerCase();
+    const cleanPhone = newPhone ? newPhone.trim() : "";
+    const cleanNatId = newNatId ? newNatId.trim().toUpperCase() : "";
     const uid = `usr_${Date.now()}`;
 
     try {
+      // 1. Check Phone Uniqueness
+      if (cleanPhone) {
+        const phoneSnap = await getDocs(query(collection(db, "users"), where("phone", "==", cleanPhone)));
+        if (!phoneSnap.empty) {
+          setCreateError(isAr ? "رقم الهاتف مسجل بالفعل بحساب آخر" : "Phone number is already registered to another account");
+          setCreating(false);
+          return;
+        }
+      }
+
+      // 2. Check National ID Uniqueness for Beneficiaries
+      if (newRole === "beneficiary" && cleanNatId) {
+        const natSnap = await getDocs(query(collection(db, "users"), where("nationalId", "==", cleanNatId)));
+        if (!natSnap.empty) {
+          setCreateError(isAr ? "رقم البطاقة القومية أو جواز السفر مسجل بالفعل بحساب آخر" : "National ID / Passport is already registered to another account");
+          setCreating(false);
+          return;
+        }
+      }
       const userDoc: any = {
         uid,
         email: cleanEmail,
