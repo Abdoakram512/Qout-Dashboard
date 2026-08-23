@@ -3,10 +3,10 @@
 import React, { useState, useEffect } from "react";
 import { useAuth } from "@/lib/authContext";
 import { db } from "@/lib/firebase";
-import { collection, onSnapshot, doc, setDoc, deleteDoc } from "firebase/firestore";
+import { collection, onSnapshot, doc, setDoc, deleteDoc, orderBy, limit, query } from "firebase/firestore";
 import { useI18n } from "@/lib/i18n";
 import {
-  Settings, User, Globe, Plus, Trash2, KeyRound, ShieldCheck,
+  Settings, User, Globe, Plus, Trash2, History, Activity, KeyRound, ShieldCheck,
   CheckCircle2, Eye, EyeOff, Save, Lock, Sparkles, AlertCircle
 } from "lucide-react";
 
@@ -63,6 +63,24 @@ export default function SettingsPage() {
     }
     setAddingNat(false);
   };
+
+  // Audit Logs State
+  const [auditLogs, setAuditLogs] = useState<any[]>([]);
+  const [loadingAudit, setLoadingAudit] = useState(true);
+
+  useEffect(() => {
+    const q = query(collection(db, "audit_logs"), orderBy("timestamp", "desc"), limit(25));
+    const unsub = onSnapshot(q, (snap) => {
+      const logs: any[] = [];
+      snap.forEach((d) => logs.push({ id: d.id, ...d.data() }));
+      setAuditLogs(logs);
+      setLoadingAudit(false);
+    }, (err) => {
+      console.error(err);
+      setLoadingAudit(false);
+    });
+    return () => unsub();
+  }, []);
 
   const handleDeleteNationality = async (name: string) => {
     try {
@@ -277,6 +295,74 @@ export default function SettingsPage() {
             )}
           </button>
         </form>
+        {/* ── Audit Trail & Activity History Card ── */}
+        <div className="card p-6 md:p-8 bg-white border border-slate-200/80 rounded-3xl shadow-sm space-y-6">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-100 pb-4">
+            <div className="flex items-center gap-3.5">
+              <div className="w-11 h-11 rounded-2xl bg-indigo-50 text-indigo-700 flex items-center justify-center border border-indigo-100/80">
+                <History className="w-5 h-5" />
+              </div>
+              <div>
+                <h3 className="text-lg font-black text-slate-950">
+                  {isAr ? "سجل التدقيق والرقابة الإدارية (Audit Trail)" : "Audit Trail & Activity Log"}
+                </h3>
+                <p className="text-xs text-slate-500 font-medium mt-0.5">
+                  {isAr ? "توثيق العمليات الحساسة وإجراءات المشرفين والمديرين لحظة بلحظة" : "Real-time log of administrative actions"}
+                </p>
+              </div>
+            </div>
+            <span className="badge badge-primary self-start sm:self-auto font-mono font-bold">
+              {auditLogs.length} {isAr ? "حركة مسجلة" : "Events"}
+            </span>
+          </div>
+
+          {/* Audit Logs List */}
+          <div className="space-y-3">
+            {loadingAudit ? (
+              <p className="text-xs text-slate-400 italic py-3 text-center">
+                {isAr ? "جاري تحميل سجل التدقيق..." : "Loading audit trail..."}
+              </p>
+            ) : auditLogs.length === 0 ? (
+              <div className="p-6 rounded-2xl bg-slate-50 text-center text-xs text-slate-400 font-medium border border-slate-200/60">
+                {isAr ? "لا توجد حركات إدارية مسجلة بعد" : "No audit events recorded yet"}
+              </div>
+            ) : (
+              auditLogs.map((log) => (
+                <div
+                  key={log.id}
+                  className="p-4 rounded-2xl bg-slate-50 hover:bg-slate-100/80 border border-slate-200/70 flex flex-col sm:flex-row sm:items-center justify-between gap-3 transition-all"
+                >
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-indigo-100 text-indigo-800">
+                        {log.action}
+                      </span>
+                      {log.targetName && (
+                        <span className="text-xs font-bold text-slate-900">
+                          {log.targetName}
+                        </span>
+                      )}
+                    </div>
+                    {log.details && (
+                      <p className="text-xs text-slate-600 font-medium">
+                        {log.details}
+                      </p>
+                    )}
+                    {log.adminEmail && (
+                      <p className="text-[11px] text-slate-400 font-mono">
+                        بواسطة: {log.adminEmail}
+                      </p>
+                    )}
+                  </div>
+                  <div className="text-left sm:text-right font-mono text-[11px] text-slate-400 whitespace-nowrap">
+                    {log.timestamp ? new Date(log.timestamp).toLocaleString(isAr ? "ar-EG" : "en-US") : "—"}
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+
         {/* ── Allowed Nationalities Management Card ── */}
         <div className="card p-6 md:p-8 bg-white border border-slate-200/80 rounded-3xl shadow-sm space-y-6">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-100 pb-4">

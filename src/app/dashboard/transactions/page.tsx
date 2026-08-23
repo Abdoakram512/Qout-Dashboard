@@ -1,6 +1,7 @@
 "use client";
 
 import { arabicMatch } from "@/lib/arabicNormalizer";
+import { exportTransactionsToExcel } from "@/lib/exportUtils";
 import React, { useState, useEffect } from "react";
 import { db } from "@/lib/firebase";
 import { collection, query, orderBy, onSnapshot } from "firebase/firestore";

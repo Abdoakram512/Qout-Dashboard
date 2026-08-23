@@ -8,6 +8,7 @@ import { useI18n } from "@/lib/i18n";
 import { useAuth } from "@/lib/authContext";
 import { AidCardModel } from "@/types";
 import { arabicMatch } from "@/lib/arabicNormalizer";
+import { logAuditEvent } from "@/lib/auditLogger";
 import { QRCodeCanvas } from "qrcode.react";
 import * as XLSX from "xlsx";
 import {
@@ -15,7 +16,7 @@ import {
   QrCode, Edit, Edit3, X, PackageCheck, MapPin, CheckCircle2,
   AlertCircle, ChevronDown, Sparkles, Filter, Home,
   Package, FileText, Plus, Minus, CreditCard, ShieldCheck, Coins,
-  Clock,
+  Clock, Layers, Gift,
 } from "lucide-react";
 
 function formatId(raw?: string): string {
@@ -57,6 +58,13 @@ export default function BeneficiariesPage() {
 
   // Edit Modal
   const [editingCard, setEditingCard] = useState<AidCardModel | null>(null);
+  // Bulk Allocation Modal State
+  const [showBulkModal, setShowBulkModal] = useState(false);
+  const [bulkType, setBulkType] = useState<"balance" | "baskets">("balance");
+  const [bulkTarget, setBulkTarget] = useState<"all" | string>("all");
+  const [bulkAmount, setBulkAmount] = useState<number>(500);
+  const [bulkReason, setBulkReason] = useState<string>("منحة مساعدة معتمدة");
+  const [bulkAllocating, setBulkAllocating] = useState(false);
   const [editBalance, setEditBalance] = useState<number>(0);
   const [editQuota, setEditQuota] = useState<number>(0);
   const [editFamilyCount, setEditFamilyCount] = useState<number>(4);
@@ -325,6 +333,54 @@ export default function BeneficiariesPage() {
   const showToast = (msg: string) => {
     setSuccessToast(msg);
     setTimeout(() => setSuccessToast(null), 3500);
+  };
+
+  const handleExecuteBulkAllocation = async () => {
+    const targetCards = cards.filter(
+      (c) => c.status === "active" && (bulkTarget === "all" || (c.nationality || "مصرية") === bulkTarget)
+    );
+
+    if (targetCards.length === 0) {
+      alert(isAr ? "لا يوجد مستفيدين نشطين يطابقون المعايير المحددة" : "No active beneficiaries match selected criteria");
+      return;
+    }
+
+    if (bulkAmount <= 0) {
+      alert(isAr ? "يرجى تحديد قيمة صحيحة للشحن" : "Please enter a valid allocation amount");
+      return;
+    }
+
+    setBulkAllocating(true);
+    try {
+      for (const card of targetCards) {
+        const updateData: any = {};
+        if (bulkType === "balance") {
+          updateData.totalBalance = (card.totalBalance || 0) + bulkAmount;
+        } else {
+          updateData.foodBasketsQuota = (card.foodBasketsQuota || 0) + bulkAmount;
+        }
+        await updateDoc(doc(db, "aid_cards", card.cardId), updateData);
+      }
+
+      await logAuditEvent({
+        action: "شحن وتوزيع جماعي",
+        targetName: bulkTarget === "all" ? "جميع المستفيدين النشطين" : `جنسية: ${bulkTarget}`,
+        details: `إضافة ${bulkAmount} ${bulkType === "balance" ? "ج.م" : "سلة"} لعدد ${targetCards.length} مستفيد (${bulkReason})`,
+        adminEmail: adminData?.email || "admin@alfajr.org",
+      });
+
+      setShowBulkModal(false);
+      showToast(
+        isAr
+          ? `تم شحن المساعدات الجماعية بنجاح لعدد ${targetCards.length} مستفيد!`
+          : `Bulk aid allocated successfully to ${targetCards.length} beneficiaries!`
+      );
+    } catch (err) {
+      console.error(err);
+      alert(isAr ? "حدث خطأ أثناء الشحن الجماعي" : "Error during bulk allocation");
+    } finally {
+      setBulkAllocating(false);
+    }
   };
 
   const handleExportExcel = () => {
