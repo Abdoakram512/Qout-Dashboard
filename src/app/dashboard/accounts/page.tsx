@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from "react";
 import { createPortal } from "react-dom";
 import { db } from "@/lib/firebase";
-import { collection, onSnapshot, doc, updateDoc, setDoc, deleteDoc } from "firebase/firestore";
+import { collection, onSnapshot, doc, updateDoc, setDoc, deleteDoc, query, where, getDocs } from "firebase/firestore";
 import { useI18n } from "@/lib/i18n";
 import { UserModel, UserRole } from "@/types";
 import {
@@ -45,15 +45,108 @@ export default function AccountsPage() {
     if (!deletingUser) return;
     setIsDeleting(true);
     try {
-      await deleteDoc(doc(db, "users", deletingUser.uid));
-      if (deletingUser.activeCardId) {
+      const uid = deletingUser.uid;
+      const email = deletingUser.email ? deletingUser.email.trim().toLowerCase() : "";
+      const cardId = deletingUser.activeCardId;
+      const natId = deletingUser.nationalId;
+
+      // 1. Delete user doc by uid
+      try {
+        await deleteDoc(doc(db, "users", uid));
+      } catch (_) {}
+
+      // 1.1 Delete any other user docs matching email
+      if (email) {
         try {
-          await deleteDoc(doc(db, "aid_cards", deletingUser.activeCardId));
+          const userQuery = await getDocs(query(collection(db, "users"), where("email", "==", email)));
+          for (const d of userQuery.docs) {
+            await deleteDoc(d.ref);
+          }
         } catch (_) {}
       }
+
+      // 2. Delete all aid cards by cardId, beneficiaryId, or nationalId
+      if (cardId) {
+        try {
+          await deleteDoc(doc(db, "aid_cards", cardId));
+        } catch (_) {}
+      }
+      try {
+        const cardQuery1 = await getDocs(query(collection(db, "aid_cards"), where("beneficiaryId", "==", uid)));
+        for (const d of cardQuery1.docs) {
+          await deleteDoc(d.ref);
+        }
+      } catch (_) {}
+      if (natId) {
+        try {
+          const cardQuery2 = await getDocs(query(collection(db, "aid_cards"), where("nationalId", "==", natId)));
+          for (const d of cardQuery2.docs) {
+            await deleteDoc(d.ref);
+          }
+        } catch (_) {}
+      }
+
+      // 3. Delete all redemptions & transactions
+      try {
+        if (cardId) {
+          const redQuery = await getDocs(query(collection(db, "redemptions"), where("cardId", "==", cardId)));
+          for (const d of redQuery.docs) {
+            await deleteDoc(d.ref);
+          }
+        }
+        const redQueryUid = await getDocs(query(collection(db, "redemptions"), where("beneficiaryId", "==", uid)));
+        for (const d of redQueryUid.docs) {
+          await deleteDoc(d.ref);
+        }
+        const redQueryMerch = await getDocs(query(collection(db, "redemptions"), where("merchantId", "==", uid)));
+        for (const d of redQueryMerch.docs) {
+          await deleteDoc(d.ref);
+        }
+      } catch (_) {}
+
+      // 4. Delete extra disbursement requests
+      try {
+        if (cardId) {
+          const reqQuery = await getDocs(query(collection(db, "extra_disbursement_requests"), where("cardId", "==", cardId)));
+          for (const d of reqQuery.docs) {
+            await deleteDoc(d.ref);
+          }
+        }
+        const reqQueryMerch = await getDocs(query(collection(db, "extra_disbursement_requests"), where("merchantId", "==", uid)));
+        for (const d of reqQueryMerch.docs) {
+          await deleteDoc(d.ref);
+        }
+      } catch (_) {}
+
+      // 5. Delete budget allocations & payment receipts
+      try {
+        const allocQuery = await getDocs(query(collection(db, "budget_allocations"), where("merchantId", "==", uid)));
+        for (const d of allocQuery.docs) {
+          await deleteDoc(d.ref);
+        }
+        const receiptQuery = await getDocs(query(collection(db, "payment_receipts"), where("merchantId", "==", uid)));
+        for (const d of receiptQuery.docs) {
+          await deleteDoc(d.ref);
+        }
+      } catch (_) {}
+
+      // 6. Delete basket distributions
+      try {
+        if (cardId) {
+          const distQuery = await getDocs(query(collection(db, "basket_distributions"), where("cardId", "==", cardId)));
+          for (const d of distQuery.docs) {
+            await deleteDoc(d.ref);
+          }
+        }
+        const distQueryUid = await getDocs(query(collection(db, "basket_distributions"), where("beneficiaryId", "==", uid)));
+        for (const d of distQueryUid.docs) {
+          await deleteDoc(d.ref);
+        }
+      } catch (_) {}
+
       setDeletingUser(null);
     } catch (e) {
-      console.error("Error deleting user:", e);
+      console.error("Error completely deleting user and related records:", e);
     }
     setIsDeleting(false);
   };
