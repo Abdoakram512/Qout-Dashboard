@@ -7,6 +7,7 @@ import { collection, onSnapshot, doc, updateDoc, setDoc, Timestamp } from "fireb
 import { useI18n } from "@/lib/i18n";
 import { useAuth } from "@/lib/authContext";
 import { AidCardModel } from "@/types";
+import { arabicMatch } from "@/lib/arabicNormalizer";
 import { QRCodeCanvas } from "qrcode.react";
 import * as XLSX from "xlsx";
 import {

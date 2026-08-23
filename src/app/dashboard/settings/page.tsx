@@ -1,10 +1,12 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useAuth } from "@/lib/authContext";
+import { db } from "@/lib/firebase";
+import { collection, onSnapshot, doc, setDoc, deleteDoc } from "firebase/firestore";
 import { useI18n } from "@/lib/i18n";
 import {
-  Settings, User, KeyRound, ShieldCheck,
+  Settings, User, Globe, Plus, Trash2, KeyRound, ShieldCheck,
   CheckCircle2, Eye, EyeOff, Save, Lock, Sparkles, AlertCircle
 } from "lucide-react";
 
@@ -22,6 +24,53 @@ export default function SettingsPage() {
   const [showConfirmPass, setShowConfirmPass] = useState(false);
 
   const [saving, setSaving] = useState(false);
+  const [nationalities, setNationalities] = useState<string[]>([]);
+  const [newNatName, setNewNatName] = useState("");
+  const [addingNat, setAddingNat] = useState(false);
+
+  useEffect(() => {
+    const unsub = onSnapshot(collection(db, "nationalities"), (snap) => {
+      if (snap.empty) {
+        // Seed default nationalities if empty
+        const defaults = ["مصرية", "سورية", "سودانية", "يمنية", "فلسطينية", "أردنية", "عراقية", "لبنانية", "أخرى"];
+        defaults.forEach(async (nat) => {
+          try {
+            await setDoc(doc(db, "nationalities", nat), { name: nat, createdAt: new Date().toISOString() });
+          } catch (_) {}
+        });
+      } else {
+        const list: string[] = [];
+        snap.forEach((d) => list.push(d.data().name || d.id));
+        setNationalities(list);
+      }
+    });
+    return () => unsub();
+  }, []);
+
+  const handleAddNationality = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newNatName.trim()) return;
+    setAddingNat(true);
+    try {
+      const cleanName = newNatName.trim();
+      await setDoc(doc(db, "nationalities", cleanName), {
+        name: cleanName,
+        createdAt: new Date().toISOString(),
+      });
+      setNewNatName("");
+    } catch (err) {
+      console.error(err);
+    }
+    setAddingNat(false);
+  };
+
+  const handleDeleteNationality = async (name: string) => {
+    try {
+      await deleteDoc(doc(db, "nationalities", name));
+    } catch (err) {
+      console.error(err);
+    }
+  };
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
@@ -228,6 +277,72 @@ export default function SettingsPage() {
             )}
           </button>
         </form>
+        {/* ── Allowed Nationalities Management Card ── */}
+        <div className="card p-6 md:p-8 bg-white border border-slate-200/80 rounded-3xl shadow-sm space-y-6">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-100 pb-4">
+            <div className="flex items-center gap-3.5">
+              <div className="w-11 h-11 rounded-2xl bg-emerald-50 text-emerald-700 flex items-center justify-center border border-emerald-100/80">
+                <Globe className="w-5 h-5" />
+              </div>
+              <div>
+                <h3 className="text-lg font-black text-slate-950">
+                  {isAr ? "إدارة جنسيات المستفيدين المعتمدة" : "Beneficiary Nationalities Management"}
+                </h3>
+                <p className="text-xs text-slate-500 font-medium mt-0.5">
+                  {isAr ? "تحكم في قائمة الجنسيات المتاحة للمستفيدين عند التسجيل في التطبيق" : "Control the list of nationalities available for registration in the app"}
+                </p>
+              </div>
+            </div>
+            <span className="badge badge-primary self-start sm:self-auto font-mono font-bold">
+              {nationalities.length} {isAr ? "جنسية مسجلة" : "Nationalities"}
+            </span>
+          </div>
+
+          {/* Add Nationality Form */}
+          <form onSubmit={handleAddNationality} className="flex gap-2.5">
+            <input
+              type="text"
+              value={newNatName}
+              onChange={(e) => setNewNatName(e.target.value)}
+              placeholder={isAr ? "أدخل اسم الجنسية الجديدة (مثال: مغربية، تونسية...)" : "Enter nationality name..."}
+              className="input flex-1"
+            />
+            <button
+              type="submit"
+              disabled={addingNat || !newNatName.trim()}
+              className="btn btn-primary px-5 font-bold flex items-center gap-1.5"
+            >
+              <Plus className="w-4 h-4" />
+              <span>{isAr ? "إضافة" : "Add"}</span>
+            </button>
+          </form>
+
+          {/* Nationalities Badges Grid */}
+          <div className="flex flex-wrap gap-2.5 pt-2">
+            {nationalities.length === 0 ? (
+              <p className="text-xs text-slate-400 italic py-2">
+                {isAr ? "جاري تحميل الجنسيات من قاعدة البيانات..." : "Loading nationalities..."}
+              </p>
+            ) : (
+              nationalities.map((nat) => (
+                <div
+                  key={nat}
+                  className="inline-flex items-center gap-2 px-3.5 py-2 rounded-2xl bg-slate-50 hover:bg-slate-100 border border-slate-200/80 transition-all group"
+                >
+                  <span className="text-sm font-bold text-slate-800">{nat}</span>
+                  <button
+                    type="button"
+                    onClick={() => handleDeleteNationality(nat)}
+                    title={isAr ? "حذف الجنسية" : "Delete"}
+                    className="text-slate-400 hover:text-red-600 transition-colors p-0.5"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              ))
+            )}
+          </div>
+        </div>
       </div>
     </div>
   );

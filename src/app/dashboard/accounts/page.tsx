@@ -6,6 +6,7 @@ import { db } from "@/lib/firebase";
 import { collection, onSnapshot, doc, updateDoc, setDoc, deleteDoc, query, where, getDocs } from "firebase/firestore";
 import { useI18n } from "@/lib/i18n";
 import { UserModel, UserRole } from "@/types";
+import { arabicMatch } from "@/lib/arabicNormalizer";
 import {
   UserCheck, Search, Bell, Check, X, UserPlus, Eye, EyeOff,
   ShieldCheck, Store, Users, UserCog, Mail, Phone,
@@ -282,13 +283,14 @@ export default function AccountsPage() {
   };
 
   const filteredUsers = users.filter((u) => {
-    const q = search.toLowerCase();
     const matchesSearch =
-      !q ||
-      u.name?.toLowerCase().includes(q) ||
-      u.email?.toLowerCase().includes(q) ||
-      u.storeName?.toLowerCase().includes(q) ||
-      u.phone?.toLowerCase().includes(q);
+      !search ||
+      arabicMatch(u.name, search) ||
+      arabicMatch(u.email, search) ||
+      arabicMatch(u.storeName, search) ||
+      arabicMatch(u.phone, search) ||
+      arabicMatch(u.nationality, search) ||
+      arabicMatch(u.city, search);
 
     if (activeTab === "pending") return matchesSearch && u.isApproved === false;
     if (activeTab === "all") return matchesSearch;
