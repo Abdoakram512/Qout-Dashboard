@@ -8,6 +8,7 @@ import {
 } from "firebase/firestore";
 import { useI18n } from "@/lib/i18n";
 import { useAuth } from "@/lib/authContext";
+import { logAuditEvent } from "@/lib/auditLogger";
 import { UserModel, BudgetAllocation, PaymentReceipt } from "@/types";
 import {
   Store, Search, CheckCircle2, XCircle, Building2,
@@ -88,44 +89,61 @@ export default function MerchantsPage() {
   // Submit Budget Allocation
   const handleSaveAllocation = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!allocatingMerchant || allocAmount <= 0) return;
+    const numAmount = Number(allocAmount);
+    if (!allocatingMerchant || isNaN(numAmount) || numAmount <= 0) {
+      alert(isAr ? "يرجى إدخال مبلغ مالي صحيح أكبر من صفر" : "Please enter a valid amount greater than zero");
+      return;
+    }
     setAllocating(true);
 
     try {
       const allocId = `ALLOC-${Date.now().toString().slice(-6)}`;
       const allocRef = doc(db, "budget_allocations", allocId);
+      const merchantId = allocatingMerchant.uid || (allocatingMerchant as any).id;
 
-      const allocationData: BudgetAllocation = {
+      const allocationData: any = {
         id: allocId,
         allocationId: allocId,
-        merchantId: allocatingMerchant.uid,
+        merchantId: merchantId,
         merchantName: allocatingMerchant.name || "صراف",
         merchantStoreName: allocatingMerchant.storeName || allocatingMerchant.name || "منفذ الفجر",
-        amount: Number(allocAmount),
+        amount: numAmount,
         type: allocType,
         allocatedBy: {
           adminId: adminData?.uid || "admin",
           adminName: adminData?.name || "مشرف مؤسسة الفجر",
         },
-        notes: allocNotes.trim() || undefined,
+        notes: allocNotes.trim() || "",
         timestamp: serverTimestamp(),
         createdAt: new Date().toISOString(),
       };
 
       await setDoc(allocRef, allocationData);
 
-      // Increment allocatedBudget on merchant doc
-      await updateDoc(doc(db, "users", allocatingMerchant.uid), {
-        allocatedBudget: increment(Number(allocAmount)),
-        lastAllocationDate: serverTimestamp(),
+      // Increment allocatedBudget on merchant doc with merge
+      await setDoc(
+        doc(db, "users", merchantId),
+        {
+          allocatedBudget: increment(numAmount),
+          lastAllocationDate: serverTimestamp(),
+        },
+        { merge: true }
+      );
+
+      // Audit Log
+      await logAuditEvent({
+        action: "MERCHANT_BUDGET_ALLOCATION",
+        adminName: adminData?.name || "مشرف النظام",
+        details: `تخصيص وتغذية ميزانية بمبلغ ${numAmount.toLocaleString()} ج.م لمنفذ ${allocatingMerchant.storeName || allocatingMerchant.name}`,
+        targetId: merchantId,
       });
 
-      showToast(`تم تخصيص ميزانية بقيمة ${allocAmount.toLocaleString()} ج.م لمنفذ ${allocatingMerchant.storeName || allocatingMerchant.name} بنجاح ✅`);
+      showToast(`تم تخصيص ميزانية بقيمة ${numAmount.toLocaleString()} ج.م لمنفذ ${allocatingMerchant.storeName || allocatingMerchant.name} بنجاح ✅`);
       setAllocatingMerchant(null);
       setAllocNotes("");
-    } catch (err) {
+    } catch (err: any) {
       console.error("Allocation error:", err);
-      alert("حدث خطأ أثناء حفظ التخصيص");
+      alert((isAr ? "حدث خطأ أثناء حفظ التخصيص: " : "Error saving allocation: ") + (err?.message || ""));
     }
     setAllocating(false);
   };
@@ -140,24 +158,24 @@ export default function MerchantsPage() {
       const receiptId = `REC-${Date.now().toString().slice(-6)}`;
       const receiptRef = doc(db, "payment_receipts", receiptId);
 
-      const receiptData: PaymentReceipt = {
+      const receiptData: any = {
         id: receiptId,
         receiptId: receiptId,
-        merchantId: receiptMerchant.uid,
+        merchantId: receiptMerchant.uid || (receiptMerchant as any).id,
         merchantName: receiptMerchant.name || "صراف",
         merchantStoreName: receiptMerchant.storeName || receiptMerchant.name || "منفذ الفجر",
         amount: Number(receiptAmount),
         paymentMethod: paymentMethod,
         referenceNumber: referenceNumber.trim() || `REF-${Date.now().toString().slice(-4)}`,
-        senderAccountOrPhone: senderAccount.trim() || undefined,
-        receiverAccountOrPhone: receiverAccount.trim() || receiptMerchant.instapayAddress || receiptMerchant.vodafoneCashNumber || undefined,
-        receiptImageUrl: receiptImageUrl.trim() || undefined,
+        senderAccountOrPhone: senderAccount.trim() || "",
+        receiverAccountOrPhone: receiverAccount.trim() || receiptMerchant.instapayAddress || receiptMerchant.vodafoneCashNumber || "",
+        receiptImageUrl: receiptImageUrl.trim() || "",
         status: "sent",
         sentBy: {
           adminId: adminData?.uid || "admin",
           adminName: adminData?.name || "مشرف مؤسسة الفجر",
         },
-        notes: receiptNotes.trim() || undefined,
+        notes: receiptNotes.trim() || "",
         timestamp: serverTimestamp(),
         createdAt: new Date().toISOString(),
       };
@@ -582,14 +600,32 @@ export default function MerchantsPage() {
                 <div className="relative">
                   <input
                     type="number"
-                    min={100}
-                    step={500}
+                    min={1}
+                    step="any"
                     required
-                    value={allocAmount}
-                    onChange={(e) => setAllocAmount(Number(e.target.value))}
-                    className="w-full pl-4 pr-10 py-3 rounded-xl bg-slate-50 border border-slate-200 text-base font-black font-mono text-[#0A734D] focus:bg-white focus:border-emerald-500 focus:outline-none"
+                    placeholder="أدخل أي قيمة مطلوبة..."
+                    value={allocAmount || ""}
+                    onChange={(e) => setAllocAmount(e.target.value === "" ? 0 : Number(e.target.value))}
+                    className="w-full pl-4 pr-12 py-3 rounded-xl bg-slate-50 border border-slate-200 text-lg font-black font-mono text-[#0A734D] focus:bg-white focus:border-emerald-500 focus:outline-none"
                   />
                   <span className="absolute right-3.5 top-3.5 text-xs font-bold text-slate-400">ج.م</span>
+                </div>
+                {/* Quick Preset Buttons */}
+                <div className="flex flex-wrap gap-1.5 mt-2">
+                  {[1000, 5000, 10000, 25000, 50000, 100000].map((preset) => (
+                    <button
+                      key={preset}
+                      type="button"
+                      onClick={() => setAllocAmount(preset)}
+                      className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                        allocAmount === preset
+                          ? "bg-[#0A734D] text-white shadow-sm"
+                          : "bg-slate-100 text-slate-700 hover:bg-slate-200"
+                      }`}
+                    >
+                      +{preset.toLocaleString()} ج.م
+                    </button>
+                  ))}
                 </div>
               </div>
 

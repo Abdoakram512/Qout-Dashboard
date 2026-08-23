@@ -9,6 +9,7 @@ import {
 } from "firebase/firestore";
 import { useI18n } from "@/lib/i18n";
 import { useAuth } from "@/lib/authContext";
+import { logAuditEvent } from "@/lib/auditLogger";
 import {
   UserModel, BudgetAllocation, PaymentReceipt, RedemptionTransaction,
 } from "@/types";
@@ -148,43 +149,60 @@ export default function MerchantProfilePage() {
   // Submit Budget Allocation
   const handleSaveAllocation = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!merchant || allocAmount <= 0) return;
+    const numAmount = Number(allocAmount);
+    if (!merchant || isNaN(numAmount) || numAmount <= 0) {
+      alert(isAr ? "يرجى إدخال مبلغ مالي صحيح أكبر من صفر" : "Please enter a valid amount greater than zero");
+      return;
+    }
     setAllocating(true);
 
     try {
       const allocId = `ALLOC-${Date.now().toString().slice(-6)}`;
       const allocRef = doc(db, "budget_allocations", allocId);
+      const merchantId = merchant.uid || (merchant as any).id;
 
-      const allocationData: BudgetAllocation = {
+      const allocationData: any = {
         id: allocId,
         allocationId: allocId,
-        merchantId: merchant.uid,
+        merchantId: merchantId,
         merchantName: merchant.name || "صراف",
         merchantStoreName: merchant.storeName || merchant.name || "منفذ الفجر",
-        amount: Number(allocAmount),
+        amount: numAmount,
         type: allocType,
         allocatedBy: {
           adminId: adminData?.uid || "admin",
           adminName: adminData?.name || "مشرف مؤسسة الفجر",
         },
-        notes: allocNotes.trim() || undefined,
+        notes: allocNotes.trim() || "",
         timestamp: serverTimestamp(),
         createdAt: new Date().toISOString(),
       };
 
       await setDoc(allocRef, allocationData);
 
-      await updateDoc(doc(db, "users", merchant.uid), {
-        allocatedBudget: increment(Number(allocAmount)),
-        lastAllocationDate: serverTimestamp(),
+      await setDoc(
+        doc(db, "users", merchantId),
+        {
+          allocatedBudget: increment(numAmount),
+          lastAllocationDate: serverTimestamp(),
+        },
+        { merge: true }
+      );
+
+      // Audit Log
+      await logAuditEvent({
+        action: "MERCHANT_BUDGET_ALLOCATION",
+        adminName: adminData?.name || "مشرف النظام",
+        details: `تخصيص وتغذية ميزانية بمبلغ ${numAmount.toLocaleString()} ج.م لمنفذ ${merchant.storeName || merchant.name}`,
+        targetId: merchantId,
       });
 
-      showToast(`تمت إضافة ${allocAmount.toLocaleString()} ج.م إلى ميزانية الصراف بنجاح ✅`);
+      showToast(`تمت إضافة ${numAmount.toLocaleString()} ج.م إلى ميزانية الصراف بنجاح ✅`);
       setShowAllocModal(false);
       setAllocNotes("");
-    } catch (err) {
-      console.error(err);
-      alert("حدث خطأ أثناء حفظ التخصيص");
+    } catch (err: any) {
+      console.error("Allocation error:", err);
+      alert((isAr ? "حدث خطأ أثناء حفظ التخصيص: " : "Error saving allocation: ") + (err?.message || ""));
     }
     setAllocating(false);
   };
@@ -865,14 +883,32 @@ export default function MerchantProfilePage() {
                 <div className="relative">
                   <input
                     type="number"
-                    min={100}
-                    step={500}
+                    min={1}
+                    step="any"
                     required
-                    value={allocAmount}
-                    onChange={(e) => setAllocAmount(Number(e.target.value))}
-                    className="w-full pl-4 pr-10 py-3 rounded-xl bg-slate-50 border border-slate-200 text-base font-black font-mono text-[#0A734D] focus:bg-white focus:border-emerald-500 focus:outline-none"
+                    placeholder="أدخل أي قيمة مطلوبة..."
+                    value={allocAmount || ""}
+                    onChange={(e) => setAllocAmount(e.target.value === "" ? 0 : Number(e.target.value))}
+                    className="w-full pl-4 pr-12 py-3 rounded-xl bg-slate-50 border border-slate-200 text-lg font-black font-mono text-[#0A734D] focus:bg-white focus:border-emerald-500 focus:outline-none"
                   />
                   <span className="absolute right-3.5 top-3.5 text-xs font-bold text-slate-400">ج.م</span>
+                </div>
+                {/* Quick Preset Buttons */}
+                <div className="flex flex-wrap gap-1.5 mt-2">
+                  {[1000, 5000, 10000, 25000, 50000, 100000].map((preset) => (
+                    <button
+                      key={preset}
+                      type="button"
+                      onClick={() => setAllocAmount(preset)}
+                      className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                        allocAmount === preset
+                          ? "bg-[#0A734D] text-white shadow-sm"
+                          : "bg-slate-100 text-slate-700 hover:bg-slate-200"
+                      }`}
+                    >
+                      +{preset.toLocaleString()} ج.م
+                    </button>
+                  ))}
                 </div>
               </div>
 

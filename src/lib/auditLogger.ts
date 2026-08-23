@@ -8,6 +8,7 @@ export interface AuditLogEntry {
   targetId?: string;
   details?: string;
   adminEmail?: string;
+  adminName?: string;
   timestamp: string;
 }
 
