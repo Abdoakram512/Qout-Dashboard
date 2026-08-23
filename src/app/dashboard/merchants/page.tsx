@@ -19,7 +19,9 @@ import {
   Coins, X, DollarSign, Wallet, Check, AlertCircle, Edit, Phone,
 } from "lucide-react";
 import Link from "next/link";
-import { createPortal } from "react-dom";
+import { AllocateBudgetModal } from "@/components/merchants/AllocateBudgetModal";
+import { SendReceiptModal } from "@/components/merchants/SendReceiptModal";
+import { EditMerchantModal } from "@/components/merchants/EditMerchantModal";
 
 // Helper to generate dynamic, smart reference code based on payment method
 function generateReference(method: "instapay" | "vodafone_cash" | "bank_transfer" | "cash"): string {
@@ -629,408 +631,76 @@ export default function MerchantsPage() {
         </div>
       )}
 
-      {/* ── MODAL 1: Allocate Budget Modal ────────────────────────────── */}
-      {allocatingMerchant && mounted && createPortal(
-        <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-sm animate-in fade-in duration-200">
-          <div className="bg-white rounded-3xl p-6 sm:p-7 max-w-lg w-full shadow-2xl border-2 border-slate-200 relative animate-in zoom-in-95 duration-200">
-            <button
-              onClick={() => setAllocatingMerchant(null)}
-              className="absolute top-5 left-5 w-9 h-9 rounded-full bg-slate-100 text-slate-700 hover:bg-slate-200 flex items-center justify-center transition-all cursor-pointer"
-            >
-              <X className="w-5 h-5" />
-            </button>
+            {/* ── MODALS (Modular Components) ── */}
+      <AllocateBudgetModal
+        isOpen={Boolean(allocatingMerchant && mounted)}
+        onClose={() => setAllocatingMerchant(null)}
+        merchant={allocatingMerchant}
+        allocAmount={allocAmount}
+        setAllocAmount={setAllocAmount}
+        allocType={allocType}
+        setAllocType={setAllocType}
+        allocNotes={allocNotes}
+        setAllocNotes={setAllocNotes}
+        allocating={allocating}
+        onConfirm={handleConfirmAllocation}
+        isAr={isAr}
+      />
 
-            <div className="flex items-center gap-3.5 pb-4 border-b-2 border-slate-100 mb-5">
-              <div className="w-12 h-12 rounded-2xl bg-[#0A734D] text-white flex items-center justify-center shadow-lg shadow-emerald-900/20 flex-shrink-0">
-                <Wallet className="w-6 h-6 text-amber-300" />
-              </div>
-              <div>
-                <h3 className="text-lg font-black text-slate-900">
-                  {isAr ? "تخصيص ميزانية وتغذية سيولة" : "Allocate Merchant Budget"}
-                </h3>
-                <p className="text-xs font-bold text-[#0A734D]">
-                  {allocatingMerchant.storeName || allocatingMerchant.name}
-                </p>
-              </div>
-            </div>
+      <SendReceiptModal
+        isOpen={Boolean(receiptMerchant && mounted)}
+        onClose={() => setReceiptMerchant(null)}
+        merchant={receiptMerchant}
+        receiptAmount={receiptAmount}
+        setReceiptAmount={setReceiptAmount}
+        paymentMethod={paymentMethod}
+        onMethodChange={(method) => {
+          setPaymentMethod(method);
+          setReferenceNumber(generateReference(method));
+        }}
+        referenceNumber={referenceNumber}
+        setReferenceNumber={setReferenceNumber}
+        senderAccount={senderAccount}
+        setSenderAccount={setSenderAccount}
+        receiverAccount={receiverAccount}
+        setReceiverAccount={setReceiverAccount}
+        receiptImageUrl={receiptImageUrl}
+        setReceiptImageUrl={setReceiptImageUrl}
+        receiptNotes={receiptNotes}
+        setReceiptNotes={setReceiptNotes}
+        sendingReceipt={sendingReceipt}
+        uploadingImg={uploadingImg}
+        onImageUpload={handleImageUpload}
+        onSend={handleConfirmSendReceipt}
+        isAr={isAr}
+      />
 
-            <div className="space-y-4 text-xs font-bold">
-              <div>
-                <label className="block text-slate-700 mb-1.5">{isAr ? "المبلغ المراد إضافته (ج.م)" : "Amount to Allocate (EGP)"}</label>
-                <div className="grid grid-cols-4 gap-2 mb-2">
-                  {[5000, 10000, 25000, 50000].map((amt) => (
-                    <button
-                      key={amt}
-                      type="button"
-                      onClick={() => setAllocAmount(amt)}
-                      className={`py-2 px-1 rounded-xl border text-xs font-black ${
-                        allocAmount === amt
-                          ? "bg-[#0A734D] text-white border-[#0A734D]"
-                          : "bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100"
-                      }`}
-                    >
-                      {amt.toLocaleString()}
-                    </button>
-                  ))}
-                </div>
-                <input
-                  type="number"
-                  value={allocAmount}
-                  onChange={(e) => setAllocAmount(Number(e.target.value))}
-                  className="qout-input font-mono font-bold text-sm"
-                  min={100}
-                />
-              </div>
-
-              <div>
-                <label className="block text-slate-700 mb-1.5">{isAr ? "نوع العملية" : "Allocation Type"}</label>
-                <select
-                  value={allocType}
-                  onChange={(e) => setAllocType(e.target.value as any)}
-                  className="qout-select font-bold"
-                >
-                  <option value="recharge">{isAr ? "تغذية دورية (Recharge)" : "Periodic Recharge"}</option>
-                  <option value="initial">{isAr ? "تخصيص مبدئي (Initial)" : "Initial Budget"}</option>
-                  <option value="adjustment">{isAr ? "تسوية إدارية (Adjustment)" : "Administrative Adjustment"}</option>
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-slate-700 mb-1.5">{isAr ? "ملاحظات السند المالي (اختياري)" : "Notes (Optional)"}</label>
-                <input
-                  type="text"
-                  value={allocNotes}
-                  onChange={(e) => setAllocNotes(e.target.value)}
-                  placeholder={isAr ? "مثال: حوالة بنكية لشهر رمضان" : "e.g. Bank transfer for Ramadan"}
-                  className="qout-input"
-                />
-              </div>
-
-              <div className="pt-4 flex items-center justify-end gap-3 border-t border-slate-100">
-                <button
-                  type="button"
-                  onClick={() => setAllocatingMerchant(null)}
-                  className="btn btn-secondary px-5"
-                >
-                  {isAr ? "إلغاء" : "Cancel"}
-                </button>
-                <button
-                  type="button"
-                  disabled={allocating || allocAmount <= 0}
-                  onClick={handleConfirmAllocation}
-                  className="btn btn-primary px-6"
-                >
-                  {allocating ? (isAr ? "جاري الحفظ..." : "Saving...") : (isAr ? "تأكيد إضافة الرصيد" : "Confirm Allocation")}
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>,
-        document.body
-      )}
-
-      {/* ── MODAL 2: Send Payment Receipt Modal (Smart Ref + Fix) ────────── */}
-      {receiptMerchant && mounted && createPortal(
-        <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-sm animate-in fade-in duration-200">
-          <div className="bg-white rounded-3xl p-6 sm:p-7 max-w-lg w-full shadow-2xl border-2 border-slate-200 relative animate-in zoom-in-95 duration-200 max-h-[92vh] overflow-y-auto">
-            <button
-              onClick={() => setReceiptMerchant(null)}
-              className="absolute top-5 left-5 w-9 h-9 rounded-full bg-slate-100 text-slate-700 hover:bg-slate-200 flex items-center justify-center transition-all cursor-pointer"
-            >
-              <X className="w-5 h-5" />
-            </button>
-
-            <div className="flex items-center gap-3.5 pb-4 border-b-2 border-slate-100 mb-5">
-              <div className="w-12 h-12 rounded-2xl bg-amber-500 text-white flex items-center justify-center shadow-lg shadow-amber-900/20 flex-shrink-0">
-                <Send className="w-6 h-6" />
-              </div>
-              <div>
-                <h3 className="text-lg font-black text-slate-900">
-                  {isAr ? "إرسال إشعار وإيصال تحويل للصراف" : "Send Transfer Receipt to Merchant"}
-                </h3>
-                <p className="text-xs font-bold text-amber-700">
-                  {receiptMerchant.storeName || receiptMerchant.name}
-                </p>
-              </div>
-            </div>
-
-            <div className="space-y-4 text-xs font-bold">
-              {/* Payment Method Selector (Updates Dynamic Reference Automatically) */}
-              <div>
-                <label className="block text-slate-700 mb-1.5">{isAr ? "طريقة التحويل" : "Payment Method"}</label>
-                <select
-                  value={paymentMethod}
-                  onChange={(e) => {
-                    const pm = e.target.value as any;
-                    setPaymentMethod(pm);
-                    setReferenceNumber(generateReference(pm));
-                    if (pm === "instapay") setReceiverAccount(receiptMerchant.instapayAddress || receiptMerchant.phone || "");
-                    else if (pm === "vodafone_cash") setReceiverAccount(receiptMerchant.vodafoneCashNumber || receiptMerchant.phone || "");
-                    else setReceiverAccount("");
-                  }}
-                  className="qout-select font-bold"
-                >
-                  <option value="instapay">إنستا باي (InstaPay)</option>
-                  <option value="vodafone_cash">محفظة فودافون كاش (Vodafone Cash)</option>
-                  <option value="bank_transfer">تحويل بنكي رسمي (Bank Transfer)</option>
-                  <option value="cash">تسليم نقدي مباشر (Cash Handover)</option>
-                </select>
-              </div>
-
-              {/* Amount */}
-              <div>
-                <label className="block text-slate-700 mb-1.5">{isAr ? "مبلغ الحوالة (ج.م)" : "Transfer Amount (EGP)"}</label>
-                <input
-                  type="number"
-                  value={receiptAmount}
-                  onChange={(e) => setReceiptAmount(Number(e.target.value))}
-                  className="qout-input font-mono font-bold text-sm"
-                  min={1}
-                />
-              </div>
-
-              {/* Smart Reference Number */}
-              <div>
-                <div className="flex items-center justify-between mb-1.5">
-                  <label className="block text-slate-700">{isAr ? "الرقم المرجعي التلقائي للحوالة" : "Reference Number"}</label>
-                  <button
-                    type="button"
-                    onClick={() => setReferenceNumber(generateReference(paymentMethod))}
-                    className="text-[11px] text-emerald-700 hover:underline font-bold"
-                  >
-                    {isAr ? "توليد جديد 🔄" : "Regenerate 🔄"}
-                  </button>
-                </div>
-                <input
-                  type="text"
-                  value={referenceNumber}
-                  onChange={(e) => setReferenceNumber(e.target.value)}
-                  className="qout-input font-mono font-bold text-sm bg-amber-50/50 border-amber-300"
-                />
-              </div>
-
-              {/* Receiver Account */}
-              <div>
-                <label className="block text-slate-700 mb-1.5">{isAr ? "حساب / هاتف المستلم (الصراف)" : "Receiver Account / Phone"}</label>
-                <input
-                  type="text"
-                  value={receiverAccount}
-                  onChange={(e) => setReceiverAccount(e.target.value)}
-                  placeholder={isAr ? "مثال: اسم المستخدم في إنستاباي أو رقم فودافون كاش" : "Instapay address or phone"}
-                  className="qout-input"
-                />
-              </div>
-
-              {/* Receipt Image Upload */}
-              <div>
-                <label className="block text-slate-700 mb-1.5">{isAr ? "صورة إيصال التحويل (اختياري)" : "Receipt Screenshot (Optional)"}</label>
-                <div className="flex items-center gap-3">
-                  <label className="btn btn-secondary cursor-pointer flex items-center gap-2 py-2 px-3 text-xs">
-                    <Upload className="w-4 h-4" />
-                    <span>{uploadingImg ? (isAr ? "جاري الرفع..." : "Uploading...") : (isAr ? "اختيار صورة الوصل" : "Select Image")}</span>
-                    <input
-                      type="file"
-                      accept="image/*"
-                      onChange={handleImageUpload}
-                      className="hidden"
-                      disabled={uploadingImg}
-                    />
-                  </label>
-                  {receiptImageUrl && (
-                    <span className="text-[11px] text-emerald-600 font-bold flex items-center gap-1">
-                      <CheckCircle2 className="w-3.5 h-3.5" />
-                      {isAr ? "تم إرفاق الصورة" : "Image Attached"}
-                    </span>
-                  )}
-                </div>
-              </div>
-
-              {/* Notes */}
-              <div>
-                <label className="block text-slate-700 mb-1.5">{isAr ? "ملاحظات إضافية" : "Notes"}</label>
-                <input
-                  type="text"
-                  value={receiptNotes}
-                  onChange={(e) => setReceiptNotes(e.target.value)}
-                  placeholder={isAr ? "ملاحظات تظهر للصراف في التطبيق..." : "Notes visible to merchant in app..."}
-                  className="qout-input"
-                />
-              </div>
-
-              <div className="pt-4 flex items-center justify-end gap-3 border-t border-slate-100">
-                <button
-                  type="button"
-                  onClick={() => setReceiptMerchant(null)}
-                  className="btn btn-secondary px-5"
-                >
-                  {isAr ? "إلغاء" : "Cancel"}
-                </button>
-                <button
-                  type="button"
-                  disabled={sendingReceipt || receiptAmount <= 0 || !referenceNumber.trim()}
-                  onClick={handleConfirmSendReceipt}
-                  className="btn bg-amber-600 hover:bg-amber-700 text-white px-6 font-bold"
-                >
-                  {sendingReceipt ? (isAr ? "جاري الإرسال..." : "Sending...") : (isAr ? "إرسال الإيصال للتطبيق" : "Send Receipt")}
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>,
-        document.body
-      )}
-
-      {/* ── MODAL 3: Edit Full Merchant Details ────────────────────────── */}
-      {editingMerchant && mounted && createPortal(
-        <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-sm animate-in fade-in duration-200">
-          <div className="bg-white rounded-3xl p-6 sm:p-7 max-w-lg w-full shadow-2xl border-2 border-slate-200 relative animate-in zoom-in-95 duration-200 max-h-[92vh] overflow-y-auto">
-            <button
-              onClick={() => setEditingMerchant(null)}
-              className="absolute top-5 left-5 w-9 h-9 rounded-full bg-slate-100 text-slate-700 hover:bg-slate-200 flex items-center justify-center transition-all cursor-pointer"
-            >
-              <X className="w-5 h-5" />
-            </button>
-
-            <div className="flex items-center gap-3.5 pb-4 border-b-2 border-slate-100 mb-5">
-              <div className="w-12 h-12 rounded-2xl bg-emerald-600 text-white flex items-center justify-center shadow-lg shadow-emerald-900/20 flex-shrink-0">
-                <Edit className="w-6 h-6" />
-              </div>
-              <div>
-                <h3 className="text-lg font-black text-slate-900">
-                  {isAr ? "تعديل بيانات الصراف والمنفذ" : "Edit Merchant Profile"}
-                </h3>
-                <p className="text-xs font-bold text-emerald-700">
-                  {editingMerchant.storeName || editingMerchant.name}
-                </p>
-              </div>
-            </div>
-
-            <div className="space-y-4 text-xs font-bold">
-              {/* Store Name */}
-              <div>
-                <label className="block text-slate-700 mb-1.5">{isAr ? "اسم المتجر / المنفذ الرسمي" : "Store / Outlet Name"}</label>
-                <input
-                  type="text"
-                  value={editStoreName}
-                  onChange={(e) => setEditStoreName(e.target.value)}
-                  className="qout-input"
-                />
-              </div>
-
-              {/* Owner Name */}
-              <div>
-                <label className="block text-slate-700 mb-1.5">{isAr ? "اسم المسؤول / التاجر" : "Owner / Contact Name"}</label>
-                <input
-                  type="text"
-                  value={editName}
-                  onChange={(e) => setEditName(e.target.value)}
-                  className="qout-input"
-                />
-              </div>
-
-              {/* Phone & Email Grid */}
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-slate-700 mb-1.5">{isAr ? "رقم الهاتف" : "Phone"}</label>
-                  <input
-                    type="text"
-                    value={editPhone}
-                    onChange={(e) => setEditPhone(e.target.value)}
-                    className="qout-input font-mono"
-                  />
-                </div>
-                <div>
-                  <label className="block text-slate-700 mb-1.5">{isAr ? "البريد الإلكتروني" : "Email"}</label>
-                  <input
-                    type="email"
-                    value={editEmail}
-                    onChange={(e) => setEditEmail(e.target.value)}
-                    className="qout-input font-mono"
-                  />
-                </div>
-              </div>
-
-              {/* City / Location */}
-              <div>
-                <label className="block text-slate-700 mb-1.5">{isAr ? "المدينة / المحافظة / العنوان" : "City / Location"}</label>
-                <input
-                  type="text"
-                  value={editCity}
-                  onChange={(e) => setEditCity(e.target.value)}
-                  className="qout-input"
-                />
-              </div>
-
-              {/* Instapay & Vodafone Cash */}
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-slate-700 mb-1.5">{isAr ? "عنوان إنستا باي (IPA)" : "InstaPay Address"}</label>
-                  <input
-                    type="text"
-                    value={editInstapay}
-                    onChange={(e) => setEditInstapay(e.target.value)}
-                    placeholder="user@instapay"
-                    className="qout-input font-mono"
-                  />
-                </div>
-                <div>
-                  <label className="block text-slate-700 mb-1.5">{isAr ? "رقم فودافون كاش" : "Vodafone Cash No."}</label>
-                  <input
-                    type="text"
-                    value={editVodafoneCash}
-                    onChange={(e) => setEditVodafoneCash(e.target.value)}
-                    placeholder="010xxxxxxxx"
-                    className="qout-input font-mono"
-                  />
-                </div>
-              </div>
-
-              {/* Commercial Reg */}
-              <div>
-                <label className="block text-slate-700 mb-1.5">{isAr ? "رقم السجل التجاري / الهوية" : "Commercial Reg / Tax ID"}</label>
-                <input
-                  type="text"
-                  value={editCr}
-                  onChange={(e) => setEditCr(e.target.value)}
-                  className="qout-input font-mono"
-                />
-              </div>
-
-              {/* Status */}
-              <div>
-                <label className="block text-slate-700 mb-1.5">{isAr ? "حالة اعتماد المنفذ" : "Outlet Status"}</label>
-                <select
-                  value={editIsActive ? "active" : "suspended"}
-                  onChange={(e) => setEditIsActive(e.target.value === "active")}
-                  className="qout-select font-bold"
-                >
-                  <option value="active">{isAr ? "معتمد ونشط (Active)" : "Active & Approved"}</option>
-                  <option value="suspended">{isAr ? "معطل / موقوف (Suspended)" : "Suspended"}</option>
-                </select>
-              </div>
-
-              <div className="pt-4 flex items-center justify-end gap-3 border-t border-slate-100">
-                <button
-                  type="button"
-                  onClick={() => setEditingMerchant(null)}
-                  className="btn btn-secondary px-5"
-                >
-                  {isAr ? "إلغاء" : "Cancel"}
-                </button>
-                <button
-                  type="button"
-                  disabled={savingMerchant}
-                  onClick={handleSaveMerchant}
-                  className="btn btn-primary px-6"
-                >
-                  {savingMerchant ? (isAr ? "جاري الحفظ..." : "Saving...") : (isAr ? "حفظ التعديلات" : "Save Changes")}
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>,
-        document.body
-      )}
+      <EditMerchantModal
+        isOpen={Boolean(editingMerchant && mounted)}
+        onClose={() => setEditingMerchant(null)}
+        merchant={editingMerchant}
+        editStoreName={editStoreName}
+        setEditStoreName={setEditStoreName}
+        editName={editName}
+        setEditName={setEditName}
+        editPhone={editPhone}
+        setEditPhone={setEditPhone}
+        editEmail={editEmail}
+        setEditEmail={setEditEmail}
+        editCity={editCity}
+        setEditCity={setEditCity}
+        editInstapay={editInstapay}
+        setEditInstapay={setEditInstapay}
+        editVodafoneCash={editVodafoneCash}
+        setEditVodafoneCash={setEditVodafoneCash}
+        editCr={editCr}
+        setEditCr={setEditCr}
+        editIsActive={editIsActive}
+        setEditIsActive={setEditIsActive}
+        savingMerchant={savingMerchant}
+        onSave={handleSaveMerchant}
+        isAr={isAr}
+      />
     </div>
   );
 }

@@ -1,7 +1,9 @@
 "use client";
 
 import React, { useState, useEffect, useRef } from "react";
-import { createPortal } from "react-dom";
+import { DistributeBasketModal } from "@/components/beneficiaries/DistributeBasketModal";
+import { EditBeneficiaryModal } from "@/components/beneficiaries/EditBeneficiaryModal";
+import { BeneficiaryQrModal } from "@/components/beneficiaries/BeneficiaryQrModal";
 import { db } from "@/lib/firebase";
 import { collection, onSnapshot, doc, updateDoc, setDoc, Timestamp } from "firebase/firestore";
 import { useI18n } from "@/lib/i18n";
@@ -621,378 +623,58 @@ export default function BeneficiariesPage() {
         )}
       </div>
 
-      {/* ── MODAL 1: Distribute Basket Modal (Fixed Mobile UI & Sticky Action Footer) ── */}
-      {distributeCard && mounted && createPortal(
-        <div className="fixed inset-0 z-[9999] flex items-center justify-center p-3 sm:p-4 bg-slate-950/70 backdrop-blur-sm animate-in fade-in duration-200">
-          <div className="bg-white rounded-3xl p-5 sm:p-6 max-w-lg w-full shadow-2xl border-2 border-slate-200 relative animate-in zoom-in-95 duration-200 max-h-[92vh] flex flex-col">
-            {/* Header */}
-            <div className="flex items-center justify-between pb-3 border-b border-slate-100 flex-shrink-0 mb-4">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-2xl bg-amber-500 text-white flex items-center justify-center shadow-md shadow-amber-900/20 flex-shrink-0">
-                  <PackageCheck className="w-5 h-5" />
-                </div>
-                <div>
-                  <h3 className="text-base font-black text-slate-900">
-                    {isAr ? "تسليم سلال غذائية (صرف إداري)" : "Handover Food Baskets"}
-                  </h3>
-                  <p className="text-xs font-bold text-amber-700">
-                    {distributeCard.beneficiaryName}
-                  </p>
-                </div>
-              </div>
-              <button
-                onClick={() => setDistributeCard(null)}
-                className="w-8 h-8 rounded-full bg-slate-100 text-slate-700 hover:bg-slate-200 flex items-center justify-center transition-all cursor-pointer"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
+            {/* ── MODALS (Modular Components) ── */}
+      <DistributeBasketModal
+        isOpen={Boolean(distributeCard && mounted)}
+        onClose={() => setDistributeCard(null)}
+        card={distributeCard}
+        distributeCount={distributeCount}
+        setDistributeCount={setDistributeCount}
+        distributionCenter={distributionCenter}
+        setDistributionCenter={setDistributionCenter}
+        distributeNotes={distributeNotes}
+        setDistributeNotes={setDistributeNotes}
+        distributing={distributing}
+        onConfirm={handleConfirmDistribution}
+        formatId={formatId}
+        isAr={isAr}
+      />
 
-            {/* Scrollable Form Body */}
-            <div className="overflow-y-auto pr-1 flex-1 space-y-4 text-xs font-bold">
-              {/* Beneficiary Badge Card (Responsive wrap for mobile screen) */}
-              <div className="p-3 rounded-2xl bg-slate-50 border border-slate-200 space-y-2">
-                <div className="flex items-center justify-between gap-2 flex-wrap text-xs">
-                  <div className="flex items-center gap-1.5 font-mono text-emerald-800 font-black">
-                    <CreditCard className="w-3.5 h-3.5 text-emerald-600" />
-                    <span>{distributeCard.cardId}</span>
-                  </div>
-                  <div className="font-mono text-slate-600">
-                    {isAr ? "الهوية:" : "ID:"} {formatId(distributeCard.nationalId)}
-                  </div>
-                </div>
-                <div className="flex items-center justify-between text-xs pt-2 border-t border-slate-200">
-                  <span className="text-slate-600">{isAr ? "الحصة المتاحة حالياً:" : "Available Quota:"}</span>
-                  <span className="px-2.5 py-0.5 rounded-full bg-amber-100 text-amber-950 font-black text-xs font-mono border border-amber-300">
-                    {distributeCard.foodBasketsQuota || 0} {isAr ? "سلة" : "baskets"}
-                  </span>
-                </div>
-              </div>
+      <EditBeneficiaryModal
+        isOpen={Boolean(editingCard && mounted)}
+        onClose={() => setEditingCard(null)}
+        card={editingCard}
+        editName={editName}
+        setEditName={setEditName}
+        editNationalId={editNationalId}
+        setEditNationalId={setEditNationalId}
+        editPhone={editPhone}
+        setEditPhone={setEditPhone}
+        editNationality={editNationality}
+        setEditNationality={setEditNationality}
+        editSocialStatus={editSocialStatus}
+        setEditSocialStatus={setEditSocialStatus}
+        editFamilyCount={editFamilyCount}
+        setEditFamilyCount={setEditFamilyCount}
+        editResidence={editResidence}
+        setEditResidence={setEditResidence}
+        editBalance={editBalance}
+        setEditBalance={setEditBalance}
+        editQuota={editQuota}
+        setEditQuota={setEditQuota}
+        editStatus={editStatus}
+        setEditStatus={setEditStatus}
+        saving={saving}
+        onSave={handleSaveEdit}
+        isAr={isAr}
+      />
 
-              {/* Stepper / Count Selector */}
-              <div>
-                <label className="block text-slate-700 mb-1.5">{isAr ? "عدد السلال المراد تسليمها" : "Quantity"}</label>
-                <div className="grid grid-cols-4 gap-2 mb-2">
-                  {[1, 2, 5].map((qty) => (
-                    <button
-                      key={qty}
-                      type="button"
-                      onClick={() => setDistributeCount(qty)}
-                      className={`py-2 px-1 rounded-xl border text-xs font-black ${
-                        distributeCount === qty
-                          ? "bg-[#0A734D] text-white border-[#0A734D]"
-                          : "bg-white text-slate-700 border-slate-200 hover:bg-slate-50"
-                      }`}
-                    >
-                      {qty} {isAr ? "سلة" : "bsk"}
-                    </button>
-                  ))}
-                  <button
-                    type="button"
-                    onClick={() => setDistributeCount(distributeCard.foodBasketsQuota || 1)}
-                    className="py-2 px-1 rounded-xl border text-xs font-black bg-amber-50 text-amber-900 border-amber-300 hover:bg-amber-100"
-                  >
-                    {isAr ? "الكل" : "All"}
-                  </button>
-                </div>
-
-                <div className="flex items-center justify-center gap-3 p-3 rounded-2xl bg-slate-50 border border-slate-200">
-                  <button
-                    type="button"
-                    onClick={() => setDistributeCount((c) => Math.max(1, c - 1))}
-                    disabled={distributeCount <= 1}
-                    className="w-10 h-10 rounded-xl bg-white border border-slate-300 flex items-center justify-center font-black disabled:opacity-30 shadow-xs"
-                  >
-                    <Minus className="w-4 h-4 text-slate-700" />
-                  </button>
-                  <div className="flex items-center justify-center gap-2 bg-white border border-slate-300 rounded-xl px-4 py-1.5 min-w-[120px]">
-                    <input
-                      type="number"
-                      min={1}
-                      value={distributeCount}
-                      onChange={(e) => setDistributeCount(Number(e.target.value) || 1)}
-                      className="w-16 text-center font-black text-xl text-slate-950 font-mono focus:outline-none bg-transparent p-0"
-                    />
-                    <span className="text-xs font-bold text-slate-600">{isAr ? "سلة" : "baskets"}</span>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => setDistributeCount((c) => c + 1)}
-                    className="w-10 h-10 rounded-xl bg-[#0A734D] text-white flex items-center justify-center font-black shadow-xs"
-                  >
-                    <Plus className="w-4 h-4" />
-                  </button>
-                </div>
-              </div>
-
-              {/* Distribution Center */}
-              <div>
-                <label className="block text-slate-700 mb-1.5">{isAr ? "مركز / مقر التوزيع" : "Distribution Center"}</label>
-                <input
-                  type="text"
-                  value={distributionCenter}
-                  onChange={(e) => setDistributionCenter(e.target.value)}
-                  className="qout-input"
-                />
-              </div>
-
-              {/* Notes */}
-              <div>
-                <label className="block text-slate-700 mb-1.5">{isAr ? "ملاحظات التسليم (اختياري)" : "Notes"}</label>
-                <input
-                  type="text"
-                  value={distributeNotes}
-                  onChange={(e) => setDistributeNotes(e.target.value)}
-                  placeholder={isAr ? "ملاحظات السند..." : "Handover notes..."}
-                  className="qout-input"
-                />
-              </div>
-            </div>
-
-            {/* Sticky Action Footer (Always Visible on Small/Mobile Screens) */}
-            <div className="sticky bottom-0 bg-white pt-3 pb-1 border-t-2 border-slate-100 flex items-center justify-end gap-3 flex-shrink-0 z-10">
-              <button
-                type="button"
-                onClick={() => setDistributeCard(null)}
-                className="btn btn-secondary px-4 py-2.5 text-xs font-bold"
-              >
-                {isAr ? "إلغاء" : "Cancel"}
-              </button>
-              <button
-                type="button"
-                disabled={distributing || distributeCount <= 0}
-                onClick={handleConfirmDistribution}
-                className="btn btn-primary px-5 py-2.5 text-xs font-black flex items-center gap-2"
-              >
-                <PackageCheck className="w-4 h-4 text-amber-300" />
-                <span>{distributing ? (isAr ? "جاري التسليم..." : "Delivering...") : (isAr ? "تأكيد تسليم السلال" : "Confirm Handover")}</span>
-              </button>
-            </div>
-          </div>
-        </div>,
-        document.body
-      )}
-
-      {/* ── MODAL 2: Full Edit Beneficiary Details ─────────────────────── */}
-      {editingCard && mounted && createPortal(
-        <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-sm animate-in fade-in duration-200">
-          <div className="bg-white rounded-3xl p-6 max-w-lg w-full shadow-2xl border-2 border-slate-200 relative animate-in zoom-in-95 duration-200 max-h-[92vh] flex flex-col">
-            {/* Header */}
-            <div className="flex items-center justify-between pb-3 border-b border-slate-100 flex-shrink-0 mb-4">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-2xl bg-emerald-600 text-white flex items-center justify-center shadow-md shadow-emerald-900/20 flex-shrink-0">
-                  <Edit className="w-5 h-5" />
-                </div>
-                <div>
-                  <h3 className="text-base font-black text-slate-900">
-                    {isAr ? "تعديل بيانات المستفيد والكارت" : "Edit Beneficiary & Card"}
-                  </h3>
-                  <p className="text-xs font-mono font-bold text-emerald-800">
-                    {editingCard.cardId}
-                  </p>
-                </div>
-              </div>
-              <button
-                onClick={() => setEditingCard(null)}
-                className="w-8 h-8 rounded-full bg-slate-100 text-slate-700 hover:bg-slate-200 flex items-center justify-center transition-all cursor-pointer"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-
-            {/* Scrollable Form Body */}
-            <div className="overflow-y-auto pr-1 flex-1 space-y-3.5 text-xs font-bold">
-              {/* Name */}
-              <div>
-                <label className="block text-slate-700 mb-1.5">{isAr ? "اسم المستفيد الرباعي" : "Beneficiary Full Name"}</label>
-                <input
-                  type="text"
-                  value={editName}
-                  onChange={(e) => setEditName(e.target.value)}
-                  className="qout-input"
-                />
-              </div>
-
-              {/* National ID & Phone */}
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-slate-700 mb-1.5">{isAr ? "رقم الهوية الوطنية / الجواز" : "National ID / Passport"}</label>
-                  <input
-                    type="text"
-                    value={editNationalId}
-                    onChange={(e) => setEditNationalId(e.target.value)}
-                    className="qout-input font-mono"
-                  />
-                </div>
-                <div>
-                  <label className="block text-slate-700 mb-1.5">{isAr ? "رقم الهاتف" : "Phone"}</label>
-                  <input
-                    type="text"
-                    value={editPhone}
-                    onChange={(e) => setEditPhone(e.target.value)}
-                    className="qout-input font-mono"
-                  />
-                </div>
-              </div>
-
-              {/* Nationality & Social Status */}
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-slate-700 mb-1.5">{isAr ? "الجنسية" : "Nationality"}</label>
-                  <select
-                    value={editNationality}
-                    onChange={(e) => setEditNationality(e.target.value)}
-                    className="qout-select font-bold"
-                  >
-                    <option value="مصري">مصري</option>
-                    <option value="سوري">سوري</option>
-                    <option value="سوداني">سوداني</option>
-                    <option value="يمني">يمني</option>
-                    <option value="فلسطيني">فلسطيني</option>
-                    <option value="أردني">أردني</option>
-                    <option value="عراقي">عراقي</option>
-                    <option value="لبناني">لبناني</option>
-                    <option value="أخرى">أخرى</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-slate-700 mb-1.5">{isAr ? "الحالة الاجتماعية" : "Social Status"}</label>
-                  <input
-                    type="text"
-                    value={editSocialStatus}
-                    onChange={(e) => setEditSocialStatus(e.target.value)}
-                    placeholder={isAr ? "مثال: متزوج، أرملة، يعول..." : "e.g. Married, Widow"}
-                    className="qout-input"
-                  />
-                </div>
-              </div>
-
-              {/* Family Count & Residence */}
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-slate-700 mb-1.5">{isAr ? "عدد أفراد الأسرة" : "Family Members"}</label>
-                  <input
-                    type="number"
-                    min={1}
-                    value={editFamilyCount}
-                    onChange={(e) => setEditFamilyCount(Number(e.target.value))}
-                    className="qout-input font-mono"
-                  />
-                </div>
-                <div>
-                  <label className="block text-slate-700 mb-1.5">{isAr ? "محل الإقامة / العنوان" : "Residence"}</label>
-                  <input
-                    type="text"
-                    value={editResidence}
-                    onChange={(e) => setEditResidence(e.target.value)}
-                    className="qout-input"
-                  />
-                </div>
-              </div>
-
-              {/* Balance & Baskets Quota */}
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-slate-700 mb-1.5">{isAr ? "الرصيد المالي (ج.م)" : "Cash Balance (EGP)"}</label>
-                  <input
-                    type="number"
-                    min={0}
-                    value={editBalance}
-                    onChange={(e) => setEditBalance(Number(e.target.value))}
-                    className="qout-input font-mono font-bold text-sm text-[#0A734D]"
-                  />
-                </div>
-                <div>
-                  <label className="block text-slate-700 mb-1.5">{isAr ? "حصة السلال الغذائية" : "Baskets Quota"}</label>
-                  <input
-                    type="number"
-                    min={0}
-                    value={editQuota}
-                    onChange={(e) => setEditQuota(Number(e.target.value))}
-                    className="qout-input font-mono font-bold text-sm text-amber-800"
-                  />
-                </div>
-              </div>
-
-              {/* Status */}
-              <div>
-                <label className="block text-slate-700 mb-1.5">{isAr ? "حالة الكارت" : "Card Status"}</label>
-                <select
-                  value={editStatus}
-                  onChange={(e) => setEditStatus(e.target.value)}
-                  className="qout-select font-bold"
-                >
-                  <option value="active">{isAr ? "نشط ومفعل (Active)" : "Active"}</option>
-                  <option value="frozen">{isAr ? "مجمد مؤقتاً (Frozen)" : "Frozen"}</option>
-                  <option value="expired">{isAr ? "منتهي الصلاحية (Expired)" : "Expired"}</option>
-                </select>
-              </div>
-            </div>
-
-            {/* Sticky Action Footer */}
-            <div className="sticky bottom-0 bg-white pt-3 pb-1 border-t-2 border-slate-100 flex items-center justify-end gap-3 flex-shrink-0 z-10">
-              <button
-                type="button"
-                onClick={() => setEditingCard(null)}
-                className="btn btn-secondary px-5 py-2.5 text-xs font-bold"
-              >
-                {isAr ? "إلغاء" : "Cancel"}
-              </button>
-              <button
-                type="button"
-                disabled={saving}
-                onClick={handleSaveEdit}
-                className="btn btn-primary px-6 py-2.5 text-xs font-bold"
-              >
-                {saving ? (isAr ? "جاري الحفظ..." : "Saving...") : (isAr ? "حفظ التعديلات" : "Save Changes")}
-              </button>
-            </div>
-          </div>
-        </div>,
-        document.body
-      )}
-
-      {/* ── MODAL 3: QR Code Modal ────────────────────────────────────── */}
-      {activeCard && mounted && createPortal(
-        <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-sm animate-in fade-in duration-200">
-          <div className="bg-white rounded-3xl p-6 sm:p-7 max-w-sm w-full shadow-2xl border-2 border-slate-200 text-center relative animate-in zoom-in-95 duration-200">
-            <button
-              onClick={() => setActiveCard(null)}
-              className="absolute top-4 left-4 w-8 h-8 rounded-full bg-slate-100 text-slate-700 hover:bg-slate-200 flex items-center justify-center transition-all cursor-pointer"
-            >
-              <X className="w-4 h-4" />
-            </button>
-
-            <div className="w-12 h-12 rounded-2xl bg-emerald-50 text-[#0A734D] flex items-center justify-center mx-auto mb-3 border border-emerald-200">
-              <QrCode className="w-6 h-6" />
-            </div>
-
-            <h3 className="text-base font-black text-slate-900">{activeCard.beneficiaryName || "مستفيد معتمد"}</h3>
-            <p className="text-xs font-mono font-bold text-emerald-800 mt-0.5">{activeCard.cardId}</p>
-
-            <div className="p-4 bg-slate-50 rounded-2xl border border-slate-200 inline-block my-4">
-              <QRCodeCanvas
-                value={activeCard.cardId}
-                size={180}
-                level="H"
-                includeMargin={false}
-              />
-            </div>
-
-            <p className="text-xs text-slate-500 font-bold mb-4 leading-relaxed">
-              {isAr ? "امسح الرمز من خلال تطبيق الصراف للتحقق وصرف المساعدات" : "Scan QR code via Merchant App"}
-            </p>
-
-            <button
-              onClick={() => setActiveCard(null)}
-              className="btn btn-secondary w-full justify-center text-xs font-bold"
-            >
-              {isAr ? "إغلاق" : "Close"}
-            </button>
-          </div>
-        </div>,
-        document.body
-      )}
+      <BeneficiaryQrModal
+        isOpen={Boolean(activeCard && mounted)}
+        onClose={() => setActiveCard(null)}
+        card={activeCard}
+        isAr={isAr}
+      />
     </div>
   );
 }
