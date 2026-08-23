@@ -3,13 +3,13 @@
 import React, { useState, useEffect } from "react";
 import { createPortal } from "react-dom";
 import { db } from "@/lib/firebase";
-import { collection, onSnapshot, doc, updateDoc, setDoc } from "firebase/firestore";
+import { collection, onSnapshot, doc, updateDoc, setDoc, deleteDoc } from "firebase/firestore";
 import { useI18n } from "@/lib/i18n";
 import { UserModel, UserRole } from "@/types";
 import {
   UserCheck, Search, Bell, Check, X, UserPlus, Eye, EyeOff,
   ShieldCheck, Store, Users, UserCog, Mail, Phone,
-  MapPin, Lock, Building2, Hash, AlertCircle, CheckCircle2,
+  MapPin, Lock, Building2, Hash, AlertCircle, CheckCircle2, Trash2,
 } from "lucide-react";
 
 export default function AccountsPage() {
@@ -37,6 +37,27 @@ export default function AccountsPage() {
   const [createError, setCreateError] = useState<string | null>(null);
   const [createSuccess, setCreateSuccess] = useState(false);
 
+  // Delete State
+  const [deletingUser, setDeletingUser] = useState<UserModel | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+
+  const handleDeleteUser = async () => {
+    if (!deletingUser) return;
+    setIsDeleting(true);
+    try {
+      await deleteDoc(doc(db, "users", deletingUser.uid));
+      if (deletingUser.activeCardId) {
+        try {
+          await deleteDoc(doc(db, "aid_cards", deletingUser.activeCardId));
+        } catch (_) {}
+      }
+      setDeletingUser(null);
+    } catch (e) {
+      console.error("Error deleting user:", e);
+    }
+    setIsDeleting(false);
+  };
+
   useEffect(() => {
     setMounted(true);
     const unsub = onSnapshot(collection(db, "users"), (snap) => {
@@ -58,10 +79,18 @@ export default function AccountsPage() {
 
   const handleApprove = async (userId: string) => {
     try {
+      const user = users.find((u) => u.uid === userId);
       await updateDoc(doc(db, "users", userId), {
         isApproved: true,
         isActive: true,
       });
+      if (user?.activeCardId) {
+        try {
+          await updateDoc(doc(db, "aid_cards", user.activeCardId), {
+            status: "active",
+          });
+        } catch (_) {}
+      }
     } catch (e) {
       console.error("Error approving user:", e);
     }
@@ -69,10 +98,18 @@ export default function AccountsPage() {
 
   const handleReject = async (userId: string) => {
     try {
+      const user = users.find((u) => u.uid === userId);
       await updateDoc(doc(db, "users", userId), {
         isApproved: false,
         isActive: false,
       });
+      if (user?.activeCardId) {
+        try {
+          await updateDoc(doc(db, "aid_cards", user.activeCardId), {
+            status: "frozen",
+          });
+        } catch (_) {}
+      }
     } catch (e) {
       console.error("Error rejecting user:", e);
     }
@@ -106,6 +143,29 @@ export default function AccountsPage() {
         userDoc.totalDisbursed = 0;
         userDoc.totalTransactions = 0;
       } else if (newRole === "beneficiary") {
+        const cardId = `FAJR-CARD-${Date.now().toString().slice(-6)}`;
+        userDoc.activeCardId = cardId;
+        userDoc.nationalId = newNatId || `N${Date.now().toString().slice(-8)}`;
+        userDoc.nationality = "مصرية";
+
+        try {
+          await setDoc(doc(db, "aid_cards", cardId), {
+            cardId,
+            beneficiaryId: uid,
+            beneficiaryName: newName,
+            nationalId: userDoc.nationalId,
+            familyCount: 4,
+            residence: newCity,
+            totalBalance: 600,
+            foodBasketsQuota: 2,
+            status: "active",
+            nationality: "مصرية",
+            securityHash: Date.now().toString().slice(-6),
+            activatedAt: new Date().toISOString(),
+            expiresAt: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString(),
+            fieldResearchStatus: "معتمد من الإدارة",
+          });
+        } catch (_) {}
         userDoc.nationalId = newNatId || `N${Date.now().toString().slice(-8)}`;
         userDoc.nationality = "سورية";
       }
@@ -409,6 +469,13 @@ export default function AccountsPage() {
                             {u.isActive ? (isAr ? "تعطيل" : "Suspend") : (isAr ? "تفعيل" : "Activate")}
                           </button>
                         )}
+                        <button
+                          onClick={() => setDeletingUser(u)}
+                          title={isAr ? "حذف الحساب نهائياً من قاعدة البيانات" : "Delete Account"}
+                          className="btn btn-xs bg-red-50 text-red-600 hover:bg-red-600 hover:text-white border border-red-200 transition-all p-1.5 rounded-lg"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
                       </div>
                     </td>
                   </tr>
@@ -418,6 +485,54 @@ export default function AccountsPage() {
           </table>
         </div>
       </div>
+
+      {/* ── Delete Confirmation Modal ── */}
+      {mounted && deletingUser && createPortal(
+        <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs animate-fade-in">
+          <div
+            className="bg-white rounded-3xl p-6 max-w-md w-full shadow-2xl border border-red-100 relative animate-scale-in text-center"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="w-14 h-14 bg-red-100 text-red-600 rounded-full flex items-center justify-center mx-auto mb-4">
+              <Trash2 className="w-7 h-7" />
+            </div>
+            <h3 className="text-xl font-bold text-slate-900 mb-2">
+              {isAr ? "تأكيد حذف الحساب نهائياً" : "Confirm Account Deletion"}
+            </h3>
+            <p className="text-sm text-slate-600 mb-6 leading-relaxed">
+              {isAr
+                ? `هل أنت متأكد من رغبتك في حذف حساب "${deletingUser.name}" (${deletingUser.email}) نهائياً من قاعدة البيانات؟ لا يمكن التراجع عن هذا الإجراء.`
+                : `Are you sure you want to permanently delete "${deletingUser.name}" (${deletingUser.email}) from the database? This action cannot be undone.`}
+            </p>
+            <div className="flex items-center justify-center gap-3">
+              <button
+                type="button"
+                onClick={() => setDeletingUser(null)}
+                disabled={isDeleting}
+                className="btn btn-outline flex-1"
+              >
+                {isAr ? "إلغاء" : "Cancel"}
+              </button>
+              <button
+                type="button"
+                onClick={handleDeleteUser}
+                disabled={isDeleting}
+                className="btn btn-danger flex-1 flex items-center justify-center gap-2 font-bold"
+              >
+                {isDeleting ? (
+                  <span>{isAr ? "جاري الحذف..." : "Deleting..."}</span>
+                ) : (
+                  <>
+                    <Trash2 className="w-4 h-4" />
+                    <span>{isAr ? "حذف نهائي" : "Delete"}</span>
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
 
       {/* ── Create Account Modal (Rendered directly via createPortal at z-[100]) ── */}
       {mounted && createModalOpen && createPortal(
