@@ -460,22 +460,24 @@ kbd {
   padding-inline-start: 44px !important;
 }
 
-/* ── Golden Amber Handover Button (Clean Flat Rounded-Rect matching Edit button) ── */
+/* ── Golden Amber Handover Button (Clean Crisp 8px Rounded-Rect matching Edit button) ── */
 .btn-golden {
   background-color: #F59E0B !important;
   background-image: none !important;
   color: #FFFFFF !important;
-  font-weight: 800 !important;
-  border-radius: 10px !important;
-  padding: 8px 14px !important;
+  font-weight: 700 !important;
+  border-radius: 8px !important;
+  height: 34px !important;
+  padding: 0 12px !important;
   font-size: 12px !important;
   box-shadow: none !important;
-  border: 1px solid #D97706 !important;
+  border: none !important;
   display: inline-flex;
   align-items: center;
+  justify-content: center;
   gap: 6px;
   cursor: pointer;
-  transition: all var(--dur-fast) var(--ease-out);
+  transition: background-color var(--dur-fast) var(--ease-out);
   text-decoration: none;
   white-space: nowrap;
   line-height: 1;

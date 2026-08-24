@@ -635,7 +635,7 @@ export default function BeneficiariesPage() {
                       {/* Action Buttons */}
                       <td className="py-3.5 px-4 text-end">
                         <div className="flex items-center justify-end gap-1.5">
-                          {/* Flat Rounded-Rect Golden Handover Button */}
+                          {/* Crisp Rounded-Rect Golden Handover Button */}
                           <button
                             onClick={() => handleOpenDistributeModal(c)}
                             disabled={!hasQuota}
@@ -650,22 +650,22 @@ export default function BeneficiariesPage() {
                             <span>{isAr ? "تسليم سلة" : "Deliver"}</span>
                           </button>
 
-                          {/* Edit Button (Matching Rounded-Rect) */}
+                          {/* Edit Button (Matching 34px & 8px radius) */}
                           <button
                             onClick={() => openEditModal(c)}
-                            className="btn btn-secondary p-2 rounded-xl text-slate-700 hover:text-emerald-700 hover:bg-emerald-50 hover:border-emerald-300 transition-all"
+                            className="h-[34px] w-[34px] rounded-lg border border-slate-200 bg-white hover:bg-emerald-50 hover:border-emerald-300 flex items-center justify-center text-emerald-700 transition-colors shadow-none cursor-pointer"
                             title={isAr ? "تعديل بيانات المستفيد" : "Edit Beneficiary"}
                           >
-                            <Edit className="w-3.5 h-3.5 text-emerald-700" />
+                            <Edit className="w-4 h-4 text-emerald-700" />
                           </button>
 
-                          {/* QR Code Button (Matching Rounded-Rect) */}
+                          {/* QR Code Button (Matching 34px & 8px radius) */}
                           <button
                             onClick={() => setActiveCard(c)}
-                            className="btn btn-secondary p-2 rounded-xl text-slate-700 hover:text-slate-900 hover:bg-slate-100 transition-all"
+                            className="h-[34px] w-[34px] rounded-lg border border-slate-200 bg-white hover:bg-slate-100 hover:border-slate-300 flex items-center justify-center text-slate-700 transition-colors shadow-none cursor-pointer"
                             title={isAr ? "عرض رمز QR" : "Show QR"}
                           >
-                            <QrCode className="w-3.5 h-3.5" />
+                            <QrCode className="w-4 h-4" />
                           </button>
                         </div>
                       </td>
@@ -780,7 +780,7 @@ export default function BeneficiariesPage() {
                     <button
                       onClick={() => handleOpenDistributeModal(c)}
                       disabled={!hasQuota}
-                      className="flex-1 btn-golden justify-center py-2.5 text-xs rounded-xl"
+                      className="flex-1 btn-golden h-10 rounded-lg text-xs font-bold justify-center"
                     >
                       <PackageCheck className="w-4 h-4" />
                       <span>{isAr ? "تسليم سلة" : "Deliver Basket"}</span>
@@ -789,7 +789,7 @@ export default function BeneficiariesPage() {
                     {/* Edit Button */}
                     <button
                       onClick={() => openEditModal(c)}
-                      className="btn btn-sm btn-secondary p-2.5 rounded-xl text-emerald-800 hover:bg-emerald-50 border-slate-200"
+                      className="h-10 w-10 rounded-lg border border-slate-200 bg-white hover:bg-emerald-50 flex items-center justify-center text-emerald-700 transition-colors"
                       title={isAr ? "تعديل البيانات" : "Edit"}
                     >
                       <Edit className="w-4 h-4 text-emerald-700" />
@@ -798,7 +798,7 @@ export default function BeneficiariesPage() {
                     {/* QR Code Button */}
                     <button
                       onClick={() => setActiveCard(c)}
-                      className="btn btn-sm btn-secondary p-2.5 rounded-xl text-slate-700 hover:bg-slate-100 border-slate-200"
+                      className="h-10 w-10 rounded-lg border border-slate-200 bg-white hover:bg-slate-100 flex items-center justify-center text-slate-700 transition-colors"
                       title={isAr ? "عرض رمز QR" : "QR Code"}
                     >
                       <QrCode className="w-4 h-4" />
