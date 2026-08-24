@@ -370,54 +370,87 @@ export default function BeneficiariesPage() {
         </div>
       )}
 
-      {/* Header Actions */}
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-xl lg:text-2xl font-black text-slate-900">
-            {isAr ? "إدارة المستفيدين والكروت الإغاثية" : "Beneficiaries & Aid Cards"}
-          </h1>
-          <p className="text-xs text-slate-500 font-bold mt-1">
-            {isAr ? "سجل شامل للمستفيدين المعتمدين، متابعة الأرصدة والسلال، وتسليم المساعدات" : "Manage beneficiary aid cards, balances and basket handovers"}
-          </p>
+      {/* ── Top Header Section (Page Title + Live Counters + Actions) ── */}
+      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 bg-white p-5 rounded-2xl border border-slate-200 shadow-xs">
+        <div className="flex items-center gap-3.5">
+          <div className="w-11 h-11 rounded-2xl bg-emerald-100 text-[#0A734D] flex items-center justify-center font-black border border-emerald-200 shrink-0">
+            <Users className="w-6 h-6" />
+          </div>
+          <div>
+            <h1 className="text-xl lg:text-2xl font-black text-slate-900 leading-tight">
+              {isAr ? "إدارة المستفيدين والكروت الإغاثية" : "Beneficiaries & Aid Cards"}
+            </h1>
+            <p className="text-xs text-slate-500 font-bold mt-0.5">
+              {isAr ? "سجل شامل للمستفيدين المعتمدين، متابعة الأرصدة والسلال، وتسليم المساعدات" : "Manage beneficiary aid cards, balances and basket handovers"}
+            </p>
+          </div>
         </div>
 
         <div className="flex items-center gap-2.5 flex-wrap">
+          {/* Quick Metrics Badges */}
+          <div className="hidden lg:flex items-center gap-2 bg-slate-50 p-1.5 rounded-xl border border-slate-200 text-xs font-bold">
+            <span className="px-2.5 py-1 rounded-lg bg-white border border-slate-200 text-slate-700 shadow-xs">
+              {isAr ? "المسجلين:" : "Total:"} <strong className="text-slate-900 font-mono font-black">{cards.length}</strong>
+            </span>
+            <span className="px-2.5 py-1 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-800">
+              {isAr ? "النشطين:" : "Active:"} <strong className="text-emerald-900 font-mono font-black">{cards.filter(c => c.status === 'active').length}</strong>
+            </span>
+          </div>
+
           <button
             onClick={handleExportExcel}
-            className="btn btn-sm btn-secondary font-bold text-xs flex items-center gap-1.5"
+            className="btn btn-sm bg-emerald-50 hover:bg-emerald-100 text-[#0A734D] border border-emerald-300 font-black text-xs px-3.5 py-2 rounded-xl flex items-center gap-2 shadow-xs transition-all"
           >
-            <FileSpreadsheet className="w-4 h-4 text-emerald-700" />
+            <FileSpreadsheet className="w-4 h-4 text-[#0A734D]" />
             <span>{isAr ? "تصدير إكسيل" : "Export Excel"}</span>
           </button>
         </div>
       </div>
 
-      {/* Search & Filter Controls */}
-      <div className="qout-card p-4 bg-white shadow-xs space-y-3">
-        <div className="flex flex-col sm:flex-row gap-3">
-          <div className="relative flex-1">
-            <input
-              type="text"
-              value={search}
-              onChange={(e) => {
-                setSearch(e.target.value);
+      {/* ── Search & Filter Controls (Clean 2-Row Structured UI/UX) ── */}
+      <div className="qout-card p-5 bg-white shadow-xs space-y-4">
+        {/* Row 1: Prominent Search Input with Clear Space */}
+        <div className="relative">
+          <input
+            type="text"
+            value={search}
+            onChange={(e) => {
+              setSearch(e.target.value);
+              setCurrentPage(1);
+            }}
+            placeholder={isAr ? "بحث باسم المستفيد، كود الكارت، رقم الهوية، المدينة أو الهاتف..." : "Search beneficiary, card ID, national ID, city or phone..."}
+            className="qout-input qout-input-with-icon text-sm font-bold h-11"
+            style={{ paddingInlineStart: 44, paddingInlineEnd: search ? 38 : 14 }}
+          />
+          <Search className="w-4 h-4 absolute start-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+          {search && (
+            <button
+              onClick={() => {
+                setSearch("");
                 setCurrentPage(1);
               }}
-              placeholder={isAr ? "بحث باسم المستفيد، كود الكارت، رقم الهوية، المدينة أو الهاتف..." : "Search beneficiary, card ID, national ID..."}
-              className="qout-input ps-10"
-            />
-            <Search className="w-4 h-4 absolute start-3.5 top-3 text-slate-400" />
-          </div>
+              className="absolute end-3 top-1/2 -translate-y-1/2 w-6 h-6 rounded-full hover:bg-slate-100 flex items-center justify-center text-slate-400 hover:text-slate-600 transition-colors"
+              title={isAr ? "مسح البحث" : "Clear search"}
+            >
+              <X className="w-3.5 h-3.5" />
+            </button>
+          )}
+        </div>
 
-          <div className="flex items-center gap-2 flex-wrap">
-            {/* Recipient Filter */}
+        {/* Row 2: 3-Column Structured Dropdowns Grid */}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          {/* Recipient Filter */}
+          <div className="space-y-1">
+            <label className="text-[11px] font-black text-slate-500 block px-1">
+              {isAr ? "حالة استلام السلال" : "Receipt Status"}
+            </label>
             <select
               value={selectedRecipientFilter}
               onChange={(e) => {
                 setSelectedRecipientFilter(e.target.value);
                 setCurrentPage(1);
               }}
-              className="qout-select text-xs font-bold py-2 bg-emerald-50/70 border-emerald-300 text-emerald-950"
+              className="qout-select text-xs font-bold py-2.5 bg-slate-50 hover:bg-slate-100 border-slate-200 text-slate-800"
             >
               <option value="all">{isAr ? "📋 كل حالات الاستلام" : "All Receipts"}</option>
               <option value="received_this_month">{isAr ? `✅ استلموا شهر (${monthNames[selectedMonth]})` : "Received This Month"}</option>
@@ -425,15 +458,20 @@ export default function BeneficiariesPage() {
               <option value="received_last_month">{isAr ? "🗓️ استلموا الشهر السابق" : "Received Last Month"}</option>
               <option value="dormant">{isAr ? "⚠️ متخلفون عن الاستلام (+60 يوم)" : "Dormant (+60d)"}</option>
             </select>
+          </div>
 
-            {/* Masculine Nationality Filter */}
+          {/* Masculine Nationality Filter */}
+          <div className="space-y-1">
+            <label className="text-[11px] font-black text-slate-500 block px-1">
+              {isAr ? "الجنسية" : "Nationality"}
+            </label>
             <select
               value={selectedNationality}
               onChange={(e) => {
                 setSelectedNationality(e.target.value);
                 setCurrentPage(1);
               }}
-              className="qout-select text-xs font-bold py-2"
+              className="qout-select text-xs font-bold py-2.5 bg-slate-50 hover:bg-slate-100 border-slate-200 text-slate-800"
             >
               <option value="all">{isAr ? "🌐 جميع الجنسيات" : "All Nationalities"}</option>
               <option value="مصري">{isAr ? "🇪🇬 مصري" : "Egyptian"}</option>
@@ -446,15 +484,20 @@ export default function BeneficiariesPage() {
               <option value="لبناني">{isAr ? "🇱🇧 لبناني" : "Lebanese"}</option>
               <option value="أخرى">{isAr ? "🏳️ أخرى" : "Other"}</option>
             </select>
+          </div>
 
-            {/* Status Filter */}
+          {/* Status Filter */}
+          <div className="space-y-1">
+            <label className="text-[11px] font-black text-slate-500 block px-1">
+              {isAr ? "حالة الكارت" : "Card Status"}
+            </label>
             <select
               value={selectedStatus}
               onChange={(e) => {
                 setSelectedStatus(e.target.value);
                 setCurrentPage(1);
               }}
-              className="qout-select text-xs font-bold py-2"
+              className="qout-select text-xs font-bold py-2.5 bg-slate-50 hover:bg-slate-100 border-slate-200 text-slate-800"
             >
               <option value="all">{isAr ? "⚡ جميع الحالات" : "All Statuses"}</option>
               <option value="active">{isAr ? "🟢 نشط" : "Active"}</option>
@@ -464,9 +507,33 @@ export default function BeneficiariesPage() {
           </div>
         </div>
 
-        <div className="flex items-center justify-between text-xs text-slate-500 font-bold pt-2 border-t border-slate-100">
-          <span>{isAr ? `إجمالي الحالات المطابقة: ${filteredCards.length} كارت` : `Matching: ${filteredCards.length} cases`}</span>
-          <span>{isAr ? `الصفحة ${currentPage} من ${totalPages}` : `Page ${currentPage} of ${totalPages}`}</span>
+        {/* Row 3: Bottom Summary Bar */}
+        <div className="flex items-center justify-between text-xs text-slate-500 font-bold pt-3 border-t border-slate-100">
+          <div className="flex items-center gap-3">
+            <span className="bg-slate-100 text-slate-800 px-3 py-1 rounded-full font-mono font-black">
+              {isAr ? `إجمالي الحالات المطابقة: ${filteredCards.length} كارت` : `Matching: ${filteredCards.length} cases`}
+            </span>
+
+            {(search || selectedNationality !== "all" || selectedStatus !== "all" || selectedRecipientFilter !== "all") && (
+              <button
+                onClick={() => {
+                  setSearch("");
+                  setSelectedNationality("all");
+                  setSelectedStatus("all");
+                  setSelectedRecipientFilter("all");
+                  setCurrentPage(1);
+                }}
+                className="text-xs font-bold text-red-600 hover:text-red-700 flex items-center gap-1 hover:underline cursor-pointer transition-colors"
+              >
+                <X className="w-3.5 h-3.5" />
+                <span>{isAr ? "مسح الفلاتر" : "Reset filters"}</span>
+              </button>
+            )}
+          </div>
+
+          <span className="font-mono text-slate-600">
+            {isAr ? `الصفحة ${currentPage} من ${totalPages}` : `Page ${currentPage} of ${totalPages}`}
+          </span>
         </div>
       </div>
 
@@ -567,26 +634,26 @@ export default function BeneficiariesPage() {
 
                       {/* Action Buttons */}
                       <td className="py-3.5 px-4 text-end">
-                        <div className="flex items-center justify-end gap-1.5">
-                          {/* Restored Prominent Basket Handover Button */}
+                        <div className="flex items-center justify-end gap-2">
+                          {/* Large Rounded Golden Handover Button */}
                           <button
                             onClick={() => handleOpenDistributeModal(c)}
                             disabled={!hasQuota}
-                            className="btn btn-xs bg-amber-500 hover:bg-amber-600 active:bg-amber-700 disabled:opacity-35 disabled:hover:bg-amber-500 text-white font-black px-2.5 py-1.5 rounded-lg flex items-center gap-1.5 shadow-xs transition-all disabled:cursor-not-allowed cursor-pointer"
+                            className="btn-golden"
                             title={
                               !hasQuota
                                 ? (isAr ? "لا توجد حصص سلال متبقية للتسليم" : "No basket quota remaining")
                                 : (isAr ? "تسليم سلة غذائية (الإدارة)" : "Handover Food Basket")
                             }
                           >
-                            <PackageCheck className="w-3.5 h-3.5" />
-                            <span className="hidden xl:inline">{isAr ? "تسليم سلة" : "Deliver"}</span>
+                            <PackageCheck className="w-4 h-4 shrink-0" />
+                            <span>{isAr ? "تسليم سلة" : "Deliver"}</span>
                           </button>
 
                           {/* Edit Button */}
                           <button
                             onClick={() => openEditModal(c)}
-                            className="btn btn-xs btn-secondary p-1.5 rounded-lg text-slate-700 hover:bg-slate-100"
+                            className="btn btn-secondary p-2 rounded-full text-slate-700 hover:text-emerald-700 hover:bg-emerald-50 hover:border-emerald-200 transition-all shadow-xs"
                             title={isAr ? "تعديل بيانات المستفيد" : "Edit Beneficiary"}
                           >
                             <Edit className="w-3.5 h-3.5 text-emerald-700" />
@@ -595,7 +662,7 @@ export default function BeneficiariesPage() {
                           {/* QR Code Button */}
                           <button
                             onClick={() => setActiveCard(c)}
-                            className="btn btn-xs btn-secondary p-1.5 rounded-lg text-slate-700 hover:bg-slate-100"
+                            className="btn btn-secondary p-2 rounded-full text-slate-700 hover:text-slate-900 hover:bg-slate-100 transition-all shadow-xs"
                             title={isAr ? "عرض رمز QR" : "Show QR"}
                           >
                             <QrCode className="w-3.5 h-3.5" />
@@ -713,7 +780,7 @@ export default function BeneficiariesPage() {
                     <button
                       onClick={() => handleOpenDistributeModal(c)}
                       disabled={!hasQuota}
-                      className="flex-1 btn btn-sm bg-amber-500 hover:bg-amber-600 active:bg-amber-700 disabled:opacity-35 disabled:hover:bg-amber-500 text-white font-black py-2.5 rounded-xl flex items-center justify-center gap-1.5 shadow-xs transition-all disabled:cursor-not-allowed cursor-pointer text-xs"
+                      className="flex-1 btn-golden justify-center py-2.5 text-xs font-black shadow-xs"
                     >
                       <PackageCheck className="w-4 h-4" />
                       <span>{isAr ? "تسليم سلة" : "Deliver Basket"}</span>
@@ -722,7 +789,7 @@ export default function BeneficiariesPage() {
                     {/* Edit Button */}
                     <button
                       onClick={() => openEditModal(c)}
-                      className="btn btn-sm btn-secondary p-2.5 rounded-xl text-emerald-800 hover:bg-emerald-50 border-slate-200"
+                      className="btn btn-sm btn-secondary p-2.5 rounded-full text-emerald-800 hover:bg-emerald-50 border-slate-200"
                       title={isAr ? "تعديل البيانات" : "Edit"}
                     >
                       <Edit className="w-4 h-4 text-emerald-700" />
@@ -731,7 +798,7 @@ export default function BeneficiariesPage() {
                     {/* QR Code Button */}
                     <button
                       onClick={() => setActiveCard(c)}
-                      className="btn btn-sm btn-secondary p-2.5 rounded-xl text-slate-700 hover:bg-slate-100 border-slate-200"
+                      className="btn btn-sm btn-secondary p-2.5 rounded-full text-slate-700 hover:bg-slate-100 border-slate-200"
                       title={isAr ? "عرض رمز QR" : "QR Code"}
                     >
                       <QrCode className="w-4 h-4" />

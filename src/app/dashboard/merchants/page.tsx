@@ -419,9 +419,10 @@ export default function MerchantsPage() {
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder={isAr ? "بحث باسم الصراف، اسم المتجر، الهاتف، المدينة أو السجل التجاري..." : "Search merchant, store, phone, city..."}
-              className="qout-input ps-10"
+              className="qout-input qout-input-with-icon"
+              style={{ paddingInlineStart: 44 }}
             />
-            <Search className="w-4 h-4 absolute start-3.5 top-3 text-slate-400" />
+            <Search className="w-4 h-4 absolute start-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
           </div>
 
           <div className="flex flex-wrap gap-2">
