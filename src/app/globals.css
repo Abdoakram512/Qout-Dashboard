@@ -460,7 +460,7 @@ kbd {
   padding-inline-start: 44px !important;
 }
 
-/* ── Golden Amber Handover Button (Clean Crisp 8px Rounded-Rect matching Edit button) ── */
+/* ── Golden Amber Handover Button (Pure Solid Amber - No Border, No Red Outline) ── */
 .btn-golden {
   background-color: #F59E0B !important;
   background-image: none !important;
@@ -471,7 +471,9 @@ kbd {
   padding: 0 12px !important;
   font-size: 12px !important;
   box-shadow: none !important;
-  border: none !important;
+  border: 0 !important;
+  outline: none !important;
+  border-color: transparent !important;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -485,6 +487,8 @@ kbd {
 .btn-golden:hover:not(:disabled) {
   background-color: #D97706 !important;
   box-shadow: none !important;
+  border: 0 !important;
+  outline: none !important;
   transform: none !important;
 }
 .btn-golden:active:not(:disabled) {
@@ -494,6 +498,8 @@ kbd {
 .btn-golden:disabled {
   opacity: 0.35 !important;
   background-color: #F59E0B !important;
+  border: 0 !important;
+  outline: none !important;
   cursor: not-allowed !important;
   transform: none !important;
   box-shadow: none !important;
