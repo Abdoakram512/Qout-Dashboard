@@ -460,20 +460,20 @@ kbd {
   padding-inline-start: 44px !important;
 }
 
-/* ── Golden Amber Handover Button (Original Vibrant Amber #F59E0B with Rounded Pill) ── */
+/* ── Golden Amber Handover Button (Clean Flat Rounded-Rect matching Edit button) ── */
 .btn-golden {
   background-color: #F59E0B !important;
   background-image: none !important;
   color: #FFFFFF !important;
-  font-weight: 900 !important;
-  border-radius: 9999px !important;
-  padding: 7px 15px !important;
-  font-size: 12.5px !important;
-  box-shadow: 0 2px 6px rgba(245, 158, 11, 0.35) !important;
-  border: 1px solid rgba(251, 191, 36, 0.5) !important;
+  font-weight: 800 !important;
+  border-radius: 10px !important;
+  padding: 8px 14px !important;
+  font-size: 12px !important;
+  box-shadow: none !important;
+  border: 1px solid #D97706 !important;
   display: inline-flex;
   align-items: center;
-  gap: 7px;
+  gap: 6px;
   cursor: pointer;
   transition: all var(--dur-fast) var(--ease-out);
   text-decoration: none;
@@ -482,13 +482,12 @@ kbd {
 }
 .btn-golden:hover:not(:disabled) {
   background-color: #D97706 !important;
-  background-image: none !important;
-  box-shadow: 0 4px 12px rgba(217, 119, 6, 0.4) !important;
-  transform: translateY(-1px);
+  box-shadow: none !important;
+  transform: none !important;
 }
 .btn-golden:active:not(:disabled) {
   background-color: #B45309 !important;
-  transform: scale(0.97);
+  transform: scale(0.98);
 }
 .btn-golden:disabled {
   opacity: 0.35 !important;
@@ -496,7 +495,6 @@ kbd {
   cursor: not-allowed !important;
   transform: none !important;
   box-shadow: none !important;
-  filter: none !important;
 }
 
 /* ── Dropdowns / Select Menus (High-Contrast, Custom Chevron) ── */
