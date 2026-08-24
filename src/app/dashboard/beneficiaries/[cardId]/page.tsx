@@ -1,6 +1,6 @@
-import { BeneficiaryMonthlyMatrix } from "@/components/beneficiaries/BeneficiaryMonthlyMatrix";
 "use client";
 
+import { BeneficiaryMonthlyMatrix } from "@/components/beneficiaries/BeneficiaryMonthlyMatrix";
 import React, { useState, useEffect, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { db } from "@/lib/firebase";

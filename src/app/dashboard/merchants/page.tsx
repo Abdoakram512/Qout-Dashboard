@@ -1,6 +1,6 @@
-import { compressImageFile } from "@/lib/imageCompressor";
 "use client";
 
+import { compressImageFile } from "@/lib/imageCompressor";
 import React, { useState, useEffect } from "react";
 import { db, storage } from "@/lib/firebase";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
