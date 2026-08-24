@@ -112,9 +112,8 @@ export interface BudgetAllocation {
   };
   allocatedByAdminId?: string;
   allocatedByAdminEmail?: string;
-  notes?: string;
+  notes?: string | null;
   timestamp?: any;
-  createdAt?: string;
 }
 
 export interface PaymentReceipt {
@@ -126,11 +125,11 @@ export interface PaymentReceipt {
   amount?: number;
   paymentMethod?: "instapay" | "vodafone_cash" | "bank_transfer" | "cash";
   referenceNumber?: string;
-  senderAccount?: string;
-  receiverAccount?: string;
-  senderAccountOrPhone?: string;
-  receiverAccountOrPhone?: string;
-  receiptImageUrl?: string;
+  senderAccount?: string | null;
+  receiverAccount?: string | null;
+  senderAccountOrPhone?: string | null;
+  receiverAccountOrPhone?: string | null;
+  receiptImageUrl?: string | null;
   status?: "sent" | "confirmed_by_merchant" | "disputed" | "pending_merchant_confirmation";
   confirmedAt?: any;
   sentBy?: {
@@ -139,7 +138,7 @@ export interface PaymentReceipt {
   };
   sentByAdminId?: string;
   sentByAdminEmail?: string;
-  notes?: string;
+  notes?: string | null;
   timestamp?: any;
   createdAt?: string;
 }

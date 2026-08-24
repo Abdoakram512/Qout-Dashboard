@@ -232,11 +232,11 @@ export default function BeneficiariesPage() {
         nationalId: editNationalId.trim(),
         phone: editPhone.trim(),
         nationality: editNationality,
-        socialStatus: editSocialStatus.trim() || undefined,
+        socialStatus: editSocialStatus.trim() || null,
         balance: editBalance,
         foodBasketsQuota: editQuota,
         familyCount: editFamilyCount,
-        residence: editResidence.trim() || undefined,
+        residence: editResidence.trim() || null,
         status: editStatus,
         isActive: editStatus === "active",
       });
@@ -249,8 +249,8 @@ export default function BeneficiariesPage() {
             nationalId: editNationalId.trim(),
             phone: editPhone.trim(),
             nationality: editNationality,
-            socialStatus: editSocialStatus.trim() || undefined,
-            city: editResidence.trim() || undefined,
+            socialStatus: editSocialStatus.trim() || null,
+            city: editResidence.trim() || null,
           });
         } catch (_) {}
       }
@@ -300,7 +300,7 @@ export default function BeneficiariesPage() {
         nationalId: distributeCard.nationalId || "",
         basketsCount: distributeCount,
         distributionCenter: distributionCenter.trim(),
-        notes: distributeNotes.trim() || undefined,
+        notes: distributeNotes.trim() || null,
         timestamp: nowIso,
         administeredByAdminId: adminData?.uid || "admin",
         administeredByAdminEmail: adminData?.email || "admin@alfajr.org",

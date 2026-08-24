@@ -161,11 +161,11 @@ export default function BeneficiaryProfilePage() {
         nationalId: editNationalId.trim(),
         phone: editPhone.trim(),
         nationality: editNationality,
-        socialStatus: editSocialStatus.trim() || undefined,
+        socialStatus: editSocialStatus.trim() || null,
         balance: editBalance,
         foodBasketsQuota: editQuota,
         familyCount: editFamilyCount,
-        residence: editResidence.trim() || undefined,
+        residence: editResidence.trim() || null,
         status: editStatus,
         isActive: editStatus === "active",
       });
@@ -177,8 +177,8 @@ export default function BeneficiaryProfilePage() {
             nationalId: editNationalId.trim(),
             phone: editPhone.trim(),
             nationality: editNationality,
-            socialStatus: editSocialStatus.trim() || undefined,
-            city: editResidence.trim() || undefined,
+            socialStatus: editSocialStatus.trim() || null,
+            city: editResidence.trim() || null,
           });
         } catch (_) {}
       }

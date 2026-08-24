@@ -234,7 +234,7 @@ export default function MerchantsPage() {
         timestamp: new Date().toISOString(),
         allocatedByAdminId: adminData?.uid || "admin",
         allocatedByAdminEmail: adminData?.email || "admin@alfajr.org",
-        notes: allocNotes.trim() || undefined,
+        notes: allocNotes.trim() || null,
       };
 
       await setDoc(allocationRef, allocData);
@@ -282,10 +282,10 @@ export default function MerchantsPage() {
         amount: receiptAmount,
         paymentMethod: paymentMethod,
         referenceNumber: referenceNumber.trim(),
-        senderAccount: senderAccount.trim() || undefined,
-        receiverAccount: receiverAccount.trim() || undefined,
-        receiptImageUrl: receiptImageUrl.trim() || undefined,
-        notes: receiptNotes.trim() || undefined,
+        senderAccount: senderAccount.trim() || null,
+        receiverAccount: receiverAccount.trim() || null,
+        receiptImageUrl: receiptImageUrl.trim() || null,
+        notes: receiptNotes.trim() || null,
         status: "sent",
         sentByAdminId: adminData?.uid || "admin",
         sentByAdminEmail: adminData?.email || "admin@alfajr.org",
