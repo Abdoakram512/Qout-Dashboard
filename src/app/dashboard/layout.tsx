@@ -395,19 +395,20 @@ function NavItem({
       href={href}
       className={`sidebar-nav-item ${isActive ? "active active-selected" : ""}`}
     >
-      <div className="flex items-center gap-3.5 flex-1 min-w-0">
+      <div className="flex items-center gap-3 min-w-0 flex-1">
         <Icon
           className="nav-icon flex-shrink-0"
           style={{
-            width: 20,
-            height: 20,
+            width: 19,
+            height: 19,
             color: isActive ? "#FFFFFF" : "#64748B",
             stroke: isActive ? "#FFFFFF" : "currentColor",
           }}
         />
         <span
-          className="text-[14px] leading-tight font-extrabold whitespace-nowrap"
+          className="text-[13.5px] leading-tight font-extrabold truncate"
           style={{ color: isActive ? "#FFFFFF" : "#334155" }}
+          title={label}
         >
           {label}
         </span>
@@ -415,18 +416,9 @@ function NavItem({
 
       {badge !== undefined && badge > 0 && (
         <span
-          className={`sidebar-badge flex-shrink-0 ${
+          className={`sidebar-badge flex-shrink-0 ms-2 ${
             badgeColor === "amber" ? "amber" : "emerald"
           }`}
-          style={
-            isActive
-              ? {
-                  backgroundColor: "rgba(255, 255, 255, 0.25)",
-                  color: "#FFFFFF",
-                  borderColor: "rgba(255, 255, 255, 0.4)",
-                }
-              : undefined
-          }
         >
           {badge}
         </span>
@@ -532,7 +524,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       label: isAr ? "التشغيل والمتابعة" : "Operations",
       items: [
         { href: "/dashboard",           icon: LayoutDashboard, label: isAr ? "النظرة العامة"     : "Overview" },
-        { href: "/dashboard/analytics", icon: BarChart3,       label: isAr ? "التحليلات والتقارير المحاسبية" : "Analytics & Reports" },
+        { href: "/dashboard/analytics", icon: BarChart3,       label: isAr ? "التقارير والتحليلات" : "Reports & Analytics" },
       ],
     },
     {
@@ -667,7 +659,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       )}
 
       {/* Desktop Persistent Sidebar */}
-      <aside className="hidden lg:flex flex-col w-64 flex-shrink-0 bg-white border-e border-slate-200/80 shadow-xs h-screen sticky top-0 z-30">
+      <aside className="hidden lg:flex flex-col w-72 flex-shrink-0 bg-white border-e border-slate-200/80 shadow-xs h-screen sticky top-0 z-30">
         <SidebarInner />
       </aside>
 
@@ -678,7 +670,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             className="fixed inset-0 z-40 bg-slate-950/50 backdrop-blur-xs lg:hidden"
             onClick={() => setMobileOpen(false)}
           />
-          <aside className="fixed inset-y-0 start-0 z-50 w-72 bg-white flex flex-col shadow-2xl lg:hidden">
+          <aside className="fixed inset-y-0 start-0 z-50 w-80 bg-white flex flex-col shadow-2xl lg:hidden">
             <button
               onClick={() => setMobileOpen(false)}
               className="absolute top-4 end-4 p-2 rounded-xl bg-slate-100 text-slate-600 hover:bg-slate-200 transition-all z-10"
