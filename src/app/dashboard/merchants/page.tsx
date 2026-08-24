@@ -1,3 +1,4 @@
+import { compressImageFile } from "@/lib/imageCompressor";
 "use client";
 
 import React, { useState, useEffect } from "react";
@@ -207,8 +208,10 @@ export default function MerchantsPage() {
 
     setUploadingImg(true);
     try {
-      const storageRef = ref(storage, `payment_receipts/${Date.now()}_${file.name}`);
-      await uploadBytes(storageRef, file);
+      const compressedBlob = await compressImageFile(file, { maxWidth: 1200, maxHeight: 1200, quality: 0.8 });
+      const cleanName = file.name.replace(/\.[^/.]+$/, "").replace(/[^a-zA-Z0-9_-]/g, "_");
+      const storageRef = ref(storage, `payment_receipts/${Date.now()}_${cleanName}.jpg`);
+      await uploadBytes(storageRef, compressedBlob, { contentType: "image/jpeg" });
       const url = await getDownloadURL(storageRef);
       setReceiptImageUrl(url);
     } catch (err: any) {
@@ -293,6 +296,23 @@ export default function MerchantsPage() {
       };
 
       await setDoc(receiptRef, receiptData);
+
+      // Dispatch Real-time Notification Document
+      try {
+        const notifRef = doc(collection(db, "notifications"));
+        await setDoc(notifRef, {
+          id: notifRef.id,
+          userId: receiptMerchant.uid,
+          recipientRole: "merchant",
+          title: "إشعار تحويل مالي جديد 💳",
+          body: `تم إرسال إيصال تحويل بمبلغ ${receiptAmount.toLocaleString()} ج.م من الجمعية برقم مرجع: ${referenceNumber}`,
+          type: "payment_receipt",
+          referenceId: receiptRef.id,
+          amount: receiptAmount,
+          isRead: false,
+          timestamp: new Date().toISOString(),
+        });
+      } catch (_) {}
 
       if (adminData) {
         await logAuditEvent({

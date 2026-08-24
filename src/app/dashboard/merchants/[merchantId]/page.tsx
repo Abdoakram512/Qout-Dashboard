@@ -1,3 +1,4 @@
+import { compressImageFile } from "@/lib/imageCompressor";
 "use client";
 
 import React, { useState, useEffect } from "react";
@@ -70,6 +71,7 @@ export default function MerchantProfilePage() {
   const [redemptions, setRedemptions] = useState<RedemptionTransaction[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<"redemptions" | "allocations" | "receipts">("redemptions");
+  const [redemptionDateFilter, setRedemptionDateFilter] = useState<string>("all");
 
   // Allocation Modal
   const [showAllocModal, setShowAllocModal] = useState(false);
@@ -238,13 +240,15 @@ export default function MerchantProfilePage() {
 
     setUploadingImg(true);
     try {
-      const storageRef = ref(storage, `payment_receipts/${Date.now()}_${file.name}`);
-      await uploadBytes(storageRef, file);
+      const compressedBlob = await compressImageFile(file, { maxWidth: 1200, maxHeight: 1200, quality: 0.8 });
+      const cleanName = file.name.replace(/\.[^/.]+$/, "").replace(/[^a-zA-Z0-9_-]/g, "_");
+      const storageRef = ref(storage, `payment_receipts/${Date.now()}_${cleanName}.jpg`);
+      await uploadBytes(storageRef, compressedBlob, { contentType: "image/jpeg" });
       const url = await getDownloadURL(storageRef);
       setReceiptImageUrl(url);
     } catch (err: any) {
       console.error(err);
-      alert(isAr ? "فشل رفع الصورة" : "Failed to upload image");
+      alert(isAr ? "فشل رفع الصورة، يرجى المحاولة لاحقاً" : "Failed to upload image");
     } finally {
       setUploadingImg(false);
     }
@@ -324,6 +328,23 @@ export default function MerchantProfilePage() {
       };
 
       await setDoc(receiptRef, receiptData);
+
+      // Dispatch Real-time Notification Document
+      try {
+        const notifRef = doc(collection(db, "notifications"));
+        await setDoc(notifRef, {
+          id: notifRef.id,
+          userId: merchant.uid,
+          recipientRole: "merchant",
+          title: "إشعار تحويل مالي جديد 💳",
+          body: `تم إرسال إيصال تحويل بمبلغ ${receiptAmount.toLocaleString()} ج.م من الجمعية برقم مرجع: ${referenceNumber}`,
+          type: "payment_receipt",
+          referenceId: receiptRef.id,
+          amount: receiptAmount,
+          isRead: false,
+          timestamp: new Date().toISOString(),
+        });
+      } catch (_) {}
 
       if (adminData) {
         await logAuditEvent({
@@ -487,19 +508,66 @@ export default function MerchantProfilePage() {
           </div>
         </div>
 
-        {/* Financial KPI Cards */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mt-6 pt-6 border-t border-slate-100">
-          <div className="p-4 rounded-2xl bg-emerald-50/50 border border-emerald-200">
-            <span className="text-xs font-bold text-slate-500 block mb-1">{isAr ? "إجمالي الميزانية المخصصة" : "Total Allocated"}</span>
-            <p className="text-2xl font-black text-[#0A734D] font-mono">{allocated.toLocaleString()} {isAr ? "ج.م" : "EGP"}</p>
+        {/* Financial & Operational KPI Intelligence Cards */}
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 mt-6 pt-6 border-t border-slate-100">
+          {/* KPI 1: Total Allocated */}
+          <div className="p-3.5 rounded-2xl bg-emerald-50/60 border border-emerald-200/80">
+            <span className="text-[11px] font-bold text-slate-500 block mb-1">
+              {isAr ? "العهدة المخصصة" : "Total Allocated"}
+            </span>
+            <p className="text-xl font-black text-[#0A734D] font-mono">
+              {allocated.toLocaleString()} <span className="text-[10px] text-slate-400 font-bold">{isAr ? "ج.م" : "EGP"}</span>
+            </p>
           </div>
-          <div className="p-4 rounded-2xl bg-amber-50/50 border border-amber-200">
-            <span className="text-xs font-bold text-slate-500 block mb-1">{isAr ? "إجمالي المصروف للمستفيدين" : "Total Disbursed"}</span>
-            <p className="text-2xl font-black text-amber-700 font-mono">{spent.toLocaleString()} {isAr ? "ج.م" : "EGP"}</p>
+
+          {/* KPI 2: Total Disbursed */}
+          <div className="p-3.5 rounded-2xl bg-amber-50/60 border border-amber-200/80">
+            <span className="text-[11px] font-bold text-slate-500 block mb-1">
+              {isAr ? "المصروف الفعلي" : "Total Disbursed"}
+            </span>
+            <p className="text-xl font-black text-amber-700 font-mono">
+              {spent.toLocaleString()} <span className="text-[10px] text-slate-400 font-bold">{isAr ? "ج.م" : "EGP"}</span>
+            </p>
           </div>
-          <div className="p-4 rounded-2xl bg-blue-50/50 border border-blue-200">
-            <span className="text-xs font-bold text-slate-500 block mb-1">{isAr ? "السيولة المتبقية الجاهزة للصرف" : "Available Balance"}</span>
-            <p className="text-2xl font-black text-blue-700 font-mono">{remaining.toLocaleString()} {isAr ? "ج.م" : "EGP"}</p>
+
+          {/* KPI 3: Available Liquidity */}
+          <div className="p-3.5 rounded-2xl bg-blue-50/60 border border-blue-200/80">
+            <span className="text-[11px] font-bold text-slate-500 block mb-1">
+              {isAr ? "السيولة المتاحة" : "Available Liquidity"}
+            </span>
+            <p className="text-xl font-black text-blue-700 font-mono">
+              {remaining.toLocaleString()} <span className="text-[10px] text-slate-400 font-bold">{isAr ? "ج.م" : "EGP"}</span>
+            </p>
+          </div>
+
+          {/* KPI 4: Unique Beneficiaries */}
+          <div className="p-3.5 rounded-2xl bg-purple-50/60 border border-purple-200/80">
+            <span className="text-[11px] font-bold text-slate-500 block mb-1">
+              {isAr ? "المستفيدين المخدومين" : "Unique Beneficiaries"}
+            </span>
+            <p className="text-xl font-black text-purple-700 font-mono">
+              {new Set(redemptions.map((r) => r.beneficiaryId || r.cardId).filter(Boolean)).size} <span className="text-[10px] text-slate-400 font-bold">{isAr ? "مستفيد" : "users"}</span>
+            </p>
+          </div>
+
+          {/* KPI 5: Average Ticket Size */}
+          <div className="p-3.5 rounded-2xl bg-teal-50/60 border border-teal-200/80">
+            <span className="text-[11px] font-bold text-slate-500 block mb-1">
+              {isAr ? "متوسط العملية" : "Avg Ticket"}
+            </span>
+            <p className="text-xl font-black text-teal-700 font-mono">
+              {redemptions.length > 0 ? Math.round(spent / redemptions.length).toLocaleString() : 0} <span className="text-[10px] text-slate-400 font-bold">{isAr ? "ج.م" : "EGP"}</span>
+            </p>
+          </div>
+
+          {/* KPI 6: Confirmed Receipts vs Total */}
+          <div className="p-3.5 rounded-2xl bg-slate-50/80 border border-slate-200/80">
+            <span className="text-[11px] font-bold text-slate-500 block mb-1">
+              {isAr ? "تأكيدات الحوالات" : "Confirmed Receipts"}
+            </span>
+            <p className="text-xl font-black text-emerald-800 font-mono">
+              {receipts.filter((r) => r.status === "confirmed_by_merchant").length} / {receipts.length}
+            </p>
           </div>
         </div>
       </div>

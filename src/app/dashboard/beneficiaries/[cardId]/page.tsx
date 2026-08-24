@@ -1,3 +1,4 @@
+import { BeneficiaryMonthlyMatrix } from "@/components/beneficiaries/BeneficiaryMonthlyMatrix";
 "use client";
 
 import React, { useState, useEffect, useRef } from "react";
@@ -322,6 +323,14 @@ export default function BeneficiaryProfilePage() {
           </div>
         </div>
       </div>
+
+      {/* 12-Month Entitlement & Disbursement Matrix */}
+      <BeneficiaryMonthlyMatrix
+        card={card}
+        cashTxns={cashTxns}
+        basketDists={basketDists}
+        isAr={isAr}
+      />
 
       {/* History Sections */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">

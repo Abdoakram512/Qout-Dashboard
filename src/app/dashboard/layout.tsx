@@ -531,7 +531,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       label: isAr ? "إدارة البيانات والعمليات" : "Data & Operations",
       items: [
         { href: "/dashboard/beneficiaries",         icon: Users,       label: isAr ? "المستفيدون والكروت" : "Beneficiaries", badge: beneficiaryCount, badgeColor: "emerald" as const },
-        { href: "/dashboard/merchants",             icon: Store,       label: isAr ? "المنافذ والميزانيات" : "Merchants & Budgets", badge: merchantCount, badgeColor: "emerald" as const },
+        { href: "/dashboard/merchants", icon: Store, label: isAr ? "المنافذ والميزانيات" : "Merchants & Budgets", badge: merchantCount, badgeColor: "emerald" as const },
+        { href: "/dashboard/receipts", icon: ReceiptText, label: isAr ? "وصولات التحويلات" : "Payment Receipts" },
         { href: "/dashboard/disbursement-requests", icon: AlertCircle, label: isAr ? "طلبات الصرف الإضافي" : "Extra Disbursements", badge: pendingRequestsCount, badgeColor: "amber" as const },
         { href: "/dashboard/accounts",              icon: UserCheck,   label: isAr ? "الحسابات والاعتمادات" : "Accounts",      badge: pendingCount,     badgeColor: "amber" as const },
         { href: "/dashboard/transactions",          icon: ReceiptText, label: isAr ? "سجل العمليات"      : "Transactions" },
@@ -550,6 +551,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     if (path === "/dashboard/analytics") return isAr ? "مركز التحليلات والإقفال المالي" : "Analytics & Financial Close";
     if (path === "/dashboard/beneficiaries") return isAr ? "المستفيدون والكروت الإغاثية" : "Beneficiaries & Aid Cards";
     if (path.startsWith("/dashboard/beneficiaries/")) return isAr ? "ملف المستفيد الشامل (360°)" : "Beneficiary 360° Profile";
+    if (path === "/dashboard/receipts") return isAr ? "وصولات التحويلات وإشعارات الدفع" : "Payment Transfer Receipts";
     if (path === "/dashboard/merchants") return isAr ? "المنافذ والصرافون والميزانيات" : "Merchants & Liquidity";
     if (path.startsWith("/dashboard/merchants/")) return isAr ? "بروفايل الصراف والمحفظة المالية" : "Merchant Ledger & Profile";
     if (path === "/dashboard/disbursement-requests") return isAr ? "طلبات الصرف الإضافي والاستثنائي" : "Extra Disbursement Requests";
