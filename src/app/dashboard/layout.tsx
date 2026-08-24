@@ -394,16 +394,6 @@ function NavItem({
     <a
       href={href}
       className={`sidebar-nav-item ${isActive ? "active active-selected" : ""}`}
-      style={
-        isActive
-          ? {
-              backgroundColor: "#0A734D",
-              color: "#FFFFFF",
-              fontWeight: 800,
-              boxShadow: "0 4px 14px rgba(10, 115, 77, 0.32)",
-            }
-          : undefined
-      }
     >
       <div className="flex items-center gap-3.5 flex-1 min-w-0">
         <Icon

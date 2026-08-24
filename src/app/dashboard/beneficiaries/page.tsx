@@ -16,7 +16,7 @@ import * as XLSX from "xlsx";
 import {
   Users, Search, Globe, Download, FileSpreadsheet, Printer,
   QrCode, Edit, Edit3, X, PackageCheck, MapPin, CheckCircle2,
-  AlertCircle, ChevronDown, Sparkles, Filter, Home,
+  AlertCircle, ChevronDown, ChevronLeft, Sparkles, Filter, Home,
   Package, FileText, Plus, Minus, CreditCard, ShieldCheck, Coins,
   Clock, Layers, Gift, Phone, HeartHandshake,
 } from "lucide-react";
@@ -472,7 +472,8 @@ export default function BeneficiariesPage() {
 
       {/* Main Beneficiaries Table */}
       <div className="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
-        <div className="overflow-x-auto">
+        {/* ── DESKTOP VIEW: Full Data Table (Hidden on Mobile) ── */}
+        <div className="hidden md:block overflow-x-auto">
           <table className="w-full text-xs font-bold text-slate-800 text-start">
             <thead className="bg-slate-50 text-slate-700 border-b border-slate-200">
               <tr>
@@ -502,101 +503,244 @@ export default function BeneficiariesPage() {
                   </td>
                 </tr>
               ) : (
-                paginatedCards.map((c) => (
-                  <tr key={c.cardId} className="hover:bg-slate-50/80 transition-colors">
-                    {/* Card ID */}
-                    <td className="py-3.5 px-4 font-mono font-extrabold text-emerald-800">
-                      <Link href={`/dashboard/beneficiaries/${c.cardId}`} className="hover:underline flex items-center gap-1.5">
-                        <CreditCard className="w-3.5 h-3.5 text-emerald-600" />
-                        <span>{c.cardId}</span>
-                      </Link>
-                    </td>
+                paginatedCards.map((c) => {
+                  const quota = c.foodBasketsQuota || 0;
+                  const hasQuota = quota > 0;
+                  return (
+                    <tr key={c.cardId} className="hover:bg-slate-50/80 transition-colors">
+                      {/* Card ID */}
+                      <td className="py-3.5 px-4 font-mono font-extrabold text-emerald-800">
+                        <Link href={`/dashboard/beneficiaries/${c.cardId}`} className="hover:underline flex items-center gap-1.5">
+                          <CreditCard className="w-3.5 h-3.5 text-emerald-600" />
+                          <span>{c.cardId}</span>
+                        </Link>
+                      </td>
 
-                    {/* Beneficiary Name */}
-                    <td className="py-3.5 px-4">
-                      <div className="font-extrabold text-slate-900 text-xs">
-                        {c.beneficiaryName || "—"}
-                      </div>
-                      {c.socialStatus && (
-                        <span className="text-[10px] font-bold text-slate-400 block mt-0.5">
-                          {c.socialStatus} {c.familyCount ? `• ${c.familyCount} أفراد` : ""}
+                      {/* Beneficiary Name */}
+                      <td className="py-3.5 px-4">
+                        <div className="font-extrabold text-slate-900 text-xs">
+                          {c.beneficiaryName || "—"}
+                        </div>
+                        {c.socialStatus && (
+                          <span className="text-[10px] font-bold text-slate-400 block mt-0.5">
+                            {c.socialStatus} {c.familyCount ? `• ${c.familyCount} أفراد` : ""}
+                          </span>
+                        )}
+                      </td>
+
+                      {/* National ID */}
+                      <td className="py-3.5 px-4 font-mono text-slate-700 font-bold">
+                        {formatId(c.nationalId)}
+                      </td>
+
+                      {/* Masculine Nationality */}
+                      <td className="py-3.5 px-4 font-bold text-slate-700">
+                        {normalizeNationality(c.nationality)}
+                      </td>
+
+                      {/* Financial Balance */}
+                      <td className="py-3.5 px-4 font-mono font-extrabold text-[#0A734D]">
+                        {(c.balance || 0).toLocaleString()} {isAr ? "ج.م" : "EGP"}
+                      </td>
+
+                      {/* Food Baskets Quota */}
+                      <td className="py-3.5 px-4 font-bold">
+                        <span className="px-2.5 py-1 rounded-full bg-amber-100 text-amber-900 border border-amber-300 font-mono text-xs font-bold">
+                          {quota} {isAr ? "سلة" : "bsk"}
                         </span>
-                      )}
-                    </td>
+                      </td>
 
-                    {/* National ID */}
-                    <td className="py-3.5 px-4 font-mono text-slate-700 font-bold">
-                      {formatId(c.nationalId)}
-                    </td>
-
-                    {/* Masculine Nationality */}
-                    <td className="py-3.5 px-4 font-bold text-slate-700">
-                      {normalizeNationality(c.nationality)}
-                    </td>
-
-                    {/* Financial Balance */}
-                    <td className="py-3.5 px-4 font-mono font-extrabold text-[#0A734D]">
-                      {(c.balance || 0).toLocaleString()} {isAr ? "ج.م" : "EGP"}
-                    </td>
-
-                    {/* Food Baskets Quota */}
-                    <td className="py-3.5 px-4 font-bold">
-                      <span className="px-2.5 py-1 rounded-full bg-amber-100 text-amber-900 border border-amber-300 font-mono text-xs">
-                        {c.foodBasketsQuota || 0} {isAr ? "سلة" : "bsk"}
-                      </span>
-                    </td>
-
-                    {/* Status */}
-                    <td className="py-3.5 px-4">
-                      <span
-                        className={`badge font-bold text-[10px] ${
-                          c.status === "active"
-                            ? "bg-emerald-100 text-emerald-800 border-emerald-300"
-                            : c.status === "frozen"
-                            ? "bg-blue-100 text-blue-800 border-blue-300"
-                            : "bg-slate-100 text-slate-700 border-slate-300"
-                        }`}
-                      >
-                        {c.status === "active" ? (isAr ? "نشط" : "Active") : c.status === "frozen" ? (isAr ? "مجمد" : "Frozen") : (isAr ? "منتهي" : "Expired")}
-                      </span>
-                    </td>
-
-                    {/* Action Buttons */}
-                    <td className="py-3.5 px-4 text-end">
-                      <div className="flex items-center justify-end gap-1.5">
-                        {/* Handover Basket Button */}
-                        <button
-                          onClick={() => handleOpenDistributeModal(c)}
-                          className="btn btn-xs bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-300 font-bold p-1.5 rounded-lg"
-                          title={isAr ? "تسليم سلال غذائية من الإدارة" : "Handover Baskets"}
+                      {/* Status */}
+                      <td className="py-3.5 px-4">
+                        <span
+                          className={`badge font-bold text-[10px] ${
+                            c.status === "active"
+                              ? "bg-emerald-100 text-emerald-800 border-emerald-300"
+                              : c.status === "frozen"
+                              ? "bg-blue-100 text-blue-800 border-blue-300"
+                              : "bg-slate-100 text-slate-700 border-slate-300"
+                          }`}
                         >
-                          <PackageCheck className="w-3.5 h-3.5" />
-                        </button>
+                          {c.status === "active" ? (isAr ? "نشط" : "Active") : c.status === "frozen" ? (isAr ? "مجمد" : "Frozen") : (isAr ? "منتهي" : "Expired")}
+                        </span>
+                      </td>
 
-                        {/* Edit Button */}
-                        <button
-                          onClick={() => openEditModal(c)}
-                          className="btn btn-xs btn-secondary p-1.5 rounded-lg text-slate-700 hover:bg-slate-100"
-                          title={isAr ? "تعديل بيانات المستفيد" : "Edit Beneficiary"}
-                        >
-                          <Edit className="w-3.5 h-3.5 text-emerald-700" />
-                        </button>
+                      {/* Action Buttons */}
+                      <td className="py-3.5 px-4 text-end">
+                        <div className="flex items-center justify-end gap-1.5">
+                          {/* Restored Prominent Basket Handover Button */}
+                          <button
+                            onClick={() => handleOpenDistributeModal(c)}
+                            disabled={!hasQuota}
+                            className="btn btn-xs bg-amber-500 hover:bg-amber-600 active:bg-amber-700 disabled:opacity-35 disabled:hover:bg-amber-500 text-white font-black px-2.5 py-1.5 rounded-lg flex items-center gap-1.5 shadow-xs transition-all disabled:cursor-not-allowed cursor-pointer"
+                            title={
+                              !hasQuota
+                                ? (isAr ? "لا توجد حصص سلال متبقية للتسليم" : "No basket quota remaining")
+                                : (isAr ? "تسليم سلة غذائية (الإدارة)" : "Handover Food Basket")
+                            }
+                          >
+                            <PackageCheck className="w-3.5 h-3.5" />
+                            <span className="hidden xl:inline">{isAr ? "تسليم سلة" : "Deliver"}</span>
+                          </button>
 
-                        {/* QR Code Button */}
-                        <button
-                          onClick={() => setActiveCard(c)}
-                          className="btn btn-xs btn-secondary p-1.5 rounded-lg text-slate-700 hover:bg-slate-100"
-                          title={isAr ? "عرض رمز QR" : "Show QR"}
-                        >
-                          <QrCode className="w-3.5 h-3.5" />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))
+                          {/* Edit Button */}
+                          <button
+                            onClick={() => openEditModal(c)}
+                            className="btn btn-xs btn-secondary p-1.5 rounded-lg text-slate-700 hover:bg-slate-100"
+                            title={isAr ? "تعديل بيانات المستفيد" : "Edit Beneficiary"}
+                          >
+                            <Edit className="w-3.5 h-3.5 text-emerald-700" />
+                          </button>
+
+                          {/* QR Code Button */}
+                          <button
+                            onClick={() => setActiveCard(c)}
+                            className="btn btn-xs btn-secondary p-1.5 rounded-lg text-slate-700 hover:bg-slate-100"
+                            title={isAr ? "عرض رمز QR" : "Show QR"}
+                          >
+                            <QrCode className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })
               )}
             </tbody>
           </table>
+        </div>
+
+        {/* ── MOBILE VIEW: Dedicated Beneficiary Cards (No Horizontal Scrolling) ── */}
+        <div className="block md:hidden p-3.5 space-y-3 bg-slate-50/50">
+          {loading ? (
+            <div className="py-16 text-center text-slate-400 font-bold bg-white rounded-2xl border border-slate-200">
+              <div className="w-7 h-7 border-2 border-emerald-600 border-t-transparent rounded-full animate-spin mx-auto mb-2" />
+              <span>{isAr ? "جاري تحميل بيانات المستفيدين..." : "Loading..."}</span>
+            </div>
+          ) : paginatedCards.length === 0 ? (
+            <div className="py-14 text-center text-slate-400 font-bold bg-white rounded-2xl border border-slate-200 p-4">
+              <Users className="w-10 h-10 mx-auto mb-2 text-slate-300" />
+              <span>{isAr ? "لا توجد نتائج مطابقة للبحث أو الفلتر" : "No matching beneficiaries"}</span>
+            </div>
+          ) : (
+            paginatedCards.map((c) => {
+              const quota = c.foodBasketsQuota || 0;
+              const hasQuota = quota > 0;
+              return (
+                <div
+                  key={c.cardId}
+                  className="p-4 rounded-2xl bg-white border border-slate-200 shadow-xs space-y-3"
+                >
+                  {/* Top Row: Name + Status */}
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="min-w-0 flex-1">
+                      <Link
+                        href={`/dashboard/beneficiaries/${c.cardId}`}
+                        className="text-sm font-extrabold text-slate-900 hover:text-emerald-700 transition-colors line-clamp-1 flex items-center gap-1.5"
+                      >
+                        <span>{c.beneficiaryName || "—"}</span>
+                        <ChevronLeft className="w-3.5 h-3.5 text-slate-400 shrink-0 rtl:rotate-0 ltr:rotate-180" />
+                      </Link>
+                      <div className="flex items-center gap-2 mt-1 text-[11px] font-bold text-slate-500 flex-wrap">
+                        <span className="font-mono text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200 font-extrabold">
+                          {c.cardId}
+                        </span>
+                        <span>•</span>
+                        <span className="font-mono text-slate-600">{formatId(c.nationalId)}</span>
+                      </div>
+                    </div>
+
+                    {/* Status Badge */}
+                    <span
+                      className={`badge font-bold text-[10px] shrink-0 ${
+                        c.status === "active"
+                          ? "bg-emerald-100 text-emerald-800 border-emerald-300"
+                          : c.status === "frozen"
+                          ? "bg-blue-100 text-blue-800 border-blue-300"
+                          : "bg-slate-100 text-slate-700 border-slate-300"
+                      }`}
+                    >
+                      {c.status === "active" ? (isAr ? "نشط" : "Active") : c.status === "frozen" ? (isAr ? "مجمد" : "Frozen") : (isAr ? "منتهي" : "Expired")}
+                    </span>
+                  </div>
+
+                  {/* Sub-info Row: Nationality & Residence & Family */}
+                  <div className="grid grid-cols-2 gap-2 text-xs font-semibold text-slate-600 bg-slate-50 p-2.5 rounded-xl border border-slate-100">
+                    <div className="flex items-center gap-1.5 min-w-0">
+                      <Globe className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                      <span className="truncate">{normalizeNationality(c.nationality)}</span>
+                    </div>
+                    <div className="flex items-center gap-1.5 min-w-0">
+                      <Home className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                      <span className="truncate">{c.residence || (isAr ? "غير محدد" : "N/A")}</span>
+                    </div>
+                    {c.socialStatus && (
+                      <div className="col-span-2 flex items-center justify-between text-[11px] text-slate-500 pt-1.5 border-t border-slate-200/70 font-bold">
+                        <span>{c.socialStatus}</span>
+                        <span>{c.familyCount || 1} {isAr ? "أفراد" : "members"}</span>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Balances Grid: Cash Balance & Baskets Quota */}
+                  <div className="grid grid-cols-2 gap-2">
+                    {/* Cash Balance */}
+                    <div className="bg-emerald-50/70 border border-emerald-200 rounded-xl p-2.5 flex flex-col justify-between">
+                      <span className="text-[10px] font-bold text-emerald-800 flex items-center gap-1">
+                        <Coins className="w-3 h-3 text-emerald-600" />
+                        <span>{isAr ? "الرصيد المالي" : "Cash Balance"}</span>
+                      </span>
+                      <p className="text-base font-black text-[#0A734D] font-mono mt-1">
+                        {(c.balance || 0).toLocaleString()} <span className="text-xs font-sans font-bold">{isAr ? "ج.م" : "EGP"}</span>
+                      </p>
+                    </div>
+
+                    {/* Baskets Quota */}
+                    <div className="bg-amber-50/70 border border-amber-200 rounded-xl p-2.5 flex flex-col justify-between">
+                      <span className="text-[10px] font-bold text-amber-900 flex items-center gap-1">
+                        <Package className="w-3 h-3 text-amber-600" />
+                        <span>{isAr ? "حصة السلال" : "Baskets Quota"}</span>
+                      </span>
+                      <p className="text-base font-black text-amber-900 font-mono mt-1">
+                        {quota} <span className="text-xs font-sans font-bold">{isAr ? "سلة" : "bsk"}</span>
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Mobile Action Bar */}
+                  <div className="pt-2 border-t border-slate-100 flex items-center gap-2">
+                    {/* Prominent Golden Basket Button */}
+                    <button
+                      onClick={() => handleOpenDistributeModal(c)}
+                      disabled={!hasQuota}
+                      className="flex-1 btn btn-sm bg-amber-500 hover:bg-amber-600 active:bg-amber-700 disabled:opacity-35 disabled:hover:bg-amber-500 text-white font-black py-2.5 rounded-xl flex items-center justify-center gap-1.5 shadow-xs transition-all disabled:cursor-not-allowed cursor-pointer text-xs"
+                    >
+                      <PackageCheck className="w-4 h-4" />
+                      <span>{isAr ? "تسليم سلة" : "Deliver Basket"}</span>
+                    </button>
+
+                    {/* Edit Button */}
+                    <button
+                      onClick={() => openEditModal(c)}
+                      className="btn btn-sm btn-secondary p-2.5 rounded-xl text-emerald-800 hover:bg-emerald-50 border-slate-200"
+                      title={isAr ? "تعديل البيانات" : "Edit"}
+                    >
+                      <Edit className="w-4 h-4 text-emerald-700" />
+                    </button>
+
+                    {/* QR Code Button */}
+                    <button
+                      onClick={() => setActiveCard(c)}
+                      className="btn btn-sm btn-secondary p-2.5 rounded-xl text-slate-700 hover:bg-slate-100 border-slate-200"
+                      title={isAr ? "عرض رمز QR" : "QR Code"}
+                    >
+                      <QrCode className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
+              );
+            })
+          )}
         </div>
 
         {/* Pagination Footer */}
@@ -623,7 +767,7 @@ export default function BeneficiariesPage() {
         )}
       </div>
 
-            {/* ── MODALS (Modular Components) ── */}
+      {/* ── MODALS (Modular Components) ── */}
       <DistributeBasketModal
         isOpen={Boolean(distributeCard && mounted)}
         onClose={() => setDistributeCard(null)}

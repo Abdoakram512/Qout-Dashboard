@@ -254,7 +254,7 @@ kbd {
   align-items: center;
   justify-content: space-between;
   padding: 11px 16px;
-  border-radius: var(--r-lg);
+  border-radius: 14px;
   font-size: 14px;
   font-weight: 700;
   font-family: var(--font-primary);
@@ -263,6 +263,8 @@ kbd {
   cursor: pointer;
   text-decoration: none;
   gap: 10px;
+  position: relative;
+  overflow: hidden;
 }
 .sidebar-nav-item:hover {
   background: #F0FDF4;
@@ -273,13 +275,25 @@ kbd {
   stroke: #0A734D;
 }
 
-/* Active State: Pure White Icon and Pure White Text */
+/* Active State: Royal Emerald Gradient with Amber Accent Line & Crisp White Content */
 .sidebar-nav-item.active,
 .sidebar-nav-item.active-selected {
-  background-color: #0A734D !important;
+  background: linear-gradient(135deg, #0A734D 0%, #064E3B 100%) !important;
   color: #FFFFFF !important;
   font-weight: 800 !important;
-  box-shadow: 0 4px 14px rgba(10, 115, 77, 0.32) !important;
+  box-shadow: 0 4px 14px rgba(10, 115, 77, 0.28) !important;
+}
+.sidebar-nav-item.active::before,
+.sidebar-nav-item.active-selected::before {
+  content: "";
+  position: absolute;
+  inset-inline-start: 0;
+  top: 6px;
+  bottom: 6px;
+  width: 4px;
+  border-radius: 4px;
+  background-color: #F59E0B;
+  box-shadow: 0 0 8px rgba(245, 158, 11, 0.6);
 }
 .sidebar-nav-item.active span,
 .sidebar-nav-item.active-selected span {
