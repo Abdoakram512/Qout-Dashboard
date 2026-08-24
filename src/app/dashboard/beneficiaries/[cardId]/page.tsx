@@ -163,7 +163,7 @@ export default function BeneficiaryProfilePage() {
         phone: editPhone.trim(),
         nationality: editNationality,
         socialStatus: editSocialStatus.trim() || null,
-        balance: editBalance,
+        balance: editBalance, totalBalance: editBalance,
         foodBasketsQuota: editQuota,
         familyCount: editFamilyCount,
         residence: editResidence.trim() || null,
@@ -191,7 +191,7 @@ export default function BeneficiaryProfilePage() {
           action: "update_card_balance",
           targetId: card.cardId,
           targetType: "aid_card",
-          details: JSON.stringify({ name: editName, balance: editBalance, quota: editQuota, status: editStatus }),
+          details: JSON.stringify({ name: editName, balance: editBalance, totalBalance: editBalance, quota: editQuota, status: editStatus }),
         });
       }
 
@@ -562,3 +562,4 @@ export default function BeneficiaryProfilePage() {
     </div>
   );
 }
+
