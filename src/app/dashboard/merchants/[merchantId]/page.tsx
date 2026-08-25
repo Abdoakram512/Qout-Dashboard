@@ -602,7 +602,7 @@ export default function MerchantProfilePage() {
               {isAr ? "تأكيدات الحوالات" : "Confirmed Receipts"}
             </span>
             <p className="text-xl font-black text-emerald-800 font-mono">
-              {receipts.filter((r) => r.status === "confirmed_by_merchant").length} / {receipts.length}
+              {receipts.filter((r) => (r.status === "confirmed_by_merchant" || r.status === "confirmed" || r.isConfirmed === true)).length} / {receipts.length}
             </p>
           </div>
         </div>

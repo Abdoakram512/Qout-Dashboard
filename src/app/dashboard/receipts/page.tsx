@@ -122,9 +122,9 @@ export default function PaymentReceiptsPage() {
 
       // 3. Status Filter
       if (statusFilter === "confirmed") {
-        if (r.status !== "confirmed_by_merchant") return false;
+        if (!(r.status === "confirmed_by_merchant" || r.status === "confirmed" || r.isConfirmed === true)) return false;
       } else if (statusFilter === "pending") {
-        if (r.status === "confirmed_by_merchant") return false;
+        if ((r.status === "confirmed_by_merchant" || r.status === "confirmed" || r.isConfirmed === true)) return false;
       }
 
       // 4. Date Range Filter
@@ -165,13 +165,13 @@ export default function PaymentReceiptsPage() {
 
   const totalAmountConfirmed = useMemo(() => {
     return filteredReceipts
-      .filter((r) => r.status === "confirmed_by_merchant")
+      .filter((r) => (r.status === "confirmed_by_merchant" || r.status === "confirmed" || r.isConfirmed === true))
       .reduce((sum, r) => sum + (r.amount || 0), 0);
   }, [filteredReceipts]);
 
   const totalAmountPending = useMemo(() => {
     return filteredReceipts
-      .filter((r) => r.status !== "confirmed_by_merchant")
+      .filter((r) => !(r.status === "confirmed_by_merchant" || r.status === "confirmed" || r.isConfirmed === true))
       .reduce((sum, r) => sum + (r.amount || 0), 0);
   }, [filteredReceipts]);
 
@@ -252,7 +252,7 @@ export default function PaymentReceiptsPage() {
             <span className="text-xs font-bold text-slate-400">{isAr ? "ج.م" : "EGP"}</span>
           </div>
           <span className="text-[11px] font-bold text-emerald-600 mt-2">
-            {filteredReceipts.filter((r) => r.status === "confirmed_by_merchant").length} {isAr ? "إيصال تم تأكيده" : "confirmed"}
+            {filteredReceipts.filter((r) => (r.status === "confirmed_by_merchant" || r.status === "confirmed" || r.isConfirmed === true)).length} {isAr ? "إيصال تم تأكيده" : "confirmed"}
           </span>
         </div>
 
@@ -273,7 +273,7 @@ export default function PaymentReceiptsPage() {
             <span className="text-xs font-bold text-slate-400">{isAr ? "ج.م" : "EGP"}</span>
           </div>
           <span className="text-[11px] font-bold text-amber-600 mt-2">
-            {filteredReceipts.filter((r) => r.status !== "confirmed_by_merchant").length} {isAr ? "بانتظار المراجعة" : "pending"}
+            {filteredReceipts.filter((r) => !(r.status === "confirmed_by_merchant" || r.status === "confirmed" || r.isConfirmed === true)).length} {isAr ? "بانتظار المراجعة" : "pending"}
           </span>
         </div>
 
@@ -291,7 +291,7 @@ export default function PaymentReceiptsPage() {
             <span className="text-2xl font-black font-mono text-slate-900">
               {filteredReceipts.length > 0
                 ? Math.round(
-                    (filteredReceipts.filter((r) => r.status === "confirmed_by_merchant").length /
+                    (filteredReceipts.filter((r) => (r.status === "confirmed_by_merchant" || r.status === "confirmed" || r.isConfirmed === true)).length /
                       filteredReceipts.length) *
                       100
                   )
@@ -443,7 +443,7 @@ export default function PaymentReceiptsPage() {
                 {filteredReceipts.map((r) => {
                   const mBadge = getMethodBadge(r.paymentMethod);
                   const IconComp = mBadge.icon;
-                  const isConfirmed = r.status === "confirmed_by_merchant";
+                  const isConfirmed = r.status === "confirmed_by_merchant" || r.status === "confirmed" || r.isConfirmed === true;
 
                   return (
                     <tr key={r.receiptId || r.id} className="hover:bg-slate-50/60 transition-colors">

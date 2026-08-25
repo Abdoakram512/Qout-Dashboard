@@ -130,7 +130,8 @@ export interface PaymentReceipt {
   senderAccountOrPhone?: string | null;
   receiverAccountOrPhone?: string | null;
   receiptImageUrl?: string | null;
-  status?: "sent" | "confirmed_by_merchant" | "disputed" | "pending_merchant_confirmation";
+  status?: "sent" | "confirmed_by_merchant" | "confirmed" | "disputed" | "pending_merchant_confirmation" | string;
+  isConfirmed?: boolean;
   confirmedAt?: any;
   sentBy?: {
     adminId: string;

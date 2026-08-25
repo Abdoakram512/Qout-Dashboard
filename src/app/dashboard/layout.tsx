@@ -490,7 +490,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       snap.docChanges().forEach((change) => {
         if (change.type === "added" || change.type === "modified") {
           const rData = change.doc.data();
-          if (rData.status === "confirmed_by_merchant") {
+          if (rData.status === "confirmed_by_merchant" || rData.status === "confirmed" || rData.isConfirmed === true) {
             // Trigger audio sound and browser desktop notification
             notificationService.notify(
               isAr ? "تأكيد استلام حوالة من الصراف ✅" : "Merchant Confirmed Receipt ✅",
