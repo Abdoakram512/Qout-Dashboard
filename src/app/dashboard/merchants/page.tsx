@@ -1,6 +1,6 @@
 "use client";
 
-import { compressImageFile } from "@/lib/imageCompressor";
+import { compressImageFile, compressImageToDataUrl } from "@/lib/imageCompressor";
 import React, { useState, useEffect } from "react";
 import { db, storage } from "@/lib/firebase";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
@@ -201,24 +201,43 @@ export default function MerchantsPage() {
     }
   };
 
-  // Handle Image Upload for Payment Receipt
+  // Handle Image Upload for Payment Receipt (Instant Preview + Resilient Upload)
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
     setUploadingImg(true);
     try {
-      const compressedBlob = await compressImageFile(file, { maxWidth: 1200, maxHeight: 1200, quality: 0.8 });
-      const cleanName = file.name.replace(/\.[^/.]+$/, "").replace(/[^a-zA-Z0-9_-]/g, "_");
-      const storageRef = ref(storage, `payment_receipts/${Date.now()}_${cleanName}.jpg`);
-      await uploadBytes(storageRef, compressedBlob, { contentType: "image/jpeg" });
-      const url = await getDownloadURL(storageRef);
-      setReceiptImageUrl(url);
+      // 1. Instant local compression into Base64 Data URL (rendered in < 50ms)
+      const dataUrl = await compressImageToDataUrl(file, { maxWidth: 900, maxHeight: 900, quality: 0.7 });
+      setReceiptImageUrl(dataUrl);
+
+      // 2. Try background upload to Firebase Storage with strict 3.5s timeout
+      try {
+        const compressedBlob = await compressImageFile(file, { maxWidth: 900, maxHeight: 900, quality: 0.7 });
+        const cleanName = file.name.replace(/\.[^/.]+$/, "").replace(/[^a-zA-Z0-9_-]/g, "_");
+        const storageRef = ref(storage, `payment_receipts/${Date.now()}_${cleanName}.jpg`);
+
+        const uploadTask = uploadBytes(storageRef, compressedBlob, { contentType: "image/jpeg" })
+          .then(() => getDownloadURL(storageRef));
+
+        const timeoutPromise = new Promise<string>((_, reject) =>
+          setTimeout(() => reject(new Error("Storage upload timeout")), 3500)
+        );
+
+        const storageUrl = await Promise.race([uploadTask, timeoutPromise]);
+        if (storageUrl) {
+          setReceiptImageUrl(storageUrl);
+        }
+      } catch (storageErr) {
+        console.warn("Storage upload bypassed/timed out, continuing with Base64 Data URL:", storageErr);
+      }
     } catch (err: any) {
       console.error(err);
-      alert(isAr ? "فشل رفع الصورة، يرجى المحاولة لاحقاً" : "Failed to upload image");
+      alert(isAr ? "فشل معالجة الصورة، يرجى المحاولة لاحقاً" : "Failed to process image");
     } finally {
       setUploadingImg(false);
+      e.target.value = "";
     }
   };
 
