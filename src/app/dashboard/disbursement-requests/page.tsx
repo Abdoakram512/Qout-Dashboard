@@ -4,7 +4,7 @@ import { arabicMatch } from "@/lib/arabicNormalizer";
 import React, { useState, useEffect } from "react";
 import { db } from "@/lib/firebase";
 import {
-  collection, query, onSnapshot, doc, updateDoc,
+  collection, query, onSnapshot, doc, updateDoc, setDoc,
   serverTimestamp, orderBy,
 } from "firebase/firestore";
 import { useI18n } from "@/lib/i18n";
@@ -96,6 +96,23 @@ export default function DisbursementRequestsPage() {
         },
         reviewedAt: serverTimestamp(),
       });
+
+      // Dispatch Real-time Notification Document to Merchant
+      try {
+        const notifRef = doc(collection(db, "notifications"));
+        await setDoc(notifRef, {
+          id: notifRef.id,
+          userId: req.merchantId,
+          recipientRole: "merchant",
+          title: "تمت الموافقة على الصرف الاستثنائي ✅",
+          body: `وافقت الإدارة على صرف مبلغ إضافي (${req.requestedAmount?.toLocaleString()} ج.م) للكارت: ${req.cardId}`,
+          type: "extra_disbursement_response",
+          referenceId: req.id,
+          amount: req.requestedAmount,
+          isRead: false,
+          timestamp: new Date().toISOString(),
+        });
+      } catch (_) {}
       showToast(`تمت الموافقة واعتماد صرف مبلغ إضافي (${req.requestedAmount?.toLocaleString()} ج.م) بنجاح ✅`);
     } catch (e) {
       console.error(e);
@@ -120,6 +137,22 @@ export default function DisbursementRequestsPage() {
         },
         reviewedAt: serverTimestamp(),
       });
+
+      // Dispatch Real-time Notification Document to Merchant
+      try {
+        const notifRef = doc(collection(db, "notifications"));
+        await setDoc(notifRef, {
+          id: notifRef.id,
+          userId: rejectingReq.merchantId,
+          recipientRole: "merchant",
+          title: "تم رفض طلب الصرف الاستثنائي ❌",
+          body: `تم رفض طلب الصرف للكارت ${rejectingReq.cardId}. السبب: ${rejectionReason.trim() || "غير مطابق للضوابط"}`,
+          type: "extra_disbursement_response",
+          referenceId: rejectingReq.id,
+          isRead: false,
+          timestamp: new Date().toISOString(),
+        });
+      } catch (_) {}
       showToast("تم رفض الطلب وتوثيق السبب وإشعار الصراف ❌");
       setRejectingReq(null);
       setRejectionReason("");

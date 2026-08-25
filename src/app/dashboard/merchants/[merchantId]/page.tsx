@@ -296,6 +296,23 @@ export default function MerchantProfilePage() {
         allocatedBudget: increment(allocAmount),
       });
 
+      // Dispatch Real-time Notification Document to Merchant
+      try {
+        const notifRef = doc(collection(db, "notifications"));
+        await setDoc(notifRef, {
+          id: notifRef.id,
+          userId: merchant.uid,
+          recipientRole: "merchant",
+          title: "تم شحن العهدة المالية 💰",
+          body: `تمت إضافة مبلغ ${allocAmount.toLocaleString()} ج.م إلى رصيد عهدتك المعتمدة بنجاح`,
+          type: "budget_allocated",
+          referenceId: allocationRef.id,
+          amount: allocAmount,
+          isRead: false,
+          timestamp: new Date().toISOString(),
+        });
+      } catch (_) {}
+
       if (adminData) {
         await logAuditEvent({
           adminId: adminData.uid,
