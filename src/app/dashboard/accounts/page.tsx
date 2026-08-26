@@ -363,7 +363,7 @@ export default function AccountsPage() {
                   : "كشف الحسابات المعلقة بانتظار الاعتماد";
               printAccountsReport(filteredUsers, `${tabTitle} ${search ? `(بحث: ${search})` : ""}`);
             }}
-            className="btn btn-sm bg-slate-900 hover:bg-slate-800 text-white font-black text-xs px-3.5 py-2.5 rounded-xl flex items-center gap-2 shadow-xs transition-all cursor-pointer"
+            className="btn btn-sm bg-gradient-to-r from-[#0A734D] to-[#064e3b] hover:from-[#085a3c] hover:to-[#043327] text-white font-black text-xs px-4 py-2.5 rounded-xl flex items-center gap-2 shadow-md shadow-emerald-950/15 border border-emerald-500/30 transition-all cursor-pointer hover:scale-[1.02] active:scale-[0.98]"
             title={isAr ? "طباعة كشف الحسابات المعروضة بناءً على الفلتر الحالي" : "Print Accounts Statement"}
           >
             <Printer className="w-4 h-4 text-emerald-400" />

@@ -1,6 +1,11 @@
 import * as XLSX from "xlsx";
 import { AidCardModel, UserModel } from "@/types";
 
+function cleanId(raw: any): string {
+  if (!raw) return "—";
+  return raw.toString().trim().replace(/\s+/g, "");
+}
+
 function parseDateStr(raw: any): string {
   if (!raw) return "—";
   try {
@@ -27,8 +32,8 @@ export function exportBeneficiariesToExcel(cards: AidCardModel[], filename = "ك
   const data = cards.map((c, index) => ({
     "م": index + 1,
     "اسم المستفيد": c.beneficiaryName || "—",
-    "رقم البطاقة": c.cardId || "—",
-    "الرقم القومي / الإقامة": c.nationalId || "—",
+    "رقم البطاقة": cleanId(c.cardId),
+    "الرقم القومي / الإقامة": cleanId(c.nationalId),
     "الجنسية": c.nationality || "مصرية",
     "محل الإقامة / المدينة": c.residence || "—",
     "عدد أفراد الأسرة": c.familyCount || 1,
@@ -50,9 +55,9 @@ export function exportMerchantsToExcel(merchants: UserModel[], filename = "كش�
     "اسم المتجر / المنفذ": m.storeName || m.name || "—",
     "اسم المسؤول": m.name || "—",
     "البريد الإلكتروني": m.email || "—",
-    "رقم الهاتف": m.phone || "—",
+    "رقم الهاتف": cleanId(m.phone),
     "المدينة": m.city || "—",
-    "السجل التجاري": m.commercialReg || "—",
+    "السجل التجاري": cleanId(m.commercialReg),
     "العهدة المعتمدة (ج.م)": m.allocatedBudget || 0,
     "إجمالي المصروف (ج.م)": m.totalDisbursed || 0,
     "الحالة": m.isActive ? "معتمد ونشط" : "قيد المراجعة",
@@ -68,9 +73,9 @@ export function exportMerchantsToExcel(merchants: UserModel[], filename = "كش�
 export function exportTransactionsToExcel(transactions: any[], filename = "سجل_العمليات_المالية_مؤسسة_الفجر") {
   const data = transactions.map((t, index) => ({
     "م": index + 1,
-    "رقم المعاملة": t.id || t.transactionId || t.receiptNumber || "—",
+    "رقم المعاملة": cleanId(t.id || t.transactionId || t.receiptNumber),
     "اسم المستفيد": t.beneficiaryName || "—",
-    "رقم البطاقة": t.cardId || "—",
+    "رقم البطاقة": cleanId(t.cardId),
     "المنفذ / المتجر": t.merchantStoreName || t.merchantName || t.distributionCenter || "—",
     "المبلغ المصروف (ج.م)": (t.amountDeducted ?? t.amount ?? t.totalAmount ?? 0),
     "السلال المصروفة": (t.foodBasketsDeducted ?? t.basketsCount ?? 0),
@@ -90,10 +95,10 @@ export function exportAccountsToExcel(users: UserModel[], filterName = "جميع
     "م": index + 1,
     "اسم المستخدم / المنفذ": u.name || u.storeName || "—",
     "البريد الإلكتروني": u.email || "—",
-    "رقم الهاتف": u.phone || "—",
+    "رقم الهاتف": cleanId(u.phone),
     "نوع الحساب": u.role === "merchant" ? "صراف معتمد" : u.role === "admin" ? "مشرف إداري" : u.role === "volunteer" ? "متطوع" : "مستفيد",
-    "رقم الكارت الذكي": u.activeCardId || "—",
-    "الرقم القومي / الإقامة": u.nationalId || "—",
+    "رقم الكارت الذكي": cleanId(u.activeCardId),
+    "الرقم القومي / الإقامة": cleanId(u.nationalId),
     "المدينة / المحافظة": u.city || u.residence || "القاهرة",
     "حالة الحساب": u.isApproved === false ? "معلق بانتظار الاعتماد" : u.isActive ? "نشط ومفعل" : "معطل",
     "تاريخ التسجيل": parseDateStr(u.createdAt),
@@ -109,24 +114,30 @@ export function printAccountsReport(users: UserModel[], filterTitle = "كافة 
   const printWindow = window.open("", "_blank");
   if (!printWindow) return;
 
-  const rowsHtml = users.map((u, idx) => `
-    <tr>
-      <td style="text-align: center; font-weight: bold;">${idx + 1}</td>
-      <td style="font-weight: bold;">${u.name || "—"}${u.storeName ? `<br/><small style="color: #666;">(${u.storeName})</small>` : ""}</td>
-      <td style="direction: ltr; font-family: monospace; font-size: 11px; text-align: left;">${u.email || "—"}</td>
-      <td style="text-align: center;">
-        <span style="padding: 2px 8px; border-radius: 6px; font-size: 11px; font-weight: bold; background: ${
-          u.role === 'admin' ? '#f3e8ff; color: #6b21a8;' : u.role === 'merchant' ? '#fef3c7; color: #92400e;' : '#dcfce7; color: #166534;'
-        }">${u.role === 'merchant' ? 'صراف' : u.role === 'admin' ? 'إدارة' : u.role === 'volunteer' ? 'متطوع' : 'مستفيد'}</span>
-      </td>
-      <td style="direction: ltr; font-family: monospace; font-size: 11px; text-align: center; font-weight: bold; color: #0A734D;">${u.activeCardId || "—"}</td>
-      <td style="direction: ltr; font-family: monospace; font-size: 11px; text-align: center;">${u.nationalId || u.phone || "—"}</td>
-      <td style="text-align: center;">${u.city || u.residence || "القاهرة"}</td>
-      <td style="text-align: center; font-size: 11px; font-weight: bold; color: ${u.isActive ? '#166534' : '#991b1b'};">
-        ${u.isApproved === false ? "معلق" : u.isActive ? "نشط" : "معطل"}
-      </td>
-    </tr>
-  `).join("");
+  const rowsHtml = users.map((u, idx) => {
+    const cleanNat = cleanId(u.nationalId || u.phone);
+    const cleanCard = cleanId(u.activeCardId);
+    return `
+      <tr>
+        <td class="num-cell">${idx + 1}</td>
+        <td class="name-cell">${u.name || "—"}${u.storeName ? `<div class="store-badge">🏪 ${u.storeName}</div>` : ""}</td>
+        <td class="email-cell">${u.email || "—"}</td>
+        <td class="role-cell">
+          <span class="badge badge-${u.role}">
+            ${u.role === 'merchant' ? 'صراف معتمد' : u.role === 'admin' ? 'مشرف إداري' : u.role === 'volunteer' ? 'متطوع ميداني' : 'مستفيد'}
+          </span>
+        </td>
+        <td class="card-cell">${cleanCard}</td>
+        <td class="id-cell">${cleanNat}</td>
+        <td class="city-cell">${u.city || u.residence || "القاهرة"}</td>
+        <td class="status-cell">
+          <span class="status-${u.isApproved === false ? 'pending' : u.isActive ? 'active' : 'inactive'}">
+            ${u.isApproved === false ? "قيد المراجعة" : u.isActive ? "نشط ومفعل" : "معطل"}
+          </span>
+        </td>
+      </tr>
+    `;
+  }).join("");
 
   const docContent = `
     <!DOCTYPE html>
@@ -134,19 +145,208 @@ export function printAccountsReport(users: UserModel[], filterTitle = "كافة 
     <head>
       <meta charset="utf-8" />
       <title>كشف الحسابات والاعتمادات — مؤسسة الفجر الخيرية</title>
+      <link rel="preconnect" href="https://fonts.googleapis.com">
+      <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+      <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800;900&family=Tajawal:wght@500;700;800;900&display=swap" rel="stylesheet">
       <style>
-        @page { size: A4 landscape; margin: 10mm; }
-        body { font-family: 'Cairo', 'Segoe UI', Tahoma, sans-serif; color: #0f172a; margin: 0; padding: 10px; }
-        .header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2.5px solid #0A734D; padding-bottom: 12px; margin-bottom: 12px; }
-        .logo-title { font-size: 18px; font-weight: 900; color: #0A734D; margin: 0; }
-        .logo-sub { font-size: 11px; color: #64748b; font-weight: bold; margin-top: 2px; }
-        .meta-box { text-align: left; font-size: 11px; color: #334155; line-height: 1.5; }
-        .filter-badge { display: inline-flex; align-items: center; background: #ecfdf5; border: 1px solid #6ee7b7; color: #065f46; padding: 4px 12px; border-radius: 8px; font-weight: 800; font-size: 12px; margin-bottom: 12px; }
-        table { width: 100%; border-collapse: collapse; font-size: 11px; }
-        th { background: #0A734D; color: #ffffff; padding: 7px 6px; font-weight: 800; border: 1px solid #0A734D; font-size: 11px; }
-        td { padding: 6px 6px; border: 1px solid #cbd5e1; font-size: 11px; }
-        tr:nth-child(even) { background: #f8fafc; }
-        .footer { margin-top: 15px; display: flex; justify-content: space-between; font-size: 11px; color: #64748b; border-top: 1px solid #e2e8f0; padding-top: 8px; }
+        @page {
+          size: A4 landscape;
+          margin: 10mm 12mm 12mm 12mm;
+        }
+        * {
+          box-sizing: border-box;
+          -webkit-print-color-adjust: exact !important;
+          print-color-adjust: exact !important;
+        }
+        body {
+          font-family: 'Cairo', 'Tajawal', -apple-system, BlinkMacSystemFont, sans-serif;
+          color: #0f172a;
+          background: #ffffff;
+          margin: 0;
+          padding: 8px;
+          line-height: 1.4;
+          font-size: 11px;
+        }
+        .header {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          border-bottom: 2.5px solid #0A734D;
+          padding-bottom: 12px;
+          margin-bottom: 12px;
+        }
+        .logo-title {
+          font-size: 20px;
+          font-weight: 900;
+          color: #0A734D;
+          margin: 0;
+          letter-spacing: -0.3px;
+        }
+        .logo-sub {
+          font-size: 11px;
+          color: #64748b;
+          font-weight: 700;
+          margin-top: 2px;
+        }
+        .meta-box {
+          text-align: left;
+          font-size: 11px;
+          color: #334155;
+          font-weight: 600;
+          line-height: 1.6;
+        }
+        .meta-box strong {
+          color: #0f172a;
+          font-weight: 800;
+        }
+        .filter-banner {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          background: #f0fdf4;
+          border: 1.5px solid #86efac;
+          color: #166534;
+          padding: 6px 14px;
+          border-radius: 8px;
+          font-weight: 800;
+          font-size: 12px;
+          margin-bottom: 12px;
+        }
+        table {
+          width: 100%;
+          border-collapse: collapse;
+          font-size: 11px;
+        }
+        th {
+          background: #0A734D !important;
+          color: #ffffff !important;
+          padding: 8px 6px;
+          font-weight: 800;
+          border: 1px solid #0A734D;
+          font-size: 11px;
+          text-align: center;
+        }
+        th.text-start {
+          text-align: right;
+          padding-right: 10px;
+        }
+        td {
+          padding: 6px 6px;
+          border: 1px solid #cbd5e1;
+          font-size: 11px;
+          vertical-align: middle;
+        }
+        tr:nth-child(even) {
+          background: #f8fafc !important;
+        }
+        .num-cell {
+          text-align: center;
+          font-weight: 800;
+          color: #475569;
+          width: 32px;
+        }
+        .name-cell {
+          font-weight: 800;
+          color: #0f172a;
+          padding-right: 10px;
+        }
+        .store-badge {
+          font-size: 10px;
+          color: #b45309;
+          font-weight: 700;
+          margin-top: 2px;
+        }
+        .email-cell {
+          direction: ltr;
+          text-align: left;
+          font-family: 'Segoe UI', Tahoma, monospace;
+          font-size: 10.5px;
+          font-weight: 700;
+          color: #1e293b;
+        }
+        .role-cell {
+          text-align: center;
+          white-space: nowrap;
+        }
+        .badge {
+          display: inline-block;
+          padding: 2px 8px;
+          border-radius: 6px;
+          font-size: 10.5px;
+          font-weight: 800;
+        }
+        .badge-beneficiary {
+          background: #dcfce7 !important;
+          color: #166534 !important;
+          border: 1px solid #bbf7d0;
+        }
+        .badge-merchant {
+          background: #fef3c7 !important;
+          color: #92400e !important;
+          border: 1px solid #fde68a;
+        }
+        .badge-admin {
+          background: #f3e8ff !important;
+          color: #6b21a8 !important;
+          border: 1px solid #e9d5ff;
+        }
+        .badge-volunteer {
+          background: #e0f2fe !important;
+          color: #0369a1 !important;
+          border: 1px solid #bae6fd;
+        }
+        .card-cell {
+          direction: ltr;
+          text-align: center;
+          font-family: 'Segoe UI', Tahoma, monospace;
+          font-weight: 800;
+          color: #0A734D;
+          font-size: 11px;
+          white-space: nowrap;
+        }
+        .id-cell {
+          direction: ltr;
+          text-align: center;
+          font-family: 'Segoe UI', Tahoma, monospace;
+          font-weight: 700;
+          color: #334155;
+          font-size: 11px;
+          letter-spacing: 0.3px;
+          white-space: nowrap;
+        }
+        .city-cell {
+          text-align: center;
+          font-weight: 700;
+          color: #334155;
+        }
+        .status-cell {
+          text-align: center;
+          font-size: 10.5px;
+          font-weight: 800;
+        }
+        .status-active {
+          color: #15803d;
+          font-weight: 800;
+        }
+        .status-inactive {
+          color: #b91c1c;
+          font-weight: 800;
+        }
+        .status-pending {
+          color: #b45309;
+          font-weight: 800;
+        }
+        .footer {
+          margin-top: 16px;
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          font-size: 11px;
+          color: #64748b;
+          border-top: 1.5px solid #cbd5e1;
+          padding-top: 8px;
+          font-weight: 600;
+        }
         @media print {
           body { padding: 0; }
           button { display: none !important; }
@@ -157,28 +357,29 @@ export function printAccountsReport(users: UserModel[], filterTitle = "كافة 
       <div class="header">
         <div>
           <h1 class="logo-title">مؤسسة الفجر الخيرية</h1>
-          <div class="logo-sub">منظومة قُوت الإغاثية الموحدة — الإدارة العامة</div>
+          <div class="logo-sub">منظومة قُوت الإغاثية الموحدة — الإدارة العامة والرقابة المركزية</div>
         </div>
         <div class="meta-box">
           <div><strong>تاريخ الإصدار:</strong> ${new Date().toLocaleDateString('ar-EG')} - ${new Date().toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' })}</div>
-          <div><strong>إجمالي السجلات:</strong> ${users.length} حساب</div>
+          <div><strong>إجمالي السجلات بالكشف:</strong> ${users.length} حساب</div>
         </div>
       </div>
 
-      <div class="filter-badge">
-        📋 تقرير: ${filterTitle} — العدد: ${users.length} حساب
+      <div class="filter-banner">
+        <div>📋 نوع التقرير: <strong>${filterTitle}</strong></div>
+        <div>العدد الإجمالي: <strong>${users.length}</strong> حساب معتمد</div>
       </div>
 
       <table>
         <thead>
           <tr>
-            <th style="width: 30px;">م</th>
-            <th>اسم المستخدم / المنفذ</th>
+            <th>م</th>
+            <th class="text-start">اسم المستخدم / المنفذ</th>
             <th>البريد الإلكتروني</th>
             <th>نوع الحساب</th>
-            <th>رقم الكارت</th>
+            <th>رقم الكارت الذكي</th>
             <th>الرقم القومي / الهاتف</th>
-            <th>المدينة</th>
+            <th>المدينة / المحافظة</th>
             <th>الحالة</th>
           </tr>
         </thead>
@@ -188,12 +389,14 @@ export function printAccountsReport(users: UserModel[], filterTitle = "كافة 
       </table>
 
       <div class="footer">
-        <div>مؤسسة الفجر الخيرية © ${new Date().getFullYear()} — كشف رسمي معتمد للنظام</div>
-        <div>توقيع واعتماد الإدارة: ........................................</div>
+        <div>مؤسسة الفجر الخيرية © ${new Date().getFullYear()} — وثيقة رسمية معتمدة من الإدارة المركزية</div>
+        <div>اعتماد وتوقيع المشرف العام: ....................................................</div>
       </div>
 
       <script>
-        window.onload = function() { window.print(); }
+        window.onload = function() {
+          setTimeout(function() { window.print(); }, 200);
+        }
       </script>
     </body>
     </html>
