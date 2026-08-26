@@ -2,79 +2,89 @@ import * as XLSX from "xlsx";
 import { AidCardModel, UserModel } from "@/types";
 
 export function getOfficialSealSvg(size = 125) {
-  // Authentic Royal Stamp Ink Blue (#1e3a8a)
-  const ink = "#1e3a8a";
+  // Al-Fajr Signature Brand Colors: Emerald Green (#0A734D) and Deep Forest (#063A28)
+  const emerald = "#0A734D";
+  const forest = "#063A28";
+  const wash = "rgba(10, 115, 77, 0.035)";
 
   return `
-    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 240" width="${size}" height="${size}" style="transform: rotate(-4deg); display: inline-block; filter: drop-shadow(0 2px 4px rgba(30,58,138,0.25));">
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 240" width="${size}" height="${size}" style="transform: rotate(-3.5deg); display: inline-block; filter: drop-shadow(0 2.5px 5px rgba(10,115,77,0.22));">
       <defs>
-        <!-- Top Circular Arc for Institution Title -->
-        <path id="royalTopArc" d="M 32 120 A 88 88 0 1 1 208 120" fill="none" />
-        <!-- Bottom Circular Arc for Region & Ministry -->
-        <path id="royalBottomArc" d="M 208 120 A 88 88 0 1 1 32 120" fill="none" />
+        <!-- Top Circular Arc -->
+        <path id="fajrTopArc" d="M 30 120 A 90 90 0 1 1 210 120" fill="none" />
+        <!-- Bottom Circular Arc -->
+        <path id="fajrBottomArc" d="M 210 120 A 90 90 0 1 1 30 120" fill="none" />
       </defs>
 
-      <!-- 1. Royal Scalloped / Beaded Outer Security Ring -->
-      <circle cx="120" cy="120" r="115" fill="none" stroke="${ink}" stroke-width="1.8" stroke-dasharray="4, 2.5" opacity="0.9" />
+      <!-- 1. Outer Fine Scalloped / Micro-toothed Security Ring -->
+      <circle cx="120" cy="120" r="116" fill="none" stroke="${emerald}" stroke-width="1.8" stroke-dasharray="3.5, 2" opacity="0.95" />
       
-      <!-- 2. Concentric Outer Double Rings -->
-      <circle cx="120" cy="120" r="108" fill="none" stroke="${ink}" stroke-width="2.8" />
-      <circle cx="120" cy="120" r="102" fill="none" stroke="${ink}" stroke-width="1" />
+      <!-- 2. Concentric Double Border (Signature Emerald Frame) -->
+      <circle cx="120" cy="120" r="109" fill="none" stroke="${emerald}" stroke-width="2.8" />
+      <circle cx="120" cy="120" r="103" fill="none" stroke="${emerald}" stroke-width="1" />
 
-      <!-- 3. Inner Core Medallion with Ornate Security Border -->
-      <circle cx="120" cy="120" r="68" fill="rgba(30, 58, 138, 0.03)" stroke="${ink}" stroke-width="2" />
-      <circle cx="120" cy="120" r="64" fill="none" stroke="${ink}" stroke-width="1" stroke-dasharray="3, 2" />
+      <!-- 3. Inner Core Medallion with light emerald wash -->
+      <circle cx="120" cy="120" r="68" fill="${wash}" stroke="${emerald}" stroke-width="2" />
+      <circle cx="120" cy="120" r="64" fill="none" stroke="${emerald}" stroke-width="0.9" stroke-dasharray="2.5, 2" />
 
       <!-- 4. Top Arc Text: مؤسسة الفجر الخيرية للتنمية -->
-      <text fill="${ink}" font-size="12.5" font-family="'Cairo', 'Tajawal', Arial, sans-serif" font-weight="900" letter-spacing="0.8px">
-        <textPath href="#royalTopArc" startOffset="50%" text-anchor="middle">
+      <text fill="${emerald}" font-size="12" font-family="'Cairo', 'Tajawal', Arial, sans-serif" font-weight="900" letter-spacing="0.8px">
+        <textPath href="#fajrTopArc" startOffset="50%" text-anchor="middle">
           مؤسسة الفجر الخيرية للتنمية
         </textPath>
       </text>
 
       <!-- 5. Bottom Arc Text: قطاع الرقابة والاعتماد المركزي -->
-      <text fill="${ink}" font-size="10.5" font-family="'Cairo', 'Tajawal', Arial, sans-serif" font-weight="800" letter-spacing="0.5px">
-        <textPath href="#royalBottomArc" startOffset="50%" text-anchor="middle">
+      <text fill="${emerald}" font-size="10" font-family="'Cairo', 'Tajawal', Arial, sans-serif" font-weight="800" letter-spacing="0.5px">
+        <textPath href="#fajrBottomArc" startOffset="50%" text-anchor="middle">
           ❖ قطاع الرقابة والاعتماد المركزي ❖
         </textPath>
       </text>
 
-      <!-- 6. Royal Core Heraldic Emblem & Calligraphy -->
+      <!-- 6. Center Emblem & Calligraphy -->
       <g transform="translate(120, 120)">
         
-        <!-- Royal Radiant Crest (Al-Fajr Emblem) -->
-        <g fill="none" stroke="${ink}" stroke-width="1.4" opacity="0.95" transform="translate(0, -32) scale(0.8)">
-          <path d="M -22 8 C -14 -4, -6 0, 0 -12 C 6 0, 14 -4, 22 8 Z" fill="rgba(30, 58, 138, 0.08)" />
-          <circle cx="0" cy="-14" r="2.5" fill="${ink}" />
-          <circle cx="-11" cy="-4" r="2" fill="${ink}" />
-          <circle cx="11" cy="-4" r="2" fill="${ink}" />
-          <line x1="0" y1="-22" x2="0" y2="-16" stroke-width="1.8" />
-          <line x1="-12" y1="-18" x2="-8" y2="-13" stroke-width="1.5" />
-          <line x1="12" y1="-18" x2="8" y2="-13" stroke-width="1.5" />
+        <!-- Al-Fajr Dawn Horizon Crest (شعار شروق الفجر الخيري) -->
+        <g fill="none" stroke="${emerald}" stroke-width="1.4" opacity="0.9" transform="translate(0, -32) scale(0.85)">
+          <!-- Radiating Dawn Rays -->
+          <line x1="0" y1="-20" x2="0" y2="-14" stroke-width="2" />
+          <line x1="-12" y1="-17" x2="-8" y2="-12" stroke-width="1.6" />
+          <line x1="12" y1="-17" x2="8" y2="-12" stroke-width="1.6" />
+          <line x1="-20" y1="-9" x2="-14" y2="-6" stroke-width="1.4" />
+          <line x1="20" y1="-9" x2="14" y2="-6" stroke-width="1.4" />
+          <!-- Rising Sun & Horizon Crescent Arc -->
+          <path d="M -18 6 C -10 -8, 10 -8, 18 6" stroke-width="1.8" />
+          <path d="M -24 6 C -12 -14, 12 -14, 24 6" stroke-width="1.2" />
+          <circle cx="0" cy="5" r="3.5" fill="${emerald}" />
         </g>
 
-        <!-- Ornate Central Calligraphic Text: مُـعـتَـمَـد -->
-        <text y="0" text-anchor="middle" fill="${ink}" font-size="18" font-family="'Cairo', 'Tajawal', Arial, sans-serif" font-weight="900" letter-spacing="-0.5px">
+        <!-- Grand Diwani Calligraphic Approval: مُـعـتَـمَـد -->
+        <text y="-1" text-anchor="middle" fill="${forest}" font-size="18.5" font-family="'Cairo', 'Tajawal', Arial, sans-serif" font-weight="900" letter-spacing="-0.3px">
           مُـعـتَـمَـد
         </text>
 
         <!-- Subtitle: رَسْـمِـيّـاً -->
-        <text y="17" text-anchor="middle" fill="${ink}" font-size="10" font-family="'Cairo', 'Tajawal', Arial, sans-serif" font-weight="900" letter-spacing="1px">
+        <text y="15" text-anchor="middle" fill="${emerald}" font-size="9.5" font-family="'Cairo', 'Tajawal', Arial, sans-serif" font-weight="900" letter-spacing="0.8px">
           رَسْـمِـيّـاً
         </text>
 
-        <!-- Foundation Registration Frame -->
-        <path d="M -35 26 L -30 34 L 30 34 L 35 26 L 30 28 L -30 28 Z" fill="rgba(30, 58, 138, 0.08)" stroke="${ink}" stroke-width="0.8" />
-        <text y="33" text-anchor="middle" fill="${ink}" font-size="8.5" font-family="'Segoe UI', Tahoma, monospace" font-weight="800" letter-spacing="1px">
+        <!-- Department Label -->
+        <text y="26" text-anchor="middle" fill="${forest}" font-size="8" font-family="'Cairo', 'Tajawal', Arial, sans-serif" font-weight="800">
+          إدارة المساعدات الاجتماعية
+        </text>
+
+        <!-- Year / Registration Stamp Ribbon -->
+        <path d="M -32 32 L -28 39 L 28 39 L 32 32 L 28 33.5 L -28 33.5 Z" fill="rgba(10, 115, 77, 0.08)" stroke="${emerald}" stroke-width="0.7" />
+        <text y="38" text-anchor="middle" fill="${emerald}" font-size="8" font-family="'Segoe UI', Tahoma, monospace" font-weight="900" letter-spacing="1px">
           ٢٠٢٦ / FAJR
         </text>
 
-        <!-- Decorative Floral Dividers -->
-        <g fill="${ink}" opacity="0.9">
-          <circle cx="-46" cy="0" r="2.5" />
-          <circle cx="46" cy="0" r="2.5" />
-          <path d="M -46 -5 L -44 0 L -46 5 L -48 0 Z" />
-          <path d="M 46 -5 L 48 0 L 46 5 L 44 0 Z" />
+        <!-- Side Ornamental Fleuron Diamonds -->
+        <g fill="${emerald}" opacity="0.9">
+          <circle cx="-47" cy="0" r="2.2" />
+          <circle cx="47" cy="0" r="2.2" />
+          <path d="M -47 -5 L -45 0 L -47 5 L -49 0 Z" />
+          <path d="M 47 -5 L 49 0 L 47 5 L 45 0 Z" />
         </g>
       </g>
     </svg>
@@ -361,7 +371,7 @@ function executeIframePrint(docTitle: string, filterTitle: string, totalCount: n
         </tbody>
       </table>
 
-      <!-- Official Footer with Royal Ink Stamp -->
+      <!-- Official Footer with Al-Fajr Signature Stamp -->
       <div class="footer-section">
         <div class="footer-info">
           <div>مؤسسة الفجر الخيرية © ${new Date().getFullYear()} — كشف رسمي معتمد</div>
@@ -407,7 +417,7 @@ function executeIframePrint(docTitle: string, filterTitle: string, totalCount: n
   }
 }
 
-// 1. PRINT ACCOUNTS REPORT (Royal Seal)
+// 1. PRINT ACCOUNTS REPORT (Al-Fajr Brand Seal)
 export function printAccountsReport(users: UserModel[], filterTitle = "كافة الحسابات والاعتمادات") {
   const head = `
     <tr>
@@ -448,7 +458,7 @@ export function printAccountsReport(users: UserModel[], filterTitle = "كافة 
   executeIframePrint("كشف_الحسابات", filterTitle, users.length, head, body);
 }
 
-// 2. PRINT BENEFICIARIES REPORT (Royal Seal)
+// 2. PRINT BENEFICIARIES REPORT (Al-Fajr Brand Seal)
 export function printBeneficiariesReport(cards: AidCardModel[], filterTitle = "كشف بطاقات المستفيدين") {
   const head = `
     <tr>
@@ -481,7 +491,7 @@ export function printBeneficiariesReport(cards: AidCardModel[], filterTitle = "�
   executeIframePrint("كشف_المستفيدين", filterTitle, cards.length, head, body);
 }
 
-// 3. PRINT TRANSACTIONS REPORT (Royal Seal)
+// 3. PRINT TRANSACTIONS REPORT (Al-Fajr Brand Seal)
 export function printTransactionsReport(transactions: any[], filterTitle = "سجل العمليات المالية") {
   const head = `
     <tr>
@@ -514,7 +524,7 @@ export function printTransactionsReport(transactions: any[], filterTitle = "سج
   executeIframePrint("سجل_العمليات_المالية", filterTitle, transactions.length, head, body);
 }
 
-// 4. PRINT MERCHANTS REPORT (Royal Seal)
+// 4. PRINT MERCHANTS REPORT (Al-Fajr Brand Seal)
 export function printMerchantsReport(merchants: UserModel[], filterTitle = "كشف المتاجر والمنافذ المعتمدة") {
   const head = `
     <tr>
