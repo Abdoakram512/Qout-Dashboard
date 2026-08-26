@@ -482,10 +482,9 @@ export default function AccountsPage() {
             <thead>
               <tr>
                 <th className="text-start">{isAr ? "المستخدم" : "User"}</th>
-                <th className="text-start">{isAr ? "بيانات الدخول (البريد / الهاتف)" : "Login (Email / Phone)"}</th>
-                <th className="text-start">{isAr ? "رقم الكارت والقومي" : "Card & National ID"}</th>
+                <th className="text-start">{isAr ? "البريد الإلكتروني" : "Email"}</th>
                 <th className="text-start">{isAr ? "نوع الحساب" : "Role"}</th>
-                <th className="text-start">{isAr ? "المدينة / المحافظة" : "City"}</th>
+                <th className="text-start">{isAr ? "المدينة" : "City"}</th>
                 <th className="text-start">{isAr ? "حالة الحساب" : "Status"}</th>
                 <th className="text-center">{isAr ? "الإجراءات" : "Actions"}</th>
               </tr>
@@ -493,14 +492,14 @@ export default function AccountsPage() {
             <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan={7} className="py-12 text-center text-slate-400 font-bold">
+                  <td colSpan={6} className="py-12 text-center text-slate-400 font-bold">
                     <div className="w-6 h-6 border-2 border-emerald-600 border-t-transparent rounded-full animate-spin mx-auto mb-2" />
                     {isAr ? "جاري تحميل الحسابات..." : "Loading accounts..."}
                   </td>
                 </tr>
               ) : filteredUsers.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="py-12 text-center text-slate-500 font-bold">
+                  <td colSpan={6} className="py-12 text-center text-slate-500 font-bold">
                     {isAr ? "لا توجد حسابات مطابقة للبحث" : "No matching accounts found"}
                   </td>
                 </tr>
@@ -516,42 +515,8 @@ export default function AccountsPage() {
                         </div>
                       )}
                     </td>
-                    <td>
-                      <div
-                        className="font-mono font-bold text-slate-900 text-xs inline-block"
-                        style={{ direction: "ltr", unicodeBidi: "bidi-override", textAlign: "left" }}
-                      >
-                        <bdo dir="ltr">{u.email || "—"}</bdo>
-                      </div>
-                      {u.phone && (
-                        <div
-                          className="text-[11px] font-mono text-slate-500 mt-0.5"
-                          style={{ direction: "ltr", unicodeBidi: "bidi-override", textAlign: "left" }}
-                        >
-                          <bdo dir="ltr">📞 {u.phone}</bdo>
-                        </div>
-                      )}
-                    </td>
-                    <td>
-                      {u.activeCardId ? (
-                        <div
-                          className="font-mono text-xs font-black text-emerald-800 bg-emerald-50 px-2.5 py-1 rounded-lg border border-emerald-200 inline-flex items-center gap-1"
-                          style={{ direction: "ltr", unicodeBidi: "bidi-override" }}
-                        >
-                          <CreditCard className="w-3.5 h-3.5 text-emerald-600" />
-                          <bdo dir="ltr">{u.activeCardId}</bdo>
-                        </div>
-                      ) : (
-                        <span className="text-slate-400 text-xs">—</span>
-                      )}
-                      {u.nationalId && (
-                        <div
-                          className="text-[11px] font-mono text-slate-500 mt-0.5"
-                          style={{ direction: "ltr", unicodeBidi: "bidi-override", textAlign: "left" }}
-                        >
-                          <bdo dir="ltr">🆔 {u.nationalId}</bdo>
-                        </div>
-                      )}
+                    <td className="font-mono font-bold text-slate-700 text-xs" dir="ltr" style={{ textAlign: "right" }}>
+                      {u.email}
                     </td>
                     <td>
                       <span
@@ -575,7 +540,7 @@ export default function AccountsPage() {
                       </span>
                     </td>
                     <td className="font-bold text-slate-700 text-xs">
-                      {u.city || u.residence || (isAr ? "القاهرة" : "Cairo")}
+                      {u.city || (isAr ? "القاهرة" : "Cairo")}
                     </td>
                     <td>
                       {u.isApproved === false ? (
