@@ -32,7 +32,7 @@ export function getOfficialSealSvg(size = 125) {
         </textPath>
       </text>
 
-      <!-- 5. Bottom Arc Text: جمهورية مصر العربية • قطاع الاعتماد -->
+      <!-- 5. Bottom Arc Text: قطاع الرقابة والاعتماد المركزي -->
       <text fill="${ink}" font-size="10.5" font-family="'Cairo', 'Tajawal', Arial, sans-serif" font-weight="800" letter-spacing="0.5px">
         <textPath href="#royalBottomArc" startOffset="50%" text-anchor="middle">
           ❖ قطاع الرقابة والاعتماد المركزي ❖
@@ -107,6 +107,8 @@ function parseDateTimeStr(raw: any): string {
     return "—";
   }
 }
+
+// ── EXCEL EXPORTS ──
 
 export function exportBeneficiariesToExcel(cards: AidCardModel[], filename = "كشف_المستفيدين_مؤسسة_الفجر") {
   const data = cards.map((c, index) => ({
@@ -190,32 +192,9 @@ export function exportAccountsToExcel(users: UserModel[], filterName = "جميع
   XLSX.writeFile(workbook, `${filename}_${filterName}_${new Date().toISOString().slice(0, 10)}.xlsx`);
 }
 
-export function printAccountsReport(users: UserModel[], filterTitle = "كافة الحسابات والاعتمادات") {
-  const rowsHtml = users.map((u, idx) => {
-    const cleanNat = cleanId(u.nationalId || u.phone);
-    const cleanCard = cleanId(u.activeCardId);
-    return `
-      <tr>
-        <td class="num-cell">${idx + 1}</td>
-        <td class="name-cell">${u.name || "—"}${u.storeName ? `<div class="store-badge">🏪 ${u.storeName}</div>` : ""}</td>
-        <td class="email-cell">${u.email || "—"}</td>
-        <td class="role-cell">
-          <span class="badge badge-${u.role}">
-            ${u.role === 'merchant' ? 'صراف معتمد' : u.role === 'admin' ? 'مشرف إداري' : u.role === 'volunteer' ? 'متطوع ميداني' : 'مستفيد'}
-          </span>
-        </td>
-        <td class="card-cell">${cleanCard}</td>
-        <td class="id-cell">${cleanNat}</td>
-        <td class="city-cell">${u.city || u.residence || "القاهرة"}</td>
-        <td class="status-cell">
-          <span class="status-${u.isApproved === false ? 'pending' : u.isActive ? 'active' : 'inactive'}">
-            ${u.isApproved === false ? "قيد المراجعة" : u.isActive ? "نشط ومفعل" : "معطل"}
-          </span>
-        </td>
-      </tr>
-    `;
-  }).join("");
+// ── COMMON PRINT ENGINE WITH HIDDEN IFRAME (ZERO about:blank) ──
 
+function executeIframePrint(docTitle: string, filterTitle: string, totalCount: number, tableHeadHtml: string, tableBodyHtml: string) {
   const sealSvg = getOfficialSealSvg(125);
 
   const docContent = `
@@ -223,7 +202,7 @@ export function printAccountsReport(users: UserModel[], filterTitle = "كافة 
     <html dir="rtl" lang="ar">
     <head>
       <meta charset="utf-8" />
-      <title>كشف الحسابات — مؤسسة الفجر الخيرية</title>
+      <title>${docTitle} — مؤسسة الفجر الخيرية</title>
       <link rel="preconnect" href="https://fonts.googleapis.com">
       <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
       <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800;900&family=Tajawal:wght@500;700;800;900&display=swap" rel="stylesheet">
@@ -318,105 +297,6 @@ export function printAccountsReport(users: UserModel[], filterTitle = "كافة 
         tr:nth-child(even) {
           background: #f8fafc !important;
         }
-        .num-cell {
-          text-align: center;
-          font-weight: 800;
-          color: #475569;
-          width: 30px;
-        }
-        .name-cell {
-          font-weight: 800;
-          color: #0f172a;
-          padding-right: 8px;
-        }
-        .store-badge {
-          font-size: 10px;
-          color: #b45309;
-          font-weight: 700;
-          margin-top: 1px;
-        }
-        .email-cell {
-          direction: ltr;
-          text-align: left;
-          font-family: 'Segoe UI', Tahoma, monospace;
-          font-size: 10px;
-          font-weight: 700;
-          color: #1e293b;
-        }
-        .role-cell {
-          text-align: center;
-          white-space: nowrap;
-        }
-        .badge {
-          display: inline-block;
-          padding: 2px 7px;
-          border-radius: 5px;
-          font-size: 10px;
-          font-weight: 800;
-        }
-        .badge-beneficiary {
-          background: #dcfce7 !important;
-          color: #166534 !important;
-          border: 1px solid #bbf7d0;
-        }
-        .badge-merchant {
-          background: #fef3c7 !important;
-          color: #92400e !important;
-          border: 1px solid #fde68a;
-        }
-        .badge-admin {
-          background: #f3e8ff !important;
-          color: #6b21a8 !important;
-          border: 1px solid #e9d5ff;
-        }
-        .badge-volunteer {
-          background: #e0f2fe !important;
-          color: #0369a1 !important;
-          border: 1px solid #bae6fd;
-        }
-        .card-cell {
-          direction: ltr;
-          text-align: center;
-          font-family: 'Segoe UI', Tahoma, monospace;
-          font-weight: 800;
-          color: #0A734D;
-          font-size: 10.5px;
-          white-space: nowrap;
-        }
-        .id-cell {
-          direction: ltr;
-          text-align: center;
-          font-family: 'Segoe UI', Tahoma, monospace;
-          font-weight: 700;
-          color: #334155;
-          font-size: 10.5px;
-          letter-spacing: 0.3px;
-          white-space: nowrap;
-        }
-        .city-cell {
-          text-align: center;
-          font-weight: 700;
-          color: #334155;
-        }
-        .status-cell {
-          text-align: center;
-          font-size: 10px;
-          font-weight: 800;
-        }
-        .status-active {
-          color: #15803d;
-          font-weight: 800;
-        }
-        .status-inactive {
-          color: #b91c1c;
-          font-weight: 800;
-        }
-        .status-pending {
-          color: #b45309;
-          font-weight: 800;
-        }
-        
-        /* ── Official Stamp Footer Section ── */
         .footer-section {
           margin-top: 15px;
           page-break-inside: avoid;
@@ -449,7 +329,6 @@ export function printAccountsReport(users: UserModel[], filterTitle = "كافة 
           width: 125px;
           height: 125px;
         }
-
         @media print {
           body { padding: 0; }
           button { display: none !important; }
@@ -464,30 +343,21 @@ export function printAccountsReport(users: UserModel[], filterTitle = "كافة 
         </div>
         <div class="meta-box">
           <div><strong>تاريخ الإصدار:</strong> ${new Date().toLocaleDateString('ar-EG')} - ${new Date().toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' })}</div>
-          <div><strong>إجمالي السجلات:</strong> ${users.length} حساب</div>
+          <div><strong>إجمالي السجلات:</strong> ${totalCount} سجل</div>
         </div>
       </div>
 
       <div class="filter-banner">
         <div>📋 نوع التقرير: <strong>${filterTitle}</strong></div>
-        <div>العدد الإجمالي بالكشف: <strong>${users.length}</strong> حساب معتمد</div>
+        <div>العدد الإجمالي بالكشف: <strong>${totalCount}</strong> سجل معتمد</div>
       </div>
 
       <table>
         <thead>
-          <tr>
-            <th>م</th>
-            <th class="text-start">اسم المستخدم / المنفذ</th>
-            <th>البريد الإلكتروني</th>
-            <th>نوع الحساب</th>
-            <th>رقم الكارت</th>
-            <th>الرقم القومي / الهاتف</th>
-            <th>المدينة / المحافظة</th>
-            <th>الحالة</th>
-          </tr>
+          ${tableHeadHtml}
         </thead>
         <tbody>
-          ${rowsHtml}
+          ${tableBodyHtml}
         </tbody>
       </table>
 
@@ -511,7 +381,6 @@ export function printAccountsReport(users: UserModel[], filterTitle = "كافة 
     </html>
   `;
 
-  // Use Hidden Iframe to completely prevent "about:blank" in headers/footers
   let iframe = document.getElementById("printReportIframe") as HTMLIFrameElement;
   if (!iframe) {
     iframe = document.createElement("iframe");
@@ -536,4 +405,146 @@ export function printAccountsReport(users: UserModel[], filterTitle = "كافة 
       iframe.contentWindow?.print();
     }, 250);
   }
+}
+
+// 1. PRINT ACCOUNTS REPORT (Royal Seal)
+export function printAccountsReport(users: UserModel[], filterTitle = "كافة الحسابات والاعتمادات") {
+  const head = `
+    <tr>
+      <th style="width: 30px;">م</th>
+      <th class="text-start">اسم المستخدم / المنفذ</th>
+      <th>البريد الإلكتروني</th>
+      <th>نوع الحساب</th>
+      <th>رقم الكارت</th>
+      <th>الرقم القومي / الهاتف</th>
+      <th>المدينة / المحافظة</th>
+      <th>الحالة</th>
+    </tr>
+  `;
+
+  const body = users.map((u, idx) => {
+    const cleanNat = cleanId(u.nationalId || u.phone);
+    const cleanCard = cleanId(u.activeCardId);
+    return `
+      <tr>
+        <td style="text-align: center; font-weight: 800; color: #475569; width: 30px;">${idx + 1}</td>
+        <td style="font-weight: 800; color: #0f172a; padding-right: 8px;">${u.name || "—"}${u.storeName ? `<div style="font-size: 10px; color: #b45309; font-weight: 700;">🏪 ${u.storeName}</div>` : ""}</td>
+        <td style="direction: ltr; text-align: left; font-family: monospace; font-size: 10px; font-weight: 700; color: #1e293b;">${u.email || "—"}</td>
+        <td style="text-align: center; white-space: nowrap;">
+          <span style="display: inline-block; padding: 2px 7px; border-radius: 5px; font-size: 10px; font-weight: 800; background: ${u.role === 'admin' ? '#f3e8ff; color: #6b21a8;' : u.role === 'merchant' ? '#fef3c7; color: #92400e;' : '#dcfce7; color: #166534;'}">
+            ${u.role === 'merchant' ? 'صراف معتمد' : u.role === 'admin' ? 'مشرف إداري' : u.role === 'volunteer' ? 'متطوع ميداني' : 'مستفيد'}
+          </span>
+        </td>
+        <td style="direction: ltr; text-align: center; font-family: monospace; font-weight: 800; color: #0A734D; font-size: 10.5px;">${cleanCard}</td>
+        <td style="direction: ltr; text-align: center; font-family: monospace; font-weight: 700; color: #334155; font-size: 10.5px;">${cleanNat}</td>
+        <td style="text-align: center; font-weight: 700; color: #334155;">${u.city || u.residence || "القاهرة"}</td>
+        <td style="text-align: center; font-size: 10px; font-weight: 800; color: ${u.isActive ? '#15803d' : '#b91c1c'};">
+          ${u.isApproved === false ? "قيد المراجعة" : u.isActive ? "نشط ومفعل" : "معطل"}
+        </td>
+      </tr>
+    `;
+  }).join("");
+
+  executeIframePrint("كشف_الحسابات", filterTitle, users.length, head, body);
+}
+
+// 2. PRINT BENEFICIARIES REPORT (Royal Seal)
+export function printBeneficiariesReport(cards: AidCardModel[], filterTitle = "كشف بطاقات المستفيدين") {
+  const head = `
+    <tr>
+      <th style="width: 30px;">م</th>
+      <th class="text-start">اسم المستفيد</th>
+      <th>رقم الكارت</th>
+      <th>الرقم القومي / الإقامة</th>
+      <th>الجنسية</th>
+      <th>محل الإقامة</th>
+      <th>الرصيد المتاح</th>
+      <th>سلال الغذاء</th>
+      <th>الحالة</th>
+    </tr>
+  `;
+
+  const body = cards.map((c, idx) => `
+    <tr>
+      <td style="text-align: center; font-weight: 800; color: #475569;">${idx + 1}</td>
+      <td style="font-weight: 800; color: #0f172a; padding-right: 8px;">${c.beneficiaryName || "—"}</td>
+      <td style="direction: ltr; text-align: center; font-family: monospace; font-weight: 800; color: #0A734D;">${cleanId(c.cardId)}</td>
+      <td style="direction: ltr; text-align: center; font-family: monospace; font-weight: 700; color: #334155;">${cleanId(c.nationalId)}</td>
+      <td style="text-align: center;">${c.nationality || "مصرية"}</td>
+      <td style="text-align: center;">${c.residence || "—"}</td>
+      <td style="text-align: center; font-weight: 800; color: #0A734D; font-family: monospace;">${(c.totalBalance ?? c.balance ?? 0)} ج.م</td>
+      <td style="text-align: center; font-weight: 800; color: #b45309;">${(c.foodBasketsQuota ?? 0)} سلة</td>
+      <td style="text-align: center; font-weight: 800; color: ${c.status === 'active' ? '#15803d' : '#b91c1c'};">${c.status === 'active' ? 'نشط' : 'مجمد'}</td>
+    </tr>
+  `).join("");
+
+  executeIframePrint("كشف_المستفيدين", filterTitle, cards.length, head, body);
+}
+
+// 3. PRINT TRANSACTIONS REPORT (Royal Seal)
+export function printTransactionsReport(transactions: any[], filterTitle = "سجل العمليات المالية") {
+  const head = `
+    <tr>
+      <th style="width: 30px;">م</th>
+      <th>رقم المعاملة</th>
+      <th>رقم الكارت</th>
+      <th class="text-start">اسم المستفيد</th>
+      <th>المنفذ / المتجر</th>
+      <th>المبلغ المصروف</th>
+      <th>السلال</th>
+      <th>المدينة</th>
+      <th>التاريخ والوقت</th>
+    </tr>
+  `;
+
+  const body = transactions.map((t, idx) => `
+    <tr>
+      <td style="text-align: center; font-weight: 800; color: #475569;">${idx + 1}</td>
+      <td style="direction: ltr; text-align: center; font-family: monospace; font-weight: 800; color: #0A734D;">${cleanId(t.id || t.transactionId || t.receiptNumber)}</td>
+      <td style="direction: ltr; text-align: center; font-family: monospace;">${cleanId(t.cardId)}</td>
+      <td style="font-weight: 800; color: #0f172a; padding-right: 8px;">${t.beneficiaryName || "—"}</td>
+      <td style="text-align: center; font-weight: 700; color: #334155;">${t.merchantStoreName || t.merchantName || t.distributionCenter || "—"}</td>
+      <td style="text-align: center; font-weight: 800; color: #0A734D; font-family: monospace;">${((t.amountDeducted ?? t.amount ?? t.totalAmount ?? 0) || 0).toLocaleString()} ج.م</td>
+      <td style="text-align: center; font-weight: 800; color: #b45309;">${(t.foodBasketsDeducted ?? t.basketsCount ?? 0)}</td>
+      <td style="text-align: center;">${t.city || t.residence || "—"}</td>
+      <td style="text-align: center; font-size: 10px; color: #64748b;">${parseDateTimeStr(t.timestamp || t.date || t.createdAt)}</td>
+    </tr>
+  `).join("");
+
+  executeIframePrint("سجل_العمليات_المالية", filterTitle, transactions.length, head, body);
+}
+
+// 4. PRINT MERCHANTS REPORT (Royal Seal)
+export function printMerchantsReport(merchants: UserModel[], filterTitle = "كشف المتاجر والمنافذ المعتمدة") {
+  const head = `
+    <tr>
+      <th style="width: 30px;">م</th>
+      <th class="text-start">اسم المتجر / المنفذ</th>
+      <th>اسم المسؤول</th>
+      <th>البريد الإلكتروني</th>
+      <th>رقم الهاتف</th>
+      <th>المدينة</th>
+      <th>السجل التجاري</th>
+      <th>العهدة المعتمدة</th>
+      <th>إجمالي المصروف</th>
+      <th>الحالة</th>
+    </tr>
+  `;
+
+  const body = merchants.map((m, idx) => `
+    <tr>
+      <td style="text-align: center; font-weight: 800; color: #475569;">${idx + 1}</td>
+      <td style="font-weight: 800; color: #0f172a; padding-right: 8px;">${m.storeName || m.name || "—"}</td>
+      <td style="font-weight: 700; color: #334155;">${m.name || "—"}</td>
+      <td style="direction: ltr; text-align: left; font-family: monospace; font-size: 10px;">${m.email || "—"}</td>
+      <td style="direction: ltr; text-align: center; font-family: monospace;">${cleanId(m.phone)}</td>
+      <td style="text-align: center;">${m.city || "—"}</td>
+      <td style="direction: ltr; text-align: center; font-family: monospace;">${cleanId(m.commercialReg)}</td>
+      <td style="text-align: center; font-weight: 800; color: #0A734D; font-family: monospace;">${(m.allocatedBudget || 0).toLocaleString()} ج.م</td>
+      <td style="text-align: center; font-weight: 800; color: #b45309; font-family: monospace;">${(m.totalDisbursed || 0).toLocaleString()} ج.م</td>
+      <td style="text-align: center; font-weight: 800; color: ${m.isActive ? '#15803d' : '#b91c1c'};">${m.isActive ? 'معتمد ونشط' : 'قيد المراجعة'}</td>
+    </tr>
+  `).join("");
+
+  executeIframePrint("كشف_المتاجر_والمنافذ", filterTitle, merchants.length, head, body);
 }

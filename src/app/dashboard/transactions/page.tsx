@@ -1,7 +1,7 @@
 "use client";
 
 import { arabicMatch } from "@/lib/arabicNormalizer";
-import { exportTransactionsToExcel } from "@/lib/exportUtils";
+import { exportTransactionsToExcel, printTransactionsReport } from "@/lib/exportUtils";
 import React, { useState, useEffect } from "react";
 import { db } from "@/lib/firebase";
 import { collection, query, orderBy, onSnapshot } from "firebase/firestore";
@@ -136,186 +136,20 @@ export default function TransactionsPage() {
     }
   };
 
-  // Export PDF
+  // Export PDF with Royal Seal
   const handleExportPdf = () => {
-    const printWindow = window.open("", "_blank");
-    if (!printWindow) return;
-
     if (activeTab === "cash") {
-      const rowsHtml = filteredCash
-        .map(
-          (x, idx) => `
-        <tr>
-          <td style="text-align: center; font-weight: bold;">${idx + 1}</td>
-          <td style="font-family: monospace; font-weight: bold;">${x.id}</td>
-          <td style="font-family: monospace;">${x.cardId}</td>
-          <td style="font-weight: 800; color: #0f172a;">${x.beneficiaryName}</td>
-          <td style="font-weight: bold; color: #334155;">${x.merchantStoreName}</td>
-          <td style="font-weight: 800; color: #0A734D; text-align: left; font-family: monospace;">${((x.amountDeducted ?? x.amount ?? 0) || 0).toLocaleString()} ج.م</td>
-          <td>${x.city || "—"}</td>
-          <td style="font-size: 10px; color: #64748b;">${formatTime(x.timestamp)}</td>
-          <td style="text-align: center;"><span style="background: #dcfce7; color: #166534; padding: 2px 6px; border-radius: 4px; font-weight: bold;">مؤكدة</span></td>
-        </tr>
-      `
-        )
-        .join("");
-
-      const htmlContent = `
-        <!DOCTYPE html>
-        <html dir="rtl" lang="ar">
-        <head>
-          <meta charset="utf-8">
-          <title>سجل عمليات الصرف المالي - مؤسسة الفجر الخيرية</title>
-          <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800;900&display=swap" rel="stylesheet">
-          <style>
-            @page { size: A4 landscape; margin: 10mm; }
-            body { font-family: 'Cairo', sans-serif; margin: 0; padding: 10px; color: #0f172a; background: #fff; }
-            .header { display: flex; justify-content: space-between; align-items: center; border-bottom: 3px solid #0A734D; padding-bottom: 12px; margin-bottom: 16px; }
-            .brand-title { font-size: 20px; font-weight: 900; color: #0A734D; margin: 0; }
-            .brand-sub { font-size: 12px; color: #64748b; margin: 2px 0 0 0; }
-            .meta-box { text-align: left; font-size: 11px; color: #475569; }
-            .meta-box span { font-weight: bold; color: #0f172a; }
-            table { width: 100%; border-collapse: collapse; font-size: 10.5px; }
-            th { background-color: #0A734D; color: #ffffff; padding: 7px 5px; text-align: right; border: 1px solid #064E3B; font-weight: 700; }
-            td { padding: 5px; border: 1px solid #e2e8f0; text-align: right; }
-            tr:nth-child(even) { background-color: #f8fafc; }
-            .summary-bar { margin-top: 14px; display: flex; justify-content: space-between; background: #ecfdf5; border: 1px solid #a7f3d0; border-radius: 8px; padding: 8px 14px; font-size: 11.5px; font-weight: bold; }
-            @media print { body { -webkit-print-color-adjust: exact; print-color-adjust: exact; } }
-          </style>
-        </head>
-        <body>
-          <div class="header">
-            <div>
-              <h1 class="brand-title">مؤسسة الفجر الخيرية (Al-Fajr Foundation)</h1>
-              <p class="brand-sub">كشف سجل الصرف المالي عبر شبكة المنافذ والمتاجر المعتمدة</p>
-            </div>
-            <div class="meta-box">
-              <div>تاريخ التقرير: <span>${new Date().toLocaleDateString("ar-EG", { year: "numeric", month: "long", day: "numeric" })}</span></div>
-              <div>إجمالي العمليات: <span>${filteredCash.length} عملية</span></div>
-            </div>
-          </div>
-          <table>
-            <thead>
-              <tr>
-                <th style="width: 25px; text-align: center;">#</th>
-                <th>رقم الحركة</th>
-                <th>رقم الكارت</th>
-                <th>اسم المستفيد</th>
-                <th>منفذ الصرف (المتجر)</th>
-                <th>المبلغ المنصرف</th>
-                <th>المدينة / الفرع</th>
-                <th>التاريخ والوقت</th>
-                <th style="text-align: center;">الحالة</th>
-              </tr>
-            </thead>
-            <tbody>
-              ${rowsHtml}
-            </tbody>
-          </table>
-          <div class="summary-bar">
-            <div>إجمالي العمليات المنفذة: <span>${filteredCash.length} عملية صرف</span></div>
-            <div>إجمالي المبالغ المنصرفة: <span style="color: #0A734D;">${totalCashAmount.toLocaleString()} ج.م</span></div>
-          </div>
-          <script>
-            window.onload = function() { setTimeout(function() { window.print(); }, 500); };
-          </script>
-        </body>
-        </html>
-      `;
-      printWindow.document.open();
-      printWindow.document.write(htmlContent);
-      printWindow.document.close();
+      printTransactionsReport(
+        filteredCash,
+        `سجل عمليات الصرف المالي للمنافذ (${filteredCash.length} عملية - إجمالي ${totalCashAmount.toLocaleString()} ج.م)`
+      );
     } else {
-      const rowsHtml = filteredBaskets
-        .map(
-          (x, idx) => `
-        <tr>
-          <td style="text-align: center; font-weight: bold;">${idx + 1}</td>
-          <td style="font-family: monospace; font-weight: bold;">${x.distributionId}</td>
-          <td style="font-family: monospace;">${x.cardId}</td>
-          <td style="font-weight: 800; color: #0f172a;">${x.beneficiaryName}</td>
-          <td style="text-align: center; font-weight: bold;">${x.familyCount || 4} أفراد</td>
-          <td>${x.residence || "—"}</td>
-          <td style="font-weight: 800; color: #b45309; text-align: center; font-size: 12px;">${x.basketsCount} سلة</td>
-          <td style="text-align: center; font-family: monospace;">${x.remainingBasketsAfter}</td>
-          <td>${x.distributionCenter}</td>
-          <td style="font-size: 10px; color: #64748b;">${formatTime(x.timestamp)}</td>
-          <td style="text-align: center;"><span style="background: #fef3c7; color: #78350f; padding: 2px 6px; border-radius: 4px; font-weight: bold;">تم التسليم</span></td>
-        </tr>
-      `
-        )
-        .join("");
-
-      const htmlContent = `
-        <!DOCTYPE html>
-        <html dir="rtl" lang="ar">
-        <head>
-          <meta charset="utf-8">
-          <title>سجل تسليم السلال الغذائية - مؤسسة الفجر الخيرية</title>
-          <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800;900&display=swap" rel="stylesheet">
-          <style>
-            @page { size: A4 landscape; margin: 10mm; }
-            body { font-family: 'Cairo', sans-serif; margin: 0; padding: 10px; color: #0f172a; background: #fff; }
-            .header { display: flex; justify-content: space-between; align-items: center; border-bottom: 3px solid #b45309; padding-bottom: 12px; margin-bottom: 16px; }
-            .brand-title { font-size: 20px; font-weight: 900; color: #b45309; margin: 0; }
-            .brand-sub { font-size: 12px; color: #64748b; margin: 2px 0 0 0; }
-            .meta-box { text-align: left; font-size: 11px; color: #475569; }
-            .meta-box span { font-weight: bold; color: #0f172a; }
-            table { width: 100%; border-collapse: collapse; font-size: 10px; }
-            th { background-color: #b45309; color: #ffffff; padding: 7px 5px; text-align: right; border: 1px solid #78350f; font-weight: 700; }
-            td { padding: 5px; border: 1px solid #e2e8f0; text-align: right; }
-            tr:nth-child(even) { background-color: #f8fafc; }
-            .summary-bar { margin-top: 14px; display: flex; justify-content: space-between; background: #fefce8; border: 1px solid #fef08a; border-radius: 8px; padding: 8px 14px; font-size: 11.5px; font-weight: bold; }
-            @media print { body { -webkit-print-color-adjust: exact; print-color-adjust: exact; } }
-          </style>
-        </head>
-        <body>
-          <div class="header">
-            <div>
-              <h1 class="brand-title">مؤسسة الفجر الخيرية (Al-Fajr Foundation)</h1>
-              <p class="brand-sub">كشف سجل تسليم وتوزيع السلال الغذائية عبر الإدارة ومراكز التوزيع</p>
-            </div>
-            <div class="meta-box">
-              <div>تاريخ التقرير: <span>${new Date().toLocaleDateString("ar-EG", { year: "numeric", month: "long", day: "numeric" })}</span></div>
-              <div>إجمالي الحركات: <span>${filteredBaskets.length} حركة تسليم</span></div>
-            </div>
-          </div>
-          <table>
-            <thead>
-              <tr>
-                <th style="width: 25px; text-align: center;">#</th>
-                <th>رقم التسليم</th>
-                <th>رقم الكارت</th>
-                <th>اسم المستفيد</th>
-                <th>أفراد الأسرة</th>
-                <th>محل الإقامة</th>
-                <th>السلال المسلمة</th>
-                <th>المتبقي</th>
-                <th>مركز التوزيع</th>
-                <th>التاريخ والوقت</th>
-                <th style="text-align: center;">الحالة</th>
-              </tr>
-            </thead>
-            <tbody>
-              ${rowsHtml}
-            </tbody>
-          </table>
-          <div class="summary-bar">
-            <div>إجمالي عمليات التسليم: <span>${filteredBaskets.length} عملية</span></div>
-            <div>إجمالي السلال المسلمة: <span style="color: #b45309;">${totalBasketsDelivered.toLocaleString()} سلة غذائية</span></div>
-          </div>
-          <script>
-            window.onload = function() { setTimeout(function() { window.print(); }, 500); };
-          </script>
-        </body>
-        </html>
-      `;
-      printWindow.document.open();
-      printWindow.document.write(htmlContent);
-      printWindow.document.close();
+      printTransactionsReport(
+        filteredBaskets,
+        `سجل توزيع السلال الغذائية (${filteredBaskets.length} عملية - إجمالي ${totalBasketsDelivered.toLocaleString()} سلة)`
+      );
     }
   };
-
   return (
     <div className="space-y-6 w-full pb-10">
 
