@@ -164,13 +164,13 @@ export default function DisbursementRequestsPage() {
   };
 
   const filteredRequests = requests.filter((r) => {
-    const q = search.toLowerCase();
     const matchSearch =
-      !q ||
-      r.beneficiaryName?.toLowerCase().includes(q) ||
-      r.cardId?.toLowerCase().includes(q) ||
-      r.merchantStoreName?.toLowerCase().includes(q) ||
-      r.reason?.toLowerCase().includes(q);
+      !search.trim() ||
+      arabicMatch(r.beneficiaryName || "", search) ||
+      arabicMatch(r.cardId || "", search) ||
+      arabicMatch(r.merchantStoreName || "", search) ||
+      arabicMatch(r.merchantName || "", search) ||
+      arabicMatch(r.reason || "", search);
 
     const matchStatus = statusFilter === "all" ? true : r.status === statusFilter;
     return matchSearch && matchStatus;

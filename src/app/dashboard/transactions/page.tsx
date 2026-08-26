@@ -73,19 +73,24 @@ export default function TransactionsPage() {
   // Filtered Cash Txns
   const filteredCash = cashTxns.filter(
     (x) =>
-      x.beneficiaryName?.toLowerCase().includes(search.toLowerCase()) ||
-      x.cardId?.toLowerCase().includes(search.toLowerCase()) ||
-      x.merchantStoreName?.toLowerCase().includes(search.toLowerCase()) ||
-      x.city?.toLowerCase().includes(search.toLowerCase())
+      !search.trim() ||
+      arabicMatch(x.beneficiaryName || "", search) ||
+      arabicMatch(x.cardId || "", search) ||
+      arabicMatch(x.merchantStoreName || "", search) ||
+      arabicMatch(x.merchantName || "", search) ||
+      arabicMatch(x.city || "", search) ||
+      arabicMatch(x.notes || "", search)
   );
 
   // Filtered Basket Dists
   const filteredBaskets = basketDists.filter(
     (x) =>
-      x.beneficiaryName?.toLowerCase().includes(search.toLowerCase()) ||
-      x.cardId?.toLowerCase().includes(search.toLowerCase()) ||
-      x.distributionCenter?.toLowerCase().includes(search.toLowerCase()) ||
-      x.residence?.toLowerCase().includes(search.toLowerCase())
+      !search.trim() ||
+      arabicMatch(x.beneficiaryName || "", search) ||
+      arabicMatch(x.cardId || "", search) ||
+      arabicMatch(x.distributionCenter || "", search) ||
+      arabicMatch(x.residence || "", search) ||
+      arabicMatch(x.notes || "", search)
   );
 
   const totalCashAmount = filteredCash.reduce((acc, curr) => acc + (curr.amountDeducted || 0), 0);

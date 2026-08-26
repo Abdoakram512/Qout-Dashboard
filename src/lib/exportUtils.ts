@@ -1,6 +1,28 @@
 import * as XLSX from "xlsx";
 import { AidCardModel, UserModel } from "@/types";
 
+function parseDateStr(raw: any): string {
+  if (!raw) return "—";
+  try {
+    if (raw.toDate) return raw.toDate().toLocaleDateString("ar-EG");
+    const d = new Date(raw);
+    return isNaN(d.getTime()) ? "—" : d.toLocaleDateString("ar-EG");
+  } catch {
+    return "—";
+  }
+}
+
+function parseDateTimeStr(raw: any): string {
+  if (!raw) return "—";
+  try {
+    if (raw.toDate) return raw.toDate().toLocaleString("ar-EG");
+    const d = new Date(raw);
+    return isNaN(d.getTime()) ? "—" : d.toLocaleString("ar-EG");
+  } catch {
+    return "—";
+  }
+}
+
 export function exportBeneficiariesToExcel(cards: AidCardModel[], filename = "كشف_المستفيدين_مؤسسة_الفجر") {
   const data = cards.map((c, index) => ({
     "م": index + 1,
@@ -10,10 +32,10 @@ export function exportBeneficiariesToExcel(cards: AidCardModel[], filename = "ك
     "الجنسية": c.nationality || "مصرية",
     "محل الإقامة / المدينة": c.residence || "—",
     "عدد أفراد الأسرة": c.familyCount || 1,
-    "الرصيد المالي المتاح (ج.م)": c.totalBalance || 0,
-    "حصة السلال الغذائية": c.foodBasketsQuota || 0,
+    "الرصيد المالي المتاح (ج.م)": (c.totalBalance ?? c.balance ?? 0),
+    "حصة السلال الغذائية": (c.foodBasketsQuota ?? 0),
     "حالة البطاقة": c.status === "active" ? "نشط" : c.status === "frozen" ? "مجمد" : "قيد المراجعة",
-    "تاريخ التفعيل": c.activatedAt ? new Date(c.activatedAt).toLocaleDateString("ar-EG") : "—",
+    "تاريخ التفعيل": parseDateStr(c.activatedAt),
   }));
 
   const worksheet = XLSX.utils.json_to_sheet(data);
@@ -31,8 +53,10 @@ export function exportMerchantsToExcel(merchants: UserModel[], filename = "كش�
     "رقم الهاتف": m.phone || "—",
     "المدينة": m.city || "—",
     "السجل التجاري": m.commercialReg || "—",
+    "العهدة المعتمدة (ج.م)": m.allocatedBudget || 0,
+    "إجمالي المصروف (ج.م)": m.totalDisbursed || 0,
     "الحالة": m.isActive ? "معتمد ونشط" : "قيد المراجعة",
-    "تاريخ التسجيل": m.createdAt ? new Date(m.createdAt).toLocaleDateString("ar-EG") : "—",
+    "تاريخ التسجيل": parseDateStr(m.createdAt),
   }));
 
   const worksheet = XLSX.utils.json_to_sheet(data);
@@ -44,14 +68,15 @@ export function exportMerchantsToExcel(merchants: UserModel[], filename = "كش�
 export function exportTransactionsToExcel(transactions: any[], filename = "سجل_العمليات_المالية_مؤسسة_الفجر") {
   const data = transactions.map((t, index) => ({
     "م": index + 1,
-    "رقم المعاملة": t.id || t.receiptNumber || "—",
+    "رقم المعاملة": t.id || t.transactionId || t.receiptNumber || "—",
     "اسم المستفيد": t.beneficiaryName || "—",
     "رقم البطاقة": t.cardId || "—",
-    "المنفذ / المتجر": t.merchantStoreName || t.distributionCenter || "—",
-    "المبلغ المصروف (ج.م)": t.totalAmount || t.amount || 0,
-    "السلال المصروفة": t.basketsCount || 0,
+    "المنفذ / المتجر": t.merchantStoreName || t.merchantName || t.distributionCenter || "—",
+    "المبلغ المصروف (ج.م)": (t.amountDeducted ?? t.amount ?? t.totalAmount ?? 0),
+    "السلال المصروفة": (t.foodBasketsDeducted ?? t.basketsCount ?? 0),
     "المدينة": t.city || t.residence || "—",
-    "التاريخ والوقت": t.timestamp ? new Date(t.timestamp).toLocaleString("ar-EG") : (t.date || "—"),
+    "التاريخ والوقت": parseDateTimeStr(t.timestamp || t.date || t.createdAt),
+    "ملاحظات": t.notes || "—",
   }));
 
   const worksheet = XLSX.utils.json_to_sheet(data);

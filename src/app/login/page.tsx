@@ -1,4 +1,5 @@
 "use client";
+import Link from "next/link";
 
 import React, { useState } from "react";
 import { useAuth } from "@/lib/authContext";
@@ -135,7 +136,13 @@ export default function LoginPage() {
             </button>
           </form>
 
-          <div className="mt-7 pt-5 border-t border-slate-100 text-center">
+          <div className="mt-7 pt-5 border-t border-slate-100 text-center space-y-2">
+            <Link
+              href="/download"
+              className="inline-flex items-center gap-1.5 text-xs font-black text-emerald-700 hover:text-emerald-800 hover:underline transition-colors"
+            >
+              <span>📱 تحميل تطبيق الموبايل (Android / iOS)</span>
+            </Link>
             <p className="text-[11px] text-slate-400 font-semibold">
               Al-Fajr Relief Organization © 2026 • Highly Secure Admin Infrastructure
             </p>
