@@ -1,4 +1,5 @@
 "use client";
+import { exportAccountsToExcel, printAccountsReport } from "@/lib/exportUtils";
 
 import React, { useState, useEffect } from "react";
 import { createPortal } from "react-dom";
@@ -9,7 +10,7 @@ import { UserModel, UserRole } from "@/types";
 import { arabicMatch } from "@/lib/arabicNormalizer";
 import { logAuditEvent } from "@/lib/auditLogger";
 import {
-  UserCheck, Search, Bell, Check, X, UserPlus, Eye, EyeOff,
+  UserCheck, Search, Bell, Check, X, UserPlus, Printer, FileSpreadsheet, Eye, EyeOff,
   ShieldCheck, Store, Users, UserCog, Mail, Phone,
   MapPin, Lock, Building2, Hash, AlertCircle, CheckCircle2, Trash2, AlertTriangle, CreditCard,
 } from "lucide-react";
@@ -346,17 +347,64 @@ export default function AccountsPage() {
           </div>
         </div>
 
-        <button
-          onClick={() => {
-            setCreateError(null);
-            setCreateSuccess(false);
-            setCreateModalOpen(true);
-          }}
-          className="btn btn-primary px-5 py-2.5 shadow-md flex items-center gap-2 cursor-pointer font-black"
-        >
-          <UserPlus className="w-4 h-4" />
-          <span>{isAr ? "إنشاء حساب جديد" : "Create Account"}</span>
-        </button>
+        <div className="flex items-center gap-2.5 flex-wrap">
+          {/* Print Filtered Accounts Statement */}
+          <button
+            onClick={() => {
+              const tabTitle =
+                activeTab === "all"
+                  ? "كافة الحسابات والاعتمادات"
+                  : activeTab === "beneficiary"
+                  ? "كشف حسابات المستفيدين"
+                  : activeTab === "merchant"
+                  ? "كشف الصرافين والمنافذ المعتمدة"
+                  : activeTab === "admin"
+                  ? "كشف الإدارة والمشرفين"
+                  : "كشف الحسابات المعلقة بانتظار الاعتماد";
+              printAccountsReport(filteredUsers, `${tabTitle} ${search ? `(بحث: ${search})` : ""}`);
+            }}
+            className="btn btn-sm bg-slate-900 hover:bg-slate-800 text-white font-black text-xs px-3.5 py-2.5 rounded-xl flex items-center gap-2 shadow-xs transition-all cursor-pointer"
+            title={isAr ? "طباعة كشف الحسابات المعروضة بناءً على الفلتر الحالي" : "Print Accounts Statement"}
+          >
+            <Printer className="w-4 h-4 text-emerald-400" />
+            <span>{isAr ? "طباعة الكشف الرسمي" : "Print Statement"}</span>
+          </button>
+
+          {/* Export Filtered Accounts Excel */}
+          <button
+            onClick={() => {
+              const tabTitle =
+                activeTab === "all"
+                  ? "جميع_الحسابات"
+                  : activeTab === "beneficiary"
+                  ? "المستفيدين"
+                  : activeTab === "merchant"
+                  ? "الصرافين"
+                  : activeTab === "admin"
+                  ? "الإدارة"
+                  : "المعلقة";
+              exportAccountsToExcel(filteredUsers, tabTitle);
+            }}
+            className="btn btn-sm bg-emerald-50 hover:bg-emerald-100 text-[#0A734D] border border-emerald-300 font-black text-xs px-3.5 py-2.5 rounded-xl flex items-center gap-2 shadow-xs transition-all cursor-pointer"
+            title={isAr ? "تصدير كشف الحسابات المفلترة إلى ملف إكسيل" : "Export Excel"}
+          >
+            <FileSpreadsheet className="w-4 h-4 text-[#0A734D]" />
+            <span>{isAr ? "تصدير إكسيل" : "Export Excel"}</span>
+          </button>
+
+          {/* Create Account Modal Trigger */}
+          <button
+            onClick={() => {
+              setCreateError(null);
+              setCreateSuccess(false);
+              setCreateModalOpen(true);
+            }}
+            className="btn btn-primary px-4 py-2.5 shadow-md flex items-center gap-2 cursor-pointer font-black text-xs"
+          >
+            <UserPlus className="w-4 h-4" />
+            <span>{isAr ? "إنشاء حساب جديد" : "Create Account"}</span>
+          </button>
+        </div>
       </div>
 
       {/* ── Pending Alert Banner ── */}
