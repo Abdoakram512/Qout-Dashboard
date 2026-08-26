@@ -1,79 +1,81 @@
 import * as XLSX from "xlsx";
 import { AidCardModel, UserModel } from "@/types";
 
-export function getOfficialSealSvg(size = 120) {
+export function getOfficialSealSvg(size = 125) {
   // Authentic Royal Stamp Ink Blue (#1e3a8a)
-  const inkColor = "#1e3a8a";
-  const lightWash = "rgba(30, 58, 138, 0.04)";
+  const ink = "#1e3a8a";
 
   return `
-    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="${size}" height="${size}" style="transform: rotate(-5deg); display: inline-block; filter: drop-shadow(0 2px 4px rgba(30,58,138,0.2));">
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 240" width="${size}" height="${size}" style="transform: rotate(-4deg); display: inline-block; filter: drop-shadow(0 2px 4px rgba(30,58,138,0.25));">
       <defs>
-        <!-- Top Arc Path for Main Name -->
-        <path id="topSealArc" d="M 26 100 A 74 74 0 1 1 174 100" fill="none" />
-        <!-- Bottom Arc Path for Department -->
-        <path id="bottomSealArc" d="M 174 100 A 74 74 0 1 1 26 100" fill="none" />
+        <!-- Top Circular Arc for Institution Title -->
+        <path id="royalTopArc" d="M 32 120 A 88 88 0 1 1 208 120" fill="none" />
+        <!-- Bottom Circular Arc for Region & Ministry -->
+        <path id="royalBottomArc" d="M 208 120 A 88 88 0 1 1 32 120" fill="none" />
       </defs>
 
-      <!-- 1. Outer Security Beaded Border (100% Vector) -->
-      <circle cx="100" cy="100" r="96" fill="none" stroke="${inkColor}" stroke-width="1.8" stroke-dasharray="3.5, 2" opacity="0.9" />
+      <!-- 1. Royal Scalloped / Beaded Outer Security Ring -->
+      <circle cx="120" cy="120" r="115" fill="none" stroke="${ink}" stroke-width="1.8" stroke-dasharray="4, 2.5" opacity="0.9" />
       
       <!-- 2. Concentric Outer Double Rings -->
-      <circle cx="100" cy="100" r="90" fill="none" stroke="${inkColor}" stroke-width="2.5" />
-      <circle cx="100" cy="100" r="85" fill="none" stroke="${inkColor}" stroke-width="1" />
+      <circle cx="120" cy="120" r="108" fill="none" stroke="${ink}" stroke-width="2.8" />
+      <circle cx="120" cy="120" r="102" fill="none" stroke="${ink}" stroke-width="1" />
 
-      <!-- 3. Inner Core Medallion with light ink wash -->
-      <circle cx="100" cy="100" r="56" fill="${lightWash}" stroke="${inkColor}" stroke-width="1.8" />
-      <circle cx="100" cy="100" r="52" fill="none" stroke="${inkColor}" stroke-width="0.8" stroke-dasharray="2.5, 2" />
+      <!-- 3. Inner Core Medallion with Ornate Security Border -->
+      <circle cx="120" cy="120" r="68" fill="rgba(30, 58, 138, 0.03)" stroke="${ink}" stroke-width="2" />
+      <circle cx="120" cy="120" r="64" fill="none" stroke="${ink}" stroke-width="1" stroke-dasharray="3, 2" />
 
-      <!-- 4. Top Curved Text: مؤسسة الفجر الخيرية -->
-      <text fill="${inkColor}" font-size="11" font-family="'Cairo', 'Tajawal', Arial, sans-serif" font-weight="900" letter-spacing="0.8px">
-        <textPath href="#topSealArc" startOffset="50%" text-anchor="middle">
+      <!-- 4. Top Arc Text: مؤسسة الفجر الخيرية للتنمية -->
+      <text fill="${ink}" font-size="12.5" font-family="'Cairo', 'Tajawal', Arial, sans-serif" font-weight="900" letter-spacing="0.8px">
+        <textPath href="#royalTopArc" startOffset="50%" text-anchor="middle">
           مؤسسة الفجر الخيرية للتنمية
         </textPath>
       </text>
 
-      <!-- 5. Bottom Curved Text: قطاع الرقابة والاعتماد المالي -->
-      <text fill="${inkColor}" font-size="9" font-family="'Cairo', 'Tajawal', Arial, sans-serif" font-weight="800" letter-spacing="0.4px">
-        <textPath href="#bottomSealArc" startOffset="50%" text-anchor="middle">
-          • قطاع الرقابة والاعتماد المالي •
+      <!-- 5. Bottom Arc Text: جمهورية مصر العربية • قطاع الاعتماد -->
+      <text fill="${ink}" font-size="10.5" font-family="'Cairo', 'Tajawal', Arial, sans-serif" font-weight="800" letter-spacing="0.5px">
+        <textPath href="#royalBottomArc" startOffset="50%" text-anchor="middle">
+          ❖ قطاع الرقابة والاعتماد المركزي ❖
         </textPath>
       </text>
 
-      <!-- 6. Center Official Stamp Core -->
-      <g transform="translate(100, 100)">
-        <!-- Elegant Dawn / Sunburst Geometric Crest (Al-Fajr Emblem) -->
-        <g stroke="${inkColor}" stroke-width="1.2" fill="none" opacity="0.9" transform="translate(0, -26) scale(0.65)">
-          <path d="M -16 6 C -8 -8, 8 -8, 16 6" />
-          <path d="M -22 6 C -10 -14, 10 -14, 22 6" />
-          <line x1="0" y1="-18" x2="0" y2="-8" stroke-width="1.5" />
-          <line x1="-12" y1="-15" x2="-6" y2="-6" stroke-width="1.5" />
-          <line x1="12" y1="-15" x2="6" y2="-6" stroke-width="1.5" />
-          <line x1="-18" y1="-7" x2="-10" y2="-1" stroke-width="1.5" />
-          <line x1="18" y1="-7" x2="10" y2="-1" stroke-width="1.5" />
-          <circle cx="0" cy="4" r="3" fill="${inkColor}" />
+      <!-- 6. Royal Core Heraldic Emblem & Calligraphy -->
+      <g transform="translate(120, 120)">
+        
+        <!-- Royal Radiant Crest (Al-Fajr Emblem) -->
+        <g fill="none" stroke="${ink}" stroke-width="1.4" opacity="0.95" transform="translate(0, -32) scale(0.8)">
+          <path d="M -22 8 C -14 -4, -6 0, 0 -12 C 6 0, 14 -4, 22 8 Z" fill="rgba(30, 58, 138, 0.08)" />
+          <circle cx="0" cy="-14" r="2.5" fill="${ink}" />
+          <circle cx="-11" cy="-4" r="2" fill="${ink}" />
+          <circle cx="11" cy="-4" r="2" fill="${ink}" />
+          <line x1="0" y1="-22" x2="0" y2="-16" stroke-width="1.8" />
+          <line x1="-12" y1="-18" x2="-8" y2="-13" stroke-width="1.5" />
+          <line x1="12" y1="-18" x2="8" y2="-13" stroke-width="1.5" />
         </g>
-        
-        <!-- Center Main Arabic Approval Text -->
-        <text y="-2" text-anchor="middle" fill="${inkColor}" font-size="13" font-family="'Cairo', 'Tajawal', Arial, sans-serif" font-weight="900">
-          معتمد رسميـاً
+
+        <!-- Ornate Central Calligraphic Text: مُـعـتَـمَـد -->
+        <text y="0" text-anchor="middle" fill="${ink}" font-size="18" font-family="'Cairo', 'Tajawal', Arial, sans-serif" font-weight="900" letter-spacing="-0.5px">
+          مُـعـتَـمَـد
         </text>
 
-        <!-- Center Subtitle: الإدارة العامة -->
-        <text y="12" text-anchor="middle" fill="${inkColor}" font-size="8" font-family="'Cairo', 'Tajawal', Arial, sans-serif" font-weight="800" letter-spacing="0.5px">
-          إدارة المساعدات الاجتماعية
-        </text>
-        
-        <!-- Registration & Year -->
-        <text y="26" text-anchor="middle" fill="${inkColor}" font-size="8.5" font-family="'Cairo', 'Tajawal', Arial, sans-serif" font-weight="800" letter-spacing="0.5px">
-          قيد رسمي: ٢٠٢٦
+        <!-- Subtitle: رَسْـمِـيّـاً -->
+        <text y="17" text-anchor="middle" fill="${ink}" font-size="10" font-family="'Cairo', 'Tajawal', Arial, sans-serif" font-weight="900" letter-spacing="1px">
+          رَسْـمِـيّـاً
         </text>
 
-        <!-- Fine Geometric Horizontal Division Lines with Diamonds -->
-        <line x1="-36" y1="-14" x2="-18" y2="-14" stroke="${inkColor}" stroke-width="1" />
-        <line x1="18" y1="-14" x2="36" y2="-14" stroke="${inkColor}" stroke-width="1" />
-        <polygon points="-14,-14 -11,-16 -8,-14 -11,-12" fill="${inkColor}" />
-        <polygon points="8,-14 11,-16 14,-14 11,-12" fill="${inkColor}" />
+        <!-- Foundation Registration Frame -->
+        <path d="M -35 26 L -30 34 L 30 34 L 35 26 L 30 28 L -30 28 Z" fill="rgba(30, 58, 138, 0.08)" stroke="${ink}" stroke-width="0.8" />
+        <text y="33" text-anchor="middle" fill="${ink}" font-size="8.5" font-family="'Segoe UI', Tahoma, monospace" font-weight="800" letter-spacing="1px">
+          ٢٠٢٦ / FAJR
+        </text>
+
+        <!-- Decorative Floral Dividers -->
+        <g fill="${ink}" opacity="0.9">
+          <circle cx="-46" cy="0" r="2.5" />
+          <circle cx="46" cy="0" r="2.5" />
+          <path d="M -46 -5 L -44 0 L -46 5 L -48 0 Z" />
+          <path d="M 46 -5 L 48 0 L 46 5 L 44 0 Z" />
+        </g>
       </g>
     </svg>
   `;
@@ -214,7 +216,7 @@ export function printAccountsReport(users: UserModel[], filterTitle = "كافة 
     `;
   }).join("");
 
-  const sealSvg = getOfficialSealSvg(115);
+  const sealSvg = getOfficialSealSvg(125);
 
   const docContent = `
     <!DOCTYPE html>
@@ -248,14 +250,14 @@ export function printAccountsReport(users: UserModel[], filterTitle = "كافة 
           display: flex;
           justify-content: space-between;
           align-items: center;
-          border-bottom: 2.5px solid #1e3a8a;
+          border-bottom: 2.5px solid #0A734D;
           padding-bottom: 10px;
           margin-bottom: 10px;
         }
         .logo-title {
           font-size: 20px;
           font-weight: 900;
-          color: #1e3a8a;
+          color: #0A734D;
           margin: 0;
           letter-spacing: -0.3px;
         }
@@ -280,9 +282,9 @@ export function printAccountsReport(users: UserModel[], filterTitle = "كافة 
           display: flex;
           justify-content: space-between;
           align-items: center;
-          background: #eff6ff;
-          border: 1.5px solid #93c5fd;
-          color: #1e40af;
+          background: #f0fdf4;
+          border: 1.5px solid #86efac;
+          color: #166534;
           padding: 5px 12px;
           border-radius: 8px;
           font-weight: 800;
@@ -295,11 +297,11 @@ export function printAccountsReport(users: UserModel[], filterTitle = "كافة 
           font-size: 11px;
         }
         th {
-          background: #1e3a8a !important;
+          background: #0A734D !important;
           color: #ffffff !important;
           padding: 7px 6px;
           font-weight: 800;
-          border: 1px solid #1e3a8a;
+          border: 1px solid #0A734D;
           font-size: 11px;
           text-align: center;
         }
@@ -377,7 +379,7 @@ export function printAccountsReport(users: UserModel[], filterTitle = "كافة 
           text-align: center;
           font-family: 'Segoe UI', Tahoma, monospace;
           font-weight: 800;
-          color: #1e3a8a;
+          color: #0A734D;
           font-size: 10.5px;
           white-space: nowrap;
         }
@@ -444,8 +446,8 @@ export function printAccountsReport(users: UserModel[], filterTitle = "كافة 
         }
         .seal-container {
           position: relative;
-          width: 120px;
-          height: 120px;
+          width: 125px;
+          height: 125px;
         }
 
         @media print {
@@ -489,7 +491,7 @@ export function printAccountsReport(users: UserModel[], filterTitle = "كافة 
         </tbody>
       </table>
 
-      <!-- Official Footer with Ink Stamp -->
+      <!-- Official Footer with Royal Ink Stamp -->
       <div class="footer-section">
         <div class="footer-info">
           <div>مؤسسة الفجر الخيرية © ${new Date().getFullYear()} — كشف رسمي معتمد</div>
@@ -498,7 +500,7 @@ export function printAccountsReport(users: UserModel[], filterTitle = "كافة 
         <div class="approval-box">
           <div class="sign-text">
             <div>اعتماد المشرف العام:</div>
-            <div style="font-weight: 900; color: #1e3a8a; margin-top: 4px;">د. مدير إدارة المساعدات الاجتماعية</div>
+            <div style="font-weight: 900; color: #0A734D; margin-top: 4px;">د. مدير إدارة المساعدات الاجتماعية</div>
           </div>
           <div class="seal-container">
             ${sealSvg}
