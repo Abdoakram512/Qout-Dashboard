@@ -1,6 +1,69 @@
 import * as XLSX from "xlsx";
 import { AidCardModel, UserModel } from "@/types";
 
+export function getOfficialSealSvg(size = 115) {
+  return `
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="${size}" height="${size}" style="transform: rotate(-6deg); display: inline-block; filter: drop-shadow(0 2px 4px rgba(10,115,77,0.12));">
+      <defs>
+        <!-- Top Text Path (Curved Arc) -->
+        <path id="topSealArc" d="M 28 100 A 72 72 0 1 1 172 100" fill="none" />
+        <!-- Bottom Text Path (Curved Arc) -->
+        <path id="bottomSealArc" d="M 172 100 A 72 72 0 1 1 28 100" fill="none" />
+      </defs>
+
+      <!-- Outer Beaded Security Ring -->
+      <circle cx="100" cy="100" r="95" fill="none" stroke="#0A734D" stroke-width="2" stroke-dasharray="4, 2.5" opacity="0.85" />
+      
+      <!-- Outer Double Border -->
+      <circle cx="100" cy="100" r="88" fill="none" stroke="#0A734D" stroke-width="2.5" />
+      <circle cx="100" cy="100" r="83" fill="none" stroke="#0A734D" stroke-width="1" />
+
+      <!-- Inner Circle & Watermark Wash -->
+      <circle cx="100" cy="100" r="56" fill="rgba(10, 115, 77, 0.04)" stroke="#0A734D" stroke-width="1.8" />
+      <circle cx="100" cy="100" r="52" fill="none" stroke="#0A734D" stroke-width="0.8" stroke-dasharray="2.5, 2" />
+
+      <!-- Top Curved Text: مؤسسة الفجر الخيرية -->
+      <text fill="#0A734D" font-size="10.5" font-family="'Cairo', 'Tajawal', Arial, sans-serif" font-weight="900" letter-spacing="1px">
+        <textPath href="#topSealArc" startOffset="50%" text-anchor="middle">
+          ★ مؤسسة الفجر الخيرية ★
+        </textPath>
+      </text>
+
+      <!-- Bottom Curved Text: منظومة قُوت الإغاثية المعتمدة -->
+      <text fill="#0A734D" font-size="9.5" font-family="'Cairo', 'Tajawal', Arial, sans-serif" font-weight="800" letter-spacing="0.5px">
+        <textPath href="#bottomSealArc" startOffset="50%" text-anchor="middle">
+          • منظومة قُوت الإغاثية المعتمدة •
+        </textPath>
+      </text>
+
+      <!-- Center Elements -->
+      <g transform="translate(100, 100)">
+        <!-- Top Star Emblem -->
+        <path d="M 0 -30 L 3 -22 L 11 -20 L 5 -14 L 7 -6 L 0 -10 L -7 -6 L -5 -14 L -11 -20 L -3 -22 Z" fill="#0A734D" opacity="0.9" />
+        
+        <!-- Center Main Stamp Text -->
+        <text y="-2" text-anchor="middle" fill="#0A734D" font-size="11.5" font-family="'Cairo', 'Tajawal', Arial, sans-serif" font-weight="900">
+          معتمد رسمياً
+        </text>
+        <text y="12" text-anchor="middle" fill="#065f46" font-size="7.5" font-family="'Cairo', 'Tajawal', Arial, sans-serif" font-weight="800" letter-spacing="0.6px">
+          OFFICIALLY VERIFIED
+        </text>
+        
+        <!-- Verification Code / Year -->
+        <text y="25" text-anchor="middle" fill="#0A734D" font-size="8.5" font-family="'Segoe UI', Tahoma, monospace" font-weight="800">
+          ★ 2026 / FAJR ★
+        </text>
+
+        <!-- Decorative Laurel Horizontal Lines -->
+        <line x1="-35" y1="-12" x2="-18" y2="-12" stroke="#0A734D" stroke-width="1" />
+        <line x1="18" y1="-12" x2="35" y2="-12" stroke="#0A734D" stroke-width="1" />
+        <circle cx="-14" cy="-12" r="1.5" fill="#0A734D" />
+        <circle cx="14" cy="-12" r="1.5" fill="#0A734D" />
+      </g>
+    </svg>
+  `;
+}
+
 function cleanId(raw: any): string {
   if (!raw) return "—";
   return raw.toString().trim().replace(/\s+/g, "");
@@ -139,6 +202,8 @@ export function printAccountsReport(users: UserModel[], filterTitle = "كافة 
     `;
   }).join("");
 
+  const sealSvg = getOfficialSealSvg(110);
+
   const docContent = `
     <!DOCTYPE html>
     <html dir="rtl" lang="ar">
@@ -151,7 +216,7 @@ export function printAccountsReport(users: UserModel[], filterTitle = "كافة 
       <style>
         @page {
           size: A4 landscape;
-          margin: 10mm 12mm 12mm 12mm;
+          margin: 8mm 10mm 10mm 10mm;
         }
         * {
           box-sizing: border-box;
@@ -172,8 +237,8 @@ export function printAccountsReport(users: UserModel[], filterTitle = "كافة 
           justify-content: space-between;
           align-items: center;
           border-bottom: 2.5px solid #0A734D;
-          padding-bottom: 12px;
-          margin-bottom: 12px;
+          padding-bottom: 10px;
+          margin-bottom: 10px;
         }
         .logo-title {
           font-size: 20px;
@@ -193,7 +258,7 @@ export function printAccountsReport(users: UserModel[], filterTitle = "كافة 
           font-size: 11px;
           color: #334155;
           font-weight: 600;
-          line-height: 1.6;
+          line-height: 1.5;
         }
         .meta-box strong {
           color: #0f172a;
@@ -206,11 +271,11 @@ export function printAccountsReport(users: UserModel[], filterTitle = "كافة 
           background: #f0fdf4;
           border: 1.5px solid #86efac;
           color: #166534;
-          padding: 6px 14px;
+          padding: 5px 12px;
           border-radius: 8px;
           font-weight: 800;
-          font-size: 12px;
-          margin-bottom: 12px;
+          font-size: 11.5px;
+          margin-bottom: 10px;
         }
         table {
           width: 100%;
@@ -220,7 +285,7 @@ export function printAccountsReport(users: UserModel[], filterTitle = "كافة 
         th {
           background: #0A734D !important;
           color: #ffffff !important;
-          padding: 8px 6px;
+          padding: 7px 6px;
           font-weight: 800;
           border: 1px solid #0A734D;
           font-size: 11px;
@@ -231,7 +296,7 @@ export function printAccountsReport(users: UserModel[], filterTitle = "كافة 
           padding-right: 10px;
         }
         td {
-          padding: 6px 6px;
+          padding: 5.5px 6px;
           border: 1px solid #cbd5e1;
           font-size: 11px;
           vertical-align: middle;
@@ -243,24 +308,24 @@ export function printAccountsReport(users: UserModel[], filterTitle = "كافة 
           text-align: center;
           font-weight: 800;
           color: #475569;
-          width: 32px;
+          width: 30px;
         }
         .name-cell {
           font-weight: 800;
           color: #0f172a;
-          padding-right: 10px;
+          padding-right: 8px;
         }
         .store-badge {
           font-size: 10px;
           color: #b45309;
           font-weight: 700;
-          margin-top: 2px;
+          margin-top: 1px;
         }
         .email-cell {
           direction: ltr;
           text-align: left;
           font-family: 'Segoe UI', Tahoma, monospace;
-          font-size: 10.5px;
+          font-size: 10px;
           font-weight: 700;
           color: #1e293b;
         }
@@ -270,9 +335,9 @@ export function printAccountsReport(users: UserModel[], filterTitle = "كافة 
         }
         .badge {
           display: inline-block;
-          padding: 2px 8px;
-          border-radius: 6px;
-          font-size: 10.5px;
+          padding: 2px 7px;
+          border-radius: 5px;
+          font-size: 10px;
           font-weight: 800;
         }
         .badge-beneficiary {
@@ -301,7 +366,7 @@ export function printAccountsReport(users: UserModel[], filterTitle = "كافة 
           font-family: 'Segoe UI', Tahoma, monospace;
           font-weight: 800;
           color: #0A734D;
-          font-size: 11px;
+          font-size: 10.5px;
           white-space: nowrap;
         }
         .id-cell {
@@ -310,7 +375,7 @@ export function printAccountsReport(users: UserModel[], filterTitle = "كافة 
           font-family: 'Segoe UI', Tahoma, monospace;
           font-weight: 700;
           color: #334155;
-          font-size: 11px;
+          font-size: 10.5px;
           letter-spacing: 0.3px;
           white-space: nowrap;
         }
@@ -321,7 +386,7 @@ export function printAccountsReport(users: UserModel[], filterTitle = "كافة 
         }
         .status-cell {
           text-align: center;
-          font-size: 10.5px;
+          font-size: 10px;
           font-weight: 800;
         }
         .status-active {
@@ -336,17 +401,41 @@ export function printAccountsReport(users: UserModel[], filterTitle = "كافة 
           color: #b45309;
           font-weight: 800;
         }
-        .footer {
-          margin-top: 16px;
+        
+        /* ── Official Stamp Footer Section ── */
+        .footer-section {
+          margin-top: 15px;
+          page-break-inside: avoid;
           display: flex;
           justify-content: space-between;
-          align-items: center;
-          font-size: 11px;
-          color: #64748b;
+          align-items: flex-end;
           border-top: 1.5px solid #cbd5e1;
-          padding-top: 8px;
-          font-weight: 600;
+          padding-top: 10px;
         }
+        .footer-info {
+          font-size: 10.5px;
+          color: #64748b;
+          font-weight: 600;
+          line-height: 1.6;
+        }
+        .approval-box {
+          display: flex;
+          align-items: center;
+          gap: 15px;
+          text-align: right;
+        }
+        .sign-text {
+          font-size: 11px;
+          font-weight: 800;
+          color: #0f172a;
+          line-height: 1.6;
+        }
+        .seal-container {
+          position: relative;
+          width: 115px;
+          height: 115px;
+        }
+
         @media print {
           body { padding: 0; }
           button { display: none !important; }
@@ -361,13 +450,13 @@ export function printAccountsReport(users: UserModel[], filterTitle = "كافة 
         </div>
         <div class="meta-box">
           <div><strong>تاريخ الإصدار:</strong> ${new Date().toLocaleDateString('ar-EG')} - ${new Date().toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' })}</div>
-          <div><strong>إجمالي السجلات بالكشف:</strong> ${users.length} حساب</div>
+          <div><strong>إجمالي السجلات:</strong> ${users.length} حساب</div>
         </div>
       </div>
 
       <div class="filter-banner">
         <div>📋 نوع التقرير: <strong>${filterTitle}</strong></div>
-        <div>العدد الإجمالي: <strong>${users.length}</strong> حساب معتمد</div>
+        <div>العدد الإجمالي بالكشف: <strong>${users.length}</strong> حساب معتمد</div>
       </div>
 
       <table>
@@ -388,9 +477,23 @@ export function printAccountsReport(users: UserModel[], filterTitle = "كافة 
         </tbody>
       </table>
 
-      <div class="footer">
-        <div>مؤسسة الفجر الخيرية © ${new Date().getFullYear()} — وثيقة رسمية معتمدة من الإدارة المركزية</div>
-        <div>اعتماد وتوقيع المشرف العام: ....................................................</div>
+      <!-- Official Footer with Seal -->
+      <div class="footer-section">
+        <div class="footer-info">
+          <div>مؤسسة الفجر الخيرية © ${new Date().getFullYear()} — جميع الحقوق محفوظة منظومة قُوت</div>
+          <div>وثيقة إدارية رسمية معتمدة ومشفرة برمجياً عبر السحابة المركزية</div>
+        </div>
+
+        <div class="approval-box">
+          <div class="sign-text">
+            <div>اعتماد وتوقيع المشرف العام:</div>
+            <div style="font-weight: 900; color: #0A734D; margin-top: 4px;">د. المشرف الإداري لمنظومة قُوت</div>
+            <div style="font-size: 10px; color: #64748b; font-family: monospace;">AUTH-SECURE-2026</div>
+          </div>
+          <div class="seal-container">
+            ${sealSvg}
+          </div>
+        </div>
       </div>
 
       <script>
