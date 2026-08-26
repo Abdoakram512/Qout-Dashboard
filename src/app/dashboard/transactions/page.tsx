@@ -58,7 +58,7 @@ export default function TransactionsPage() {
     if (!ts) return "—";
     try {
       const date = ts.toDate ? ts.toDate() : new Date(ts);
-      return date.toLocaleDateString(isAr ? "ar-EG" : "en-US", {
+      return date.toLocaleString(isAr ? "ar-EG" : "en-US", {
         year: "numeric",
         month: "short",
         day: "numeric",
