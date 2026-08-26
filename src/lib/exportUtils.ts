@@ -73,11 +73,16 @@ export function getOfficialSealSvg(size = 125) {
           إدارة المساعدات الاجتماعية
         </text>
 
-        <!-- Year / Registration Stamp Ribbon -->
-        <path d="M -32 32 L -28 39 L 28 39 L 32 32 L 28 33.5 L -28 33.5 Z" fill="rgba(10, 115, 77, 0.08)" stroke="${emerald}" stroke-width="0.7" />
-        <text y="38" text-anchor="middle" fill="${emerald}" font-size="8" font-family="'Segoe UI', Tahoma, monospace" font-weight="900" letter-spacing="1px">
-          ٢٠٢٦ / FAJR
+        <!-- Clean Elegant Year & Side Flourish Dividers -->
+        <line x1="-36" y1="36" x2="-16" y2="36" stroke="${emerald}" stroke-width="0.9" />
+        <circle cx="-13" cy="36" r="1.5" fill="${emerald}" />
+        
+        <text y="39.5" text-anchor="middle" fill="${emerald}" font-size="9" font-family="'Cairo', 'Tajawal', Arial, sans-serif" font-weight="900" letter-spacing="1.5px">
+          ٢٠٢٦
         </text>
+
+        <circle cx="13" cy="36" r="1.5" fill="${emerald}" />
+        <line x1="16" y1="36" x2="36" y2="36" stroke="${emerald}" stroke-width="0.9" />
 
         <!-- Side Ornamental Fleuron Diamonds -->
         <g fill="${emerald}" opacity="0.9">
