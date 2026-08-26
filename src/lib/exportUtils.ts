@@ -65,8 +65,8 @@ export function getOfficialSealSvg(size = 120) {
         </text>
         
         <!-- Registration & Year -->
-        <text y="26" text-anchor="middle" fill="${inkColor}" font-size="8.5" font-family="'Segoe UI', Tahoma, monospace" font-weight="800" letter-spacing="0.5px">
-          قيد رقم: ٢٠٢٦ / فجر
+        <text y="26" text-anchor="middle" fill="${inkColor}" font-size="8.5" font-family="'Cairo', 'Tajawal', Arial, sans-serif" font-weight="800" letter-spacing="0.5px">
+          قيد رسمي: ٢٠٢٦
         </text>
 
         <!-- Fine Geometric Horizontal Division Lines with Diamonds -->
@@ -189,9 +189,6 @@ export function exportAccountsToExcel(users: UserModel[], filterName = "جميع
 }
 
 export function printAccountsReport(users: UserModel[], filterTitle = "كافة الحسابات والاعتمادات") {
-  const printWindow = window.open("", "_blank");
-  if (!printWindow) return;
-
   const rowsHtml = users.map((u, idx) => {
     const cleanNat = cleanId(u.nationalId || u.phone);
     const cleanCard = cleanId(u.activeCardId);
@@ -224,14 +221,14 @@ export function printAccountsReport(users: UserModel[], filterTitle = "كافة 
     <html dir="rtl" lang="ar">
     <head>
       <meta charset="utf-8" />
-      <title>كشف الحسابات والاعتمادات — مؤسسة الفجر الخيرية</title>
+      <title>كشف الحسابات — مؤسسة الفجر الخيرية</title>
       <link rel="preconnect" href="https://fonts.googleapis.com">
       <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
       <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800;900&family=Tajawal:wght@500;700;800;900&display=swap" rel="stylesheet">
       <style>
         @page {
           size: A4 landscape;
-          margin: 8mm 10mm 10mm 10mm;
+          margin: 8mm 10mm 8mm 10mm;
         }
         * {
           box-sizing: border-box;
@@ -430,7 +427,7 @@ export function printAccountsReport(users: UserModel[], filterTitle = "كافة 
         .footer-info {
           font-size: 10.5px;
           color: #64748b;
-          font-weight: 600;
+          font-weight: 700;
           line-height: 1.6;
         }
         .approval-box {
@@ -495,32 +492,46 @@ export function printAccountsReport(users: UserModel[], filterTitle = "كافة 
       <!-- Official Footer with Ink Stamp -->
       <div class="footer-section">
         <div class="footer-info">
-          <div>مؤسسة الفجر الخيرية © ${new Date().getFullYear()} — جميع الحقوق محفوظة</div>
-          <div>وثيقة إدارية رسمية معتمدة من الإدارة العامة للمساعدات الاجتماعية</div>
+          <div>مؤسسة الفجر الخيرية © ${new Date().getFullYear()} — كشف رسمي معتمد</div>
         </div>
 
         <div class="approval-box">
           <div class="sign-text">
             <div>اعتماد المشرف العام:</div>
             <div style="font-weight: 900; color: #1e3a8a; margin-top: 4px;">د. مدير إدارة المساعدات الاجتماعية</div>
-            <div style="font-size: 10px; color: #64748b; font-family: monospace;">DOC-FAJR-2026-OK</div>
           </div>
           <div class="seal-container">
             ${sealSvg}
           </div>
         </div>
       </div>
-
-      <script>
-        window.onload = function() {
-          setTimeout(function() { window.print(); }, 200);
-        }
-      </script>
     </body>
     </html>
   `;
 
-  printWindow.document.open();
-  printWindow.document.write(docContent);
-  printWindow.document.close();
+  // Use Hidden Iframe to completely prevent "about:blank" in headers/footers
+  let iframe = document.getElementById("printReportIframe") as HTMLIFrameElement;
+  if (!iframe) {
+    iframe = document.createElement("iframe");
+    iframe.id = "printReportIframe";
+    iframe.style.position = "fixed";
+    iframe.style.right = "0";
+    iframe.style.bottom = "0";
+    iframe.style.width = "0";
+    iframe.style.height = "0";
+    iframe.style.border = "0";
+    document.body.appendChild(iframe);
+  }
+
+  const doc = iframe.contentWindow?.document;
+  if (doc) {
+    doc.open();
+    doc.write(docContent);
+    doc.close();
+
+    setTimeout(() => {
+      iframe.contentWindow?.focus();
+      iframe.contentWindow?.print();
+    }, 250);
+  }
 }
