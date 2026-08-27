@@ -5,7 +5,15 @@ import { AuthProvider } from "@/lib/authContext";
 
 export const metadata: Metadata = {
   title: "مؤسسة الفجر الخيرية | لوحة تحكم الإدارة العامة",
-  description: "Central Administration Web Portal for Al-Fajr Relief & Development Foundation",
+  description: "البوابة الإدارية والرقابية المعتمدة - مؤسسة الفجر الخيرية للتنمية",
+  icons: {
+    icon: [
+      { url: "/app_icon.png", sizes: "any" },
+      { url: "/favicon.png", type: "image/png" },
+    ],
+    apple: "/app_icon.png",
+    shortcut: "/app_icon.png",
+  },
 };
 
 export default function RootLayout({
@@ -16,6 +24,9 @@ export default function RootLayout({
   return (
     <html lang="ar" dir="rtl">
       <head>
+        <link rel="icon" href="/app_icon.png" type="image/png" />
+        <link rel="shortcut icon" href="/app_icon.png" type="image/png" />
+        <link rel="apple-touch-icon" href="/app_icon.png" />
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
         <link
