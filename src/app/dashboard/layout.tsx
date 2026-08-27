@@ -15,37 +15,17 @@ import { collection, query, where, orderBy, limit, onSnapshot } from "firebase/f
 import { db } from "@/lib/firebase";
 import { notificationService } from "@/lib/notificationSound";
 
-// ─── Al-Fajr Foundation Brand Logo (Vector Insignia) ──────────────────
+// ─── Al-Fajr Foundation Official Brand Logo ──────────────────
 function AlFajrLogo({ isAr }: { isAr: boolean }) {
   return (
     <div className="flex items-center gap-3.5">
-      {/* Brand Icon Emblem */}
+      {/* Official Brand Logo Icon */}
       <div className="relative flex-shrink-0">
-        <div
-          className="w-12 h-12 rounded-2xl flex items-center justify-center shadow-md relative overflow-hidden"
-          style={{
-            background: "linear-gradient(135deg, #0A734D 0%, #063A28 100%)",
-            border: "2px solid #F59E0B",
-            boxShadow: "0 4px 14px rgba(10, 115, 77, 0.25)",
-          }}
-        >
-          <div className="absolute -top-2 -right-2 w-6 h-6 rounded-full bg-amber-400/25 blur-xs" />
-          
-          <svg
-            className="w-7 h-7 text-white drop-shadow-xs"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          >
-            {/* Sunrise / Crescent Foundation Emblem */}
-            <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83" stroke="#F59E0B" strokeWidth="1.5" />
-            <circle cx="12" cy="12" r="4" fill="#F59E0B" stroke="#FDE68A" strokeWidth="1.5" />
-            <path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z" fill="none" stroke="#FFFFFF" strokeWidth="1.5" />
-          </svg>
-        </div>
+        <img
+          src="/app_icon.png"
+          alt="Al-Fajr Official Logo"
+          className="w-12 h-12 rounded-2xl shadow-md shadow-emerald-950/20 object-contain hover:scale-105 transition-transform"
+        />
       </div>
 
       {/* Brand Text Lockup */}

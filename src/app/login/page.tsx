@@ -54,8 +54,12 @@ export default function LoginPage() {
           
           {/* Header & Title */}
           <div className="flex flex-col items-center text-center mb-7">
-            <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-emerald-600 to-green-700 flex items-center justify-center shadow-lg shadow-emerald-700/30 mb-3.5">
-              <ShieldCheck className="w-9 h-9 text-white" />
+            <div className="relative mb-4">
+              <img
+                src="/app_icon.png"
+                alt="Al-Fajr Logo"
+                className="w-20 h-20 rounded-3xl shadow-xl shadow-emerald-950/30 object-contain hover:scale-105 transition-transform"
+              />
             </div>
 
             <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-50 border border-emerald-200/80 mb-2.5">
