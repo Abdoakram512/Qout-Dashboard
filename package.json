@@ -1,5 +1,5 @@
 {
-  "name": "qout-admin",
+  "name": "elfajr-dashboard",
   "version": "0.1.0",
   "private": true,
   "scripts": {
@@ -31,5 +31,6 @@
     "eslint-config-next": "16.3.1",
     "tailwindcss": "^4",
     "typescript": "^5"
-  }
+  },
+  "description": "Official Admin Dashboard for Al-Fajr Charity Foundation"
 }
