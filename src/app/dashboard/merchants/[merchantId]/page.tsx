@@ -1,6 +1,7 @@
 "use client";
 
 import { compressImageFile, compressImageToDataUrl } from "@/lib/imageCompressor";
+import { BrandLoader } from "@/components/common/BrandLoader";
 import React, { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { db, storage } from "@/lib/firebase";
@@ -408,14 +409,8 @@ export default function MerchantProfilePage() {
 
   if (loading) {
     return (
-      <div className="flex min-h-[50vh] items-center justify-center">
-        <div className="flex flex-col items-center gap-3 text-center">
-          <img src="/app_icon.png" alt="Al-Fajr Logo" className="w-14 h-14 rounded-2xl shadow-lg object-contain animate-bounce" />
-          <div className="flex items-center gap-2 bg-white px-4 py-1.5 rounded-xl border border-slate-200 shadow-xs">
-            <div className="w-3.5 h-3.5 border-2 border-[#0A734D] border-t-transparent rounded-full animate-spin" />
-            <span className="text-xs font-bold text-slate-700">{isAr ? "جاري تحميل بيانات المنفذ..." : "Loading Merchant..."}</span>
-          </div>
-        </div>
+      <div className="flex min-h-[55vh] items-center justify-center">
+        <BrandLoader size="md" />
       </div>
     );
   }

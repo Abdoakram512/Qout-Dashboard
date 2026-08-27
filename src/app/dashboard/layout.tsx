@@ -14,6 +14,7 @@ import {
 import { collection, query, where, orderBy, limit, onSnapshot } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { notificationService } from "@/lib/notificationSound";
+import { BrandLoader } from "@/components/common/BrandLoader";
 
 // ─── Al-Fajr Foundation Official Brand Logo ──────────────────
 function AlFajrLogo({ isAr }: { isAr: boolean }) {
@@ -544,26 +545,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const pageTitle = getPageTitle(pathname);
 
   if (loading) {
-    return (
-      <div className="flex h-screen w-full items-center justify-center bg-[#F8FAF9]">
-        <div className="flex flex-col items-center gap-4 text-center px-4">
-          <div className="relative">
-            <img
-              src="/app_icon.png"
-              alt="Al-Fajr Official Logo"
-              className="w-20 h-20 rounded-3xl shadow-2xl shadow-emerald-950/20 object-contain animate-bounce"
-            />
-            <div className="absolute -inset-1.5 rounded-3xl border-2 border-emerald-500/30 animate-ping pointer-events-none" />
-          </div>
-          <div className="flex items-center gap-2.5 mt-2 bg-white px-5 py-2.5 rounded-2xl border border-slate-200/80 shadow-xs">
-            <div className="w-4 h-4 border-2 border-[#0A734D] border-t-transparent rounded-full animate-spin flex-shrink-0" />
-            <span className="text-xs font-black text-slate-800">
-              {isAr ? "جاري تهيئة المنظومة..." : "Initializing System..."}
-            </span>
-          </div>
-        </div>
-      </div>
-    );
+    return <BrandLoader size="lg" fullScreen />;
   }
 
   const SidebarInner = () => (
