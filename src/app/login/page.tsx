@@ -34,7 +34,7 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen w-full flex items-center justify-center bg-gradient-to-br from-slate-900 via-emerald-950 to-slate-900 p-4 sm:p-6 relative overflow-hidden">
+    <main role="main" className="min-h-screen w-full flex items-center justify-center bg-gradient-to-br from-slate-900 via-emerald-950 to-slate-900 p-4 sm:p-6 relative overflow-hidden">
       <div className="absolute -top-40 -right-40 w-96 h-96 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none"></div>
       <div className="absolute -bottom-40 -left-40 w-96 h-96 bg-green-500/10 rounded-full blur-3xl pointer-events-none"></div>
 
@@ -82,12 +82,12 @@ export default function LoginPage() {
 
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
-              <label className="block text-xs font-black text-slate-700 mb-1.5">
+              <label htmlFor="admin-email" className="block text-xs font-black text-slate-700 mb-1.5">
                 {t("email_label")}
               </label>
               <div className="relative">
                 <input
-                  type="email"
+                  id="admin-email"
                   dir="ltr"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
@@ -99,11 +99,12 @@ export default function LoginPage() {
             </div>
 
             <div>
-              <label className="block text-xs font-black text-slate-700 mb-1.5">
+              <label htmlFor="admin-password" className="block text-xs font-black text-slate-700 mb-1.5">
                 {t("password_label")}
               </label>
               <div className="relative">
                 <input
+                  id="admin-password"
                   type={showPassword ? "text" : "password"}
                   dir="ltr"
                   value={password}
@@ -153,6 +154,6 @@ export default function LoginPage() {
           </div>
         </div>
       </div>
-    </div>
+    </main>
   );
 }

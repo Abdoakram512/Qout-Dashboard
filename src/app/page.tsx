@@ -19,5 +19,9 @@ export default function Home() {
     }
   }, [adminData, loading, router]);
 
-  return <BrandLoader size="lg" fullScreen />;
+  return (
+    <main role="main">
+      <BrandLoader size="lg" fullScreen />
+    </main>
+  );
 }
