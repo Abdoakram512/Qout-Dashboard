@@ -105,6 +105,7 @@ export default function BeneficiariesPage() {
   const [distributing, setDistributing] = useState(false);
   const [showMonthlyModal, setShowMonthlyModal] = useState(false);
   const [rechargingMonthly, setRechargingMonthly] = useState(false);
+  const [cycleInfo, setCycleInfo] = useState<any>(null);
   const [successToast, setSuccessToast] = useState<string | null>(null);
 
   // Mounted for Portal
@@ -260,6 +261,8 @@ export default function BeneficiariesPage() {
         } catch (_) {}
       }
 
+
+
       if (adminData) {
         await logAuditEvent({
           adminId: adminData.uid,
@@ -346,7 +349,7 @@ export default function BeneficiariesPage() {
   const cycleDisplayAr = `دورة شهر ${arabicMonthsNames[nowForCycle.getMonth()]} ${nowForCycle.getFullYear()}`;
   const cycleDisplayEn = `Cycle: ${nowForCycle.toLocaleString("en-US", { month: "long" })} ${nowForCycle.getFullYear()}`;
 
-  const handleConfirmMonthlyRecharge = async () => {
+  const handleConfirmMonthlyRecharge = async (isAutomated: boolean = false) => {
     const activeCards = cards.filter((c) => (c.status || "active") === "active");
     if (activeCards.length === 0) return;
 
@@ -387,6 +390,19 @@ export default function BeneficiariesPage() {
 
         await batch.commit();
       }
+
+      await setDoc(
+        doc(db, "system_settings", "monthly_cycles"),
+        {
+          lastProcessedCycle: currentCycleKey,
+          cycleNameArabic: cycleDisplayAr,
+          processedAt: nowIso,
+          totalBeneficiaries: activeCards.length,
+          quotaPerBeneficiary: { cash: 30, foodBaskets: 1 },
+          executionMethod: isAutomated ? "automated_dashboard_daemon" : "manual_admin_confirmation",
+        },
+        { merge: true }
+      );
 
       if (adminData) {
         await logAuditEvent({
@@ -499,15 +515,31 @@ export default function BeneficiariesPage() {
             </span>
           </div>
 
-          <button
-            onClick={() => setShowMonthlyModal(true)}
-            disabled={rechargingMonthly || cards.filter(c => c.status === 'active').length === 0}
-            className="btn bg-gradient-to-r from-emerald-600 to-[#0A734D] hover:from-emerald-700 hover:to-[#063A28] text-white shadow-md flex items-center gap-2 font-black text-xs px-4 py-2.5 rounded-xl cursor-pointer transition-all disabled:opacity-50"
-            title={isAr ? "إيداع الحصة الشهرية الدورية (30 ج.م + سلة غذائية) لكافة المستفيدين النشطين" : "Deposit Monthly Cycle Quota (30 EGP + 1 Food Basket) for all active beneficiaries"}
-          >
-            <Sparkles className="w-4 h-4 text-emerald-200" />
-            <span>{isAr ? "إيداع الحصة الشهرية (30 ج.م + سلة)" : "Deposit Monthly Quota (30 EGP + Basket)"}</span>
-          </button>
+          {cycleInfo?.lastProcessedCycle === currentCycleKey ? (
+            <div
+              onClick={() => setShowMonthlyModal(true)}
+              className="flex items-center gap-2 bg-emerald-50 hover:bg-emerald-100/80 border border-emerald-300 text-emerald-900 px-3.5 py-2 rounded-xl text-xs font-bold cursor-pointer transition-colors shadow-xs"
+              title={isAr ? "الحصة الشهرية مودعة تلقائياً - اضغط لمعاينة التفاصيل" : "Monthly quota automatically active - click for details"}
+            >
+              <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse"></span>
+              <Sparkles className="w-3.5 h-3.5 text-emerald-700" />
+              <span>{isAr ? `الحصة الشهرية (${cycleDisplayAr}) مفعلة تلقائياً` : `Monthly Quota (${currentCycleKey}) Active`}</span>
+            </div>
+          ) : (
+            <button
+              onClick={() => setShowMonthlyModal(true)}
+              disabled={rechargingMonthly || cards.filter(c => (c.status || 'active') === 'active').length === 0}
+              className="btn bg-gradient-to-r from-emerald-600 to-[#0A734D] hover:from-emerald-700 hover:to-[#063A28] text-white shadow-md flex items-center gap-2 font-black text-xs px-4 py-2.5 rounded-xl cursor-pointer transition-all disabled:opacity-50"
+              title={isAr ? "إيداع الحصة الشهرية الدورية (30 ج.م + سلة غذائية) لكافة المستفيدين النشطين" : "Deposit Monthly Cycle Quota (30 EGP + 1 Food Basket) for all active beneficiaries"}
+            >
+              {rechargingMonthly ? (
+                <Loader2 className="w-4 h-4 animate-spin text-emerald-200" />
+              ) : (
+                <Sparkles className="w-4 h-4 text-emerald-200" />
+              )}
+              <span>{isAr ? "إيداع الحصة الشهرية (30 ج.م + سلة)" : "Deposit Monthly Quota (30 EGP + Basket)"}</span>
+            </button>
+          )}
 
           <button
             onClick={handlePrintAllCards}
