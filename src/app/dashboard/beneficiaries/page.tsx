@@ -9,12 +9,13 @@ import { collection, onSnapshot, doc, updateDoc, setDoc, Timestamp } from "fireb
 import { useI18n } from "@/lib/i18n";
 import { useAuth } from "@/lib/authContext";
 import { AidCardModel } from "@/types";
+import { printBulkBeneficiaryCards, printBeneficiariesReport } from "@/lib/exportUtils";
 import { arabicMatch } from "@/lib/arabicNormalizer";
 import { logAuditEvent } from "@/lib/auditLogger";
 import { QRCodeCanvas } from "qrcode.react";
 import * as XLSX from "xlsx";
 import {
-  Users, Search, Globe, Download, FileSpreadsheet, Printer,
+  Users, Search, Globe, Loader2, Download, FileSpreadsheet, Printer,
   QrCode, Edit, Edit3, X, PackageCheck, MapPin, CheckCircle2,
   AlertCircle, ChevronDown, ChevronLeft, Sparkles, Filter, Home,
   Package, FileText, Plus, Minus, CreditCard, ShieldCheck, Coins,
@@ -60,6 +61,7 @@ export default function BeneficiariesPage() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [selectedNationality, setSelectedNationality] = useState("all");
+  const [isPrintingCards, setIsPrintingCards] = useState(false);
   const [selectedStatus, setSelectedStatus] = useState("all");
 
   // Recipient Filters
@@ -333,6 +335,28 @@ export default function BeneficiariesPage() {
     }
   };
 
+  
+  // Bulk Print All Beneficiary QR Cards
+  const handlePrintAllCards = async () => {
+    const targetCards = filteredCards.length > 0 ? filteredCards : cards;
+    if (targetCards.length === 0) return;
+    setIsPrintingCards(true);
+    try {
+      await printBulkBeneficiaryCards(targetCards, isAr ? "كروت المستفيدين الذكية (QR Cards)" : "Beneficiary Smart Cards");
+    } catch (err) {
+      console.error("Print cards error:", err);
+    } finally {
+      setIsPrintingCards(false);
+    }
+  };
+
+  // Print Beneficiaries Tabular Report
+  const handlePrintReport = () => {
+    const targetCards = filteredCards.length > 0 ? filteredCards : cards;
+    if (targetCards.length === 0) return;
+    printBeneficiariesReport(targetCards, isAr ? "كشف بطاقات المستفيدين المعتمدة" : "Approved Beneficiaries Report");
+  };
+
   // Export to Excel with Al-Fajr Naming
   const handleExportExcel = () => {
     const rows = filteredCards.map((c, idx) => ({
@@ -398,8 +422,32 @@ export default function BeneficiariesPage() {
           </div>
 
           <button
+            onClick={handlePrintAllCards}
+            disabled={isPrintingCards || cards.length === 0}
+            className="btn bg-[#0A734D] hover:bg-[#063A28] text-white shadow-md flex items-center gap-2 font-black text-xs px-4 py-2.5 rounded-xl cursor-pointer transition-all disabled:opacity-50"
+            title={isAr ? "طباعة كافة كروت ورموز الـ QR Code للمستفيدين دفعة واحدة" : "Bulk Print All Beneficiary QR Cards"}
+          >
+            {isPrintingCards ? (
+              <Loader2 className="w-4 h-4 animate-spin" />
+            ) : (
+              <QrCode className="w-4 h-4" />
+            )}
+            <span>{isAr ? "طباعة كروت الـ QR دفعة واحدة" : "Bulk Print QR Cards"}</span>
+          </button>
+
+          <button
+            onClick={handlePrintReport}
+            disabled={cards.length === 0}
+            className="btn bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 shadow-xs flex items-center gap-2 font-black text-xs px-3.5 py-2.5 rounded-xl cursor-pointer transition-all"
+            title={isAr ? "طباعة كشف المستفيدين الرسمي" : "Print Official Report"}
+          >
+            <Printer className="w-4 h-4 text-slate-600" />
+            <span>{isAr ? "طباعة الكشف" : "Print Report"}</span>
+          </button>
+
+          <button
             onClick={handleExportExcel}
-            className="btn btn-sm bg-emerald-50 hover:bg-emerald-100 text-[#0A734D] border border-emerald-300 font-black text-xs px-3.5 py-2 rounded-xl flex items-center gap-2 shadow-xs transition-all"
+            className="btn bg-emerald-50 hover:bg-emerald-100 text-[#0A734D] border border-emerald-300 font-black text-xs px-3.5 py-2.5 rounded-xl flex items-center gap-2 shadow-xs transition-all cursor-pointer"
           >
             <FileSpreadsheet className="w-4 h-4 text-[#0A734D]" />
             <span>{isAr ? "تصدير إكسيل" : "Export Excel"}</span>

@@ -35,6 +35,7 @@ export default function AccountsPage() {
   const [newPhone, setNewPhone] = useState("");
   const [newCity, setNewCity] = useState(isAr ? "القاهرة" : "Cairo");
   const [newStoreName, setNewStoreName] = useState("");
+  const [newCommercialReg, setNewCommercialReg] = useState("");
   const [newNatId, setNewNatId] = useState("");
   const [creating, setCreating] = useState(false);
   const [createError, setCreateError] = useState<string | null>(null);
@@ -256,7 +257,7 @@ export default function AccountsPage() {
 
       if (newRole === "merchant") {
         userDoc.storeName = newStoreName || `${newName} للتموينات`;
-        userDoc.commercialReg = `CR-${Math.floor(100000 + Math.random() * 900000)}`;
+        userDoc.commercialReg = newCommercialReg.trim() || `CR-${Math.floor(100000 + Math.random() * 900000)}`;
         userDoc.totalDisbursed = 0;
         userDoc.totalTransactions = 0;
       } else if (newRole === "beneficiary") {
@@ -297,6 +298,7 @@ export default function AccountsPage() {
         setNewEmail("");
         setNewPass("");
         setNewStoreName("");
+        setNewCommercialReg("");
         setNewNatId("");
         setNewPhone("");
       }, 1000);
@@ -312,6 +314,7 @@ export default function AccountsPage() {
       arabicMatch(u.name, search) ||
       arabicMatch(u.email, search) ||
       arabicMatch(u.storeName, search) ||
+      arabicMatch(u.commercialReg, search) ||
       arabicMatch(u.phone, search) ||
       arabicMatch(u.nationalId, search) ||
       arabicMatch(u.activeCardId, search) ||
@@ -813,21 +816,35 @@ export default function AccountsPage() {
                 />
               </div>
 
-              {/* Conditional: Store Name for Merchant */}
+              {/* Conditional: Store Name & CR for Merchant */}
               {newRole === "merchant" && (
-                <div>
-                  <label className="block text-slate-700 mb-1 font-black">
-                    {isAr ? "اسم المتجر / السوبرماركت المعتمد" : "Store / Market Name"}
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    value={newStoreName}
-                    onChange={(e) => setNewStoreName(e.target.value)}
-                    placeholder={isAr ? "مثال: أسواق النور للمواد الغذائية" : "e.g. Al-Noor Supermarket"}
-                    className="qout-input"
-                  />
-                </div>
+                <>
+                  <div>
+                    <label className="block text-slate-700 mb-1 font-black">
+                      {isAr ? "اسم المتجر / السوبرماركت المعتمد" : "Store / Market Name"}
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      value={newStoreName}
+                      onChange={(e) => setNewStoreName(e.target.value)}
+                      placeholder={isAr ? "مثال: أسواق النور للمواد الغذائية" : "e.g. Al-Noor Supermarket"}
+                      className="qout-input"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-slate-700 mb-1 font-black">
+                      {isAr ? "رقم السجل التجاري (Commercial Registration)" : "Commercial Registration No."}
+                    </label>
+                    <input
+                      type="text"
+                      value={newCommercialReg}
+                      onChange={(e) => setNewCommercialReg(e.target.value)}
+                      placeholder={isAr ? "مثال: 104582 أو CR-104582" : "e.g. 104582 or CR-104582"}
+                      className="qout-input font-mono"
+                    />
+                  </div>
+                </>
               )}
 
               {/* Conditional: National ID for Beneficiary */}

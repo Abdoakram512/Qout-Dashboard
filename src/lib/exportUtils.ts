@@ -1,3 +1,4 @@
+import QRCode from "qrcode";
 import * as XLSX from "xlsx";
 import { AidCardModel, UserModel } from "@/types";
 
@@ -562,4 +563,359 @@ export function printMerchantsReport(merchants: UserModel[], filterTitle = "كش
   `).join("");
 
   executeIframePrint("كشف_المتاجر_والمنافذ", filterTitle, merchants.length, head, body);
+}
+
+
+// 5. PRINT BULK BENEFICIARY QR CARDS (Al-Fajr Batch Cards Suite)
+export async function printBulkBeneficiaryCards(
+  cards: AidCardModel[],
+  filterTitle = "كروت المستفيدين الذكية (QR Cards)"
+) {
+  if (!cards || cards.length === 0) return;
+
+  const sealSvg = getOfficialSealSvg(70);
+
+  // Generate QR Codes for all cards asynchronously
+  const cardsWithQr = await Promise.all(
+    cards.map(async (c) => {
+      try {
+        const qrDataUrl = await QRCode.toDataURL(c.cardId || "FAJR-CARD", {
+          margin: 1,
+          width: 280,
+          errorCorrectionLevel: "H",
+          color: {
+            dark: "#063A28",
+            light: "#ffffff",
+          },
+        });
+        return { ...c, qrDataUrl };
+      } catch (err) {
+        console.error("Error generating QR for card", c.cardId, err);
+        return { ...c, qrDataUrl: "" };
+      }
+    })
+  );
+
+  const cardsHtml = cardsWithQr
+    .map((c) => {
+      const cleanCard = cleanId(c.cardId);
+      const cleanNat = cleanId(c.nationalId);
+      const name = c.beneficiaryName || "مستفيد معتمد";
+      const residence = c.residence || (c as any).city || "جمهورية مصر العربية";
+      const balance = (c.balance ?? c.totalBalance ?? 30);
+      const quota = c.foodBasketsQuota ?? 2;
+
+      return `
+        <div class="card-item">
+          <!-- Card Header -->
+          <div class="card-header">
+            <div class="brand-title">
+              <div class="brand-main">مؤسسة الفجر الخيرية</div>
+              <div class="brand-sub">منظومة الصرف الذكية المعتمدة</div>
+            </div>
+            <div class="card-badge">بطاقة ذكية 2026</div>
+          </div>
+
+          <!-- Card Content Body -->
+          <div class="card-body">
+            <!-- Details Column -->
+            <div class="card-info">
+              <div class="info-row">
+                <span class="info-label">اسم المستفيد:</span>
+                <span class="info-val name-val">${name}</span>
+              </div>
+              <div class="info-row">
+                <span class="info-label">رقم الكارت:</span>
+                <span class="info-val code-val">${cleanCard}</span>
+              </div>
+              <div class="info-row">
+                <span class="info-label">الرقم القومي:</span>
+                <span class="info-val nat-val">${cleanNat}</span>
+              </div>
+              <div class="info-row">
+                <span class="info-label">المحافظة / المدينة:</span>
+                <span class="info-val">${residence}</span>
+              </div>
+              <div class="quota-pill">
+                <span>الرصيد: <strong>${balance} ج.م</strong></span>
+                <span>•</span>
+                <span>الحصة: <strong>${quota} سلة غذائية</strong></span>
+              </div>
+            </div>
+
+            <!-- QR Code Box -->
+            <div class="qr-container">
+              ${
+                c.qrDataUrl
+                  ? `<img src="${c.qrDataUrl}" alt="QR Code" class="qr-img" />`
+                  : `<div class="qr-placeholder">${cleanCard}</div>`
+              }
+              <div class="qr-label">${cleanCard}</div>
+            </div>
+          </div>
+
+          <!-- Card Footer -->
+          <div class="card-footer">
+            <div class="footer-note">صالحة للصرف لدى كافة منافذ التموين المعتمدة لمؤسسة الفجر الخيرية</div>
+            <div class="card-watermark">${sealSvg}</div>
+          </div>
+        </div>
+      `;
+    })
+    .join("");
+
+  const docContent = `
+    <!DOCTYPE html>
+    <html dir="rtl" lang="ar">
+    <head>
+      <meta charset="utf-8" />
+      <title>طباعة_كروت_المستفيدين_مؤسسة_الفجر</title>
+      <link rel="preconnect" href="https://fonts.googleapis.com">
+      <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+      <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800;900&family=IBM+Plex+Sans+Arabic:wght@400;600;700;800&family=JetBrains+Mono:wght@700;800&display=swap" rel="stylesheet">
+      <style>
+        @page {
+          size: A4 portrait;
+          margin: 8mm;
+        }
+        * {
+          box-sizing: border-box;
+          -webkit-print-color-adjust: exact !important;
+          print-color-adjust: exact !important;
+        }
+        body {
+          font-family: 'Cairo', 'IBM Plex Sans Arabic', sans-serif;
+          color: #0f172a;
+          margin: 0;
+          padding: 0;
+          background: #ffffff;
+          -webkit-font-smoothing: antialiased;
+        }
+        .page-header {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          padding-bottom: 8px;
+          margin-bottom: 12px;
+          border-bottom: 2px solid #0A734D;
+        }
+        .page-title {
+          font-size: 13.5px;
+          font-weight: 900;
+          color: #063A28;
+        }
+        .page-meta {
+          font-size: 10px;
+          color: #64748b;
+          font-weight: 700;
+        }
+        .cards-grid {
+          display: grid;
+          grid-template-columns: repeat(2, 1fr);
+          gap: 12px;
+          page-break-inside: auto;
+        }
+        .card-item {
+          break-inside: avoid;
+          page-break-inside: avoid;
+          border: 2px dashed #0A734D;
+          border-radius: 14px;
+          padding: 12px;
+          background: #ffffff;
+          position: relative;
+          overflow: hidden;
+          box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+          display: flex;
+          flex-direction: column;
+          justify-content: space-between;
+          min-height: 220px;
+        }
+        .card-header {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          border-bottom: 1.5px solid #e2e8f0;
+          padding-bottom: 6px;
+          margin-bottom: 8px;
+        }
+        .brand-title {
+          text-align: right;
+        }
+        .brand-main {
+          font-size: 13px;
+          font-weight: 900;
+          color: #063A28;
+          line-height: 1.2;
+        }
+        .brand-sub {
+          font-size: 9px;
+          font-weight: 700;
+          color: #0A734D;
+        }
+        .card-badge {
+          background: #ecfdf5;
+          color: #065f46;
+          border: 1px solid #a7f3d0;
+          border-radius: 6px;
+          padding: 2px 6px;
+          font-size: 9px;
+          font-weight: 800;
+        }
+        .card-body {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          gap: 10px;
+          flex: 1;
+        }
+        .card-info {
+          flex: 1;
+          display: flex;
+          flex-direction: column;
+          gap: 4px;
+          text-align: right;
+        }
+        .info-row {
+          font-size: 10.5px;
+          line-height: 1.3;
+          display: flex;
+          align-items: center;
+          gap: 4px;
+        }
+        .info-label {
+          color: #64748b;
+          font-weight: 700;
+          font-size: 9.5px;
+          white-space: nowrap;
+        }
+        .info-val {
+          color: #0f172a;
+          font-weight: 800;
+        }
+        .name-val {
+          color: #063A28;
+          font-size: 11.5px;
+          font-weight: 900;
+        }
+        .code-val {
+          font-family: 'JetBrains Mono', monospace;
+          color: #0A734D;
+          font-weight: 800;
+          font-size: 10px;
+          direction: ltr;
+        }
+        .nat-val {
+          font-family: 'JetBrains Mono', monospace;
+          font-size: 10px;
+          direction: ltr;
+        }
+        .quota-pill {
+          margin-top: 4px;
+          display: flex;
+          align-items: center;
+          gap: 6px;
+          background: #f0fdf4;
+          border: 1px solid #bbf7d0;
+          border-radius: 6px;
+          padding: 3px 6px;
+          font-size: 9px;
+          color: #166534;
+          font-weight: 700;
+        }
+        .qr-container {
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          justify-content: center;
+          background: #f8fafc;
+          border: 1px solid #cbd5e1;
+          border-radius: 10px;
+          padding: 6px;
+          width: 105px;
+          height: 115px;
+          flex-shrink: 0;
+        }
+        .qr-img {
+          width: 90px;
+          height: 90px;
+          display: block;
+        }
+        .qr-label {
+          font-family: 'JetBrains Mono', monospace;
+          font-size: 8px;
+          font-weight: 800;
+          color: #0A734D;
+          margin-top: 2px;
+          text-align: center;
+          direction: ltr;
+        }
+        .card-footer {
+          margin-top: 6px;
+          border-top: 1px solid #e2e8f0;
+          padding-top: 4px;
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          position: relative;
+        }
+        .footer-note {
+          font-size: 8px;
+          color: #64748b;
+          font-weight: 700;
+          line-height: 1.2;
+          max-width: 80%;
+        }
+        .card-watermark {
+          position: absolute;
+          left: 0;
+          bottom: -2px;
+          width: 32px;
+          height: 32px;
+          opacity: 0.6;
+        }
+        @media print {
+          body { padding: 0; }
+          .card-item {
+            break-inside: avoid !important;
+            page-break-inside: avoid !important;
+          }
+        }
+      </style>
+    </head>
+    <body>
+      <div class="page-header">
+        <div class="page-title">مؤسسة الفجر الخيرية — كروت الصرف الذكية (إجمالي: ${cards.length} كارت)</div>
+        <div class="page-meta">تاريخ الطباعة: ${new Date().toLocaleDateString('ar-EG')} — صالحة لكافة المنافذ المعتمدة</div>
+      </div>
+      <div class="cards-grid">
+        ${cardsHtml}
+      </div>
+    </body>
+    </html>
+  `;
+
+  let iframe = document.getElementById("printReportIframe") as HTMLIFrameElement;
+  if (!iframe) {
+    iframe = document.createElement("iframe");
+    iframe.id = "printReportIframe";
+    iframe.style.position = "fixed";
+    iframe.style.right = "0";
+    iframe.style.bottom = "0";
+    iframe.style.width = "0";
+    iframe.style.height = "0";
+    iframe.style.border = "0";
+    document.body.appendChild(iframe);
+  }
+
+  const doc = iframe.contentWindow?.document;
+  if (doc) {
+    doc.open();
+    doc.write(docContent);
+    doc.close();
+
+    setTimeout(() => {
+      iframe.contentWindow?.focus();
+      iframe.contentWindow?.print();
+    }, 350);
+  }
 }
