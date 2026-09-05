@@ -4,7 +4,6 @@ import React, { useState, useEffect, useRef } from "react";
 import { DistributeBasketModal } from "@/components/beneficiaries/DistributeBasketModal";
 import { EditBeneficiaryModal } from "@/components/beneficiaries/EditBeneficiaryModal";
 import { BeneficiaryQrModal } from "@/components/beneficiaries/BeneficiaryQrModal";
-import { MonthlyCycleRechargeModal } from "@/components/beneficiaries/MonthlyCycleRechargeModal";
 import { db } from "@/lib/firebase";
 import { collection, onSnapshot, doc, updateDoc, setDoc, Timestamp, writeBatch } from "firebase/firestore";
 import { useI18n } from "@/lib/i18n";
@@ -515,32 +514,6 @@ export default function BeneficiariesPage() {
             </span>
           </div>
 
-          {cycleInfo?.lastProcessedCycle === currentCycleKey ? (
-            <div
-              onClick={() => setShowMonthlyModal(true)}
-              className="flex items-center gap-2 bg-emerald-50 hover:bg-emerald-100/80 border border-emerald-300 text-emerald-900 px-3.5 py-2 rounded-xl text-xs font-bold cursor-pointer transition-colors shadow-xs"
-              title={isAr ? "الحصة الشهرية مودعة تلقائياً - اضغط لمعاينة التفاصيل" : "Monthly quota automatically active - click for details"}
-            >
-              <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse"></span>
-              <Sparkles className="w-3.5 h-3.5 text-emerald-700" />
-              <span>{isAr ? `الحصة الشهرية (${cycleDisplayAr}) مفعلة تلقائياً` : `Monthly Quota (${currentCycleKey}) Active`}</span>
-            </div>
-          ) : (
-            <button
-              onClick={() => setShowMonthlyModal(true)}
-              disabled={rechargingMonthly || cards.filter(c => (c.status || 'active') === 'active').length === 0}
-              className="btn bg-gradient-to-r from-emerald-600 to-[#0A734D] hover:from-emerald-700 hover:to-[#063A28] text-white shadow-md flex items-center gap-2 font-black text-xs px-4 py-2.5 rounded-xl cursor-pointer transition-all disabled:opacity-50"
-              title={isAr ? "إيداع الحصة الشهرية الدورية (30 ج.م + سلة غذائية) لكافة المستفيدين النشطين" : "Deposit Monthly Cycle Quota (30 EGP + 1 Food Basket) for all active beneficiaries"}
-            >
-              {rechargingMonthly ? (
-                <Loader2 className="w-4 h-4 animate-spin text-emerald-200" />
-              ) : (
-                <Sparkles className="w-4 h-4 text-emerald-200" />
-              )}
-              <span>{isAr ? "إيداع الحصة الشهرية (30 ج.م + سلة)" : "Deposit Monthly Quota (30 EGP + Basket)"}</span>
-            </button>
-          )}
-
           <button
             onClick={handlePrintAllCards}
             disabled={isPrintingCards || cards.length === 0}
@@ -1045,18 +1018,6 @@ export default function BeneficiariesPage() {
         setEditStatus={setEditStatus}
         saving={saving}
         onSave={handleSaveEdit}
-        isAr={isAr}
-      />
-
-      <MonthlyCycleRechargeModal
-        isOpen={Boolean(showMonthlyModal && mounted)}
-        onClose={() => setShowMonthlyModal(false)}
-        activeCardsCount={cards.filter((c) => (c.status || "active") === "active").length}
-        currentCycle={currentCycleKey}
-        cycleDisplayArabic={cycleDisplayAr}
-        cycleDisplayEnglish={cycleDisplayEn}
-        recharging={rechargingMonthly}
-        onConfirm={handleConfirmMonthlyRecharge}
         isAr={isAr}
       />
 
