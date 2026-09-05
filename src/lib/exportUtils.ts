@@ -579,7 +579,7 @@ export async function printBulkBeneficiaryCards(
       try {
         const qrDataUrl = await QRCode.toDataURL(c.cardId || "FAJR-CARD", {
           margin: 1,
-          width: 250,
+          width: 200,
           errorCorrectionLevel: "H",
           color: {
             dark: "#000000",
@@ -626,13 +626,9 @@ export async function printBulkBeneficiaryCards(
 
           <div class="sticker-footer">
             <div class="sticker-name" title="${name}">${name}</div>
-            <div class="sticker-nat-row">
-              <span class="nat-label">القومي:</span>
-              <span class="nat-num">${cleanNat}</span>
-            </div>
             <div class="sticker-meta-row">
+              <span class="nat-box">القومي: <strong class="nat-num">${cleanNat}</strong></span>
               <span class="meta-badge">${balance} ج.م</span>
-              <span class="meta-sub">${quota} سلة</span>
             </div>
           </div>
         </div>
@@ -700,19 +696,19 @@ export async function printBulkBeneficiaryCards(
           display: flex;
           justify-content: space-between;
           align-items: center;
-          height: 6.5mm;
-          padding: 0 2mm 1mm 2mm;
-          border-bottom: 2px solid #0A734D;
+          height: 6mm;
+          padding: 0 1mm 1mm 1mm;
+          border-bottom: 1.5px solid #0A734D;
           margin-bottom: 1.5mm;
           flex-shrink: 0;
         }
         .page-title {
-          font-size: 11.5px;
+          font-size: 11px;
           font-weight: 900;
           color: #063A28;
         }
         .page-meta {
-          font-size: 10px;
+          font-size: 9px;
           color: #1e293b;
           font-weight: 800;
         }
@@ -721,14 +717,14 @@ export async function printBulkBeneficiaryCards(
           grid-template-columns: repeat(4, 1fr);
           grid-template-rows: repeat(6, 1fr);
           gap: 2mm;
-          height: calc(288mm - 10mm);
+          height: calc(288mm - 9.5mm);
           flex: 1;
           box-sizing: border-box;
         }
         .qr-sticker-item {
-          border: 1.3px dashed #0A734D;
-          border-radius: 7px;
-          padding: 3px 4px;
+          border: 1.2px dashed #0A734D;
+          border-radius: 6px;
+          padding: 2.5px 3.5px 3px 3.5px;
           background: #ffffff;
           display: flex;
           flex-direction: column;
@@ -739,35 +735,37 @@ export async function printBulkBeneficiaryCards(
           overflow: hidden;
           break-inside: avoid;
           page-break-inside: avoid;
+          height: 100%;
         }
         .sticker-head {
           display: flex;
           justify-content: space-between;
           align-items: center;
           width: 100%;
-          border-bottom: 1px solid #cbd5e1;
-          padding-bottom: 1.5px;
-          line-height: 1.1;
+          border-bottom: 0.8px solid #cbd5e1;
+          padding-bottom: 1px;
+          line-height: 1;
+          flex-shrink: 0;
         }
         .sticker-brand {
-          font-size: 10px;
+          font-size: 9px;
           font-weight: 900;
           color: #063A28;
         }
         .sticker-code {
           font-family: 'JetBrains Mono', monospace;
-          font-size: 9px;
+          font-size: 8px;
           font-weight: 900;
           color: #0A734D;
           direction: ltr;
         }
         .sticker-qr-wrap {
-          width: 20.5mm;
-          height: 20.5mm;
+          width: 18.5mm;
+          height: 18.5mm;
           display: flex;
           align-items: center;
           justify-content: center;
-          margin: 1px 0;
+          margin: 0.5mm auto;
           flex-shrink: 0;
         }
         .sticker-qr-img {
@@ -777,7 +775,7 @@ export async function printBulkBeneficiaryCards(
           display: block;
         }
         .qr-fallback {
-          font-size: 8.5px;
+          font-size: 8px;
           font-family: 'JetBrains Mono', monospace;
           color: #0A734D;
           font-weight: 900;
@@ -787,59 +785,45 @@ export async function printBulkBeneficiaryCards(
           display: flex;
           flex-direction: column;
           gap: 1.5px;
-          border-top: 1px solid #cbd5e1;
-          padding-top: 2px;
-          line-height: 1.15;
+          border-top: 0.8px solid #cbd5e1;
+          padding-top: 1.5px;
+          line-height: 1.1;
+          flex-shrink: 0;
         }
         .sticker-name {
-          font-size: 12px;
+          font-size: 11.5px;
           font-weight: 900;
           color: #000000;
           white-space: nowrap;
           overflow: hidden;
           text-overflow: ellipsis;
           text-align: center;
-          letter-spacing: -0.2px;
-        }
-        .sticker-nat-row {
-          display: flex;
-          justify-content: center;
-          align-items: center;
-          gap: 3px;
-          line-height: 1;
-        }
-        .nat-label {
-          font-size: 9.5px;
-          font-weight: 800;
-          color: #475569;
-        }
-        .nat-num {
-          font-family: 'JetBrains Mono', monospace;
-          direction: ltr;
-          font-size: 10.5px;
-          color: #000000;
-          font-weight: 900;
-          letter-spacing: 0.3px;
+          line-height: 1.2;
         }
         .sticker-meta-row {
           display: flex;
           justify-content: space-between;
           align-items: center;
           width: 100%;
-          font-size: 8.5px;
-          font-weight: 900;
-          color: #0A734D;
           line-height: 1;
+        }
+        .nat-box {
+          font-size: 8px;
+          color: #475569;
+          font-weight: 800;
+        }
+        .nat-num {
+          font-family: 'JetBrains Mono', monospace;
+          direction: ltr;
+          font-size: 9.5px;
+          color: #000000;
+          font-weight: 900;
+          letter-spacing: 0.2px;
         }
         .meta-badge {
           color: #0A734D;
           font-weight: 900;
           font-size: 9px;
-        }
-        .meta-sub {
-          color: #475569;
-          font-weight: 800;
-          font-size: 8.5px;
         }
         @media print {
           html, body {
