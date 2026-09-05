@@ -4,8 +4,9 @@ import React, { useState, useEffect, useRef } from "react";
 import { DistributeBasketModal } from "@/components/beneficiaries/DistributeBasketModal";
 import { EditBeneficiaryModal } from "@/components/beneficiaries/EditBeneficiaryModal";
 import { BeneficiaryQrModal } from "@/components/beneficiaries/BeneficiaryQrModal";
+import { MonthlyCycleRechargeModal } from "@/components/beneficiaries/MonthlyCycleRechargeModal";
 import { db } from "@/lib/firebase";
-import { collection, onSnapshot, doc, updateDoc, setDoc, Timestamp } from "firebase/firestore";
+import { collection, onSnapshot, doc, updateDoc, setDoc, Timestamp, writeBatch } from "firebase/firestore";
 import { useI18n } from "@/lib/i18n";
 import { useAuth } from "@/lib/authContext";
 import { AidCardModel } from "@/types";
@@ -102,6 +103,8 @@ export default function BeneficiariesPage() {
   const [distributionCenter, setDistributionCenter] = useState<string>("المقر الرئيسي - مركز توزيع الفجر");
   const [distributeNotes, setDistributeNotes] = useState<string>("");
   const [distributing, setDistributing] = useState(false);
+  const [showMonthlyModal, setShowMonthlyModal] = useState(false);
+  const [rechargingMonthly, setRechargingMonthly] = useState(false);
   const [successToast, setSuccessToast] = useState<string | null>(null);
 
   // Mounted for Portal
@@ -336,6 +339,81 @@ export default function BeneficiariesPage() {
   };
 
   
+  // Monthly Quota Auto-Deposit (30 EGP + 1 Food Basket)
+  const nowForCycle = new Date();
+  const currentCycleKey = `${nowForCycle.getFullYear()}-${String(nowForCycle.getMonth() + 1).padStart(2, "0")}`;
+  const arabicMonthsNames = ["يناير", "فبراير", "مارس", "أبريل", "مايو", "يونيو", "يوليو", "أغسطس", "سبتمبر", "أكتوبر", "نوفمبر", "ديسمبر"];
+  const cycleDisplayAr = `دورة شهر ${arabicMonthsNames[nowForCycle.getMonth()]} ${nowForCycle.getFullYear()}`;
+  const cycleDisplayEn = `Cycle: ${nowForCycle.toLocaleString("en-US", { month: "long" })} ${nowForCycle.getFullYear()}`;
+
+  const handleConfirmMonthlyRecharge = async () => {
+    const activeCards = cards.filter((c) => (c.status || "active") === "active");
+    if (activeCards.length === 0) return;
+
+    setRechargingMonthly(true);
+    try {
+      const nowIso = new Date().toISOString();
+      const chunkSize = 400;
+
+      for (let i = 0; i < activeCards.length; i += chunkSize) {
+        const chunk = activeCards.slice(i, i + chunkSize);
+        const batch = writeBatch(db);
+
+        chunk.forEach((card) => {
+          const cardRef = doc(db, "aid_cards", card.cardId);
+          const currentBalance = Number(card.balance ?? card.totalBalance ?? 0);
+          const currentQuota = Number(card.foodBasketsQuota ?? 0);
+
+          batch.update(cardRef, {
+            balance: currentBalance + 30,
+            totalBalance: currentBalance + 30,
+            foodBasketsQuota: currentQuota + 1,
+            lastMonthlyCycle: currentCycleKey,
+            lastRechargedAt: nowIso,
+            updatedAt: Timestamp.now(),
+          });
+
+          if (card.beneficiaryId) {
+            const userRef = doc(db, "users", card.beneficiaryId);
+            batch.update(userRef, {
+              balance: currentBalance + 30,
+              totalBalance: currentBalance + 30,
+              foodBasketsQuota: currentQuota + 1,
+              lastMonthlyCycle: currentCycleKey,
+              lastRechargedAt: nowIso,
+            });
+          }
+        });
+
+        await batch.commit();
+      }
+
+      if (adminData) {
+        await logAuditEvent({
+          adminId: adminData.uid,
+          adminEmail: adminData.email || "admin@alfajr.org",
+          action: "monthly_quota_deposit",
+          targetId: currentCycleKey,
+          targetType: "system_cycle",
+          details: `إيداع الحصة الشهرية لدورة (${cycleDisplayAr}) لعدد ${activeCards.length} مستفيد بمبلغ 30 ج.م وسلة غذائية لكل مستفيد.`,
+        });
+      }
+
+      setShowMonthlyModal(false);
+      setSuccessToast(
+        isAr
+          ? `تم إيداع الحصة الشهرية (${cycleDisplayAr}) بنجاح لعدد ${activeCards.length} مستفيد معتمد ✅`
+          : `Monthly quota (${currentCycleKey}) deposited successfully for ${activeCards.length} active beneficiaries ✅`
+      );
+      setTimeout(() => setSuccessToast(null), 5000);
+    } catch (err: any) {
+      console.error("Monthly recharge error:", err);
+      alert(isAr ? `حدث خطأ أثناء الإيداع: ${err.message}` : `Error during recharge: ${err.message}`);
+    } finally {
+      setRechargingMonthly(false);
+    }
+  };
+
   // Bulk Print All Beneficiary QR Cards
   const handlePrintAllCards = async () => {
     const targetCards = filteredCards.length > 0 ? filteredCards : cards;
@@ -420,6 +498,16 @@ export default function BeneficiariesPage() {
               {isAr ? "النشطين:" : "Active:"} <strong className="text-emerald-900 font-mono font-black">{cards.filter(c => c.status === 'active').length}</strong>
             </span>
           </div>
+
+          <button
+            onClick={() => setShowMonthlyModal(true)}
+            disabled={rechargingMonthly || cards.filter(c => c.status === 'active').length === 0}
+            className="btn bg-gradient-to-r from-emerald-600 to-[#0A734D] hover:from-emerald-700 hover:to-[#063A28] text-white shadow-md flex items-center gap-2 font-black text-xs px-4 py-2.5 rounded-xl cursor-pointer transition-all disabled:opacity-50"
+            title={isAr ? "إيداع الحصة الشهرية الدورية (30 ج.م + سلة غذائية) لكافة المستفيدين النشطين" : "Deposit Monthly Cycle Quota (30 EGP + 1 Food Basket) for all active beneficiaries"}
+          >
+            <Sparkles className="w-4 h-4 text-emerald-200" />
+            <span>{isAr ? "إيداع الحصة الشهرية (30 ج.م + سلة)" : "Deposit Monthly Quota (30 EGP + Basket)"}</span>
+          </button>
 
           <button
             onClick={handlePrintAllCards}
@@ -925,6 +1013,18 @@ export default function BeneficiariesPage() {
         setEditStatus={setEditStatus}
         saving={saving}
         onSave={handleSaveEdit}
+        isAr={isAr}
+      />
+
+      <MonthlyCycleRechargeModal
+        isOpen={Boolean(showMonthlyModal && mounted)}
+        onClose={() => setShowMonthlyModal(false)}
+        activeCardsCount={cards.filter((c) => (c.status || "active") === "active").length}
+        currentCycle={currentCycleKey}
+        cycleDisplayArabic={cycleDisplayAr}
+        cycleDisplayEnglish={cycleDisplayEn}
+        recharging={rechargingMonthly}
+        onConfirm={handleConfirmMonthlyRecharge}
         isAr={isAr}
       />
 
