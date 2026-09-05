@@ -525,7 +525,7 @@ export default function BeneficiariesPage() {
             ) : (
               <QrCode className="w-4 h-4" />
             )}
-            <span>{isAr ? "طباعة كروت الـ QR (24 بالورقة)" : "Print QR Cards (24/page)"}</span>
+            <span>{isAr ? "طباعة كروت الـ QR" : "Print QR Cards"}</span>
           </button>
 
           <button
