@@ -425,14 +425,14 @@ export default function BeneficiariesPage() {
             onClick={handlePrintAllCards}
             disabled={isPrintingCards || cards.length === 0}
             className="btn bg-[#0A734D] hover:bg-[#063A28] text-white shadow-md flex items-center gap-2 font-black text-xs px-4 py-2.5 rounded-xl cursor-pointer transition-all disabled:opacity-50"
-            title={isAr ? "طباعة كافة كروت ورموز الـ QR Code للمستفيدين دفعة واحدة" : "Bulk Print All Beneficiary QR Cards"}
+            title={isAr ? "طباعة كافة كروت ورموز الـ QR Code للمستفيدين (4 في الصف × 6 صفوف = 24 كارت بالورقة A4)" : "Bulk Print All Beneficiary QR Cards (4x6 = 24 per A4 Page)"}
           >
             {isPrintingCards ? (
               <Loader2 className="w-4 h-4 animate-spin" />
             ) : (
               <QrCode className="w-4 h-4" />
             )}
-            <span>{isAr ? "طباعة كروت الـ QR دفعة واحدة" : "Bulk Print QR Cards"}</span>
+            <span>{isAr ? "طباعة كروت الـ QR (24 بالورقة)" : "Print QR Cards (24/page)"}</span>
           </button>
 
           <button

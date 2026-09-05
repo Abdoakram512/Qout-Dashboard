@@ -566,14 +566,12 @@ export function printMerchantsReport(merchants: UserModel[], filterTitle = "كش
 }
 
 
-// 5. PRINT BULK BENEFICIARY QR CARDS (Al-Fajr Batch Cards Suite)
+// 5. PRINT BULK BENEFICIARY QR CARDS (4 Columns x 6 Rows = 24 Cards per A4 Page)
 export async function printBulkBeneficiaryCards(
   cards: AidCardModel[],
-  filterTitle = "كروت المستفيدين الذكية (QR Cards)"
+  filterTitle = "كروت المستفيدين الذكية (QR Cards - 24 بالورقة)"
 ) {
   if (!cards || cards.length === 0) return;
-
-  const sealSvg = getOfficialSealSvg(70);
 
   // Generate QR Codes for all cards asynchronously
   const cardsWithQr = await Promise.all(
@@ -581,7 +579,7 @@ export async function printBulkBeneficiaryCards(
       try {
         const qrDataUrl = await QRCode.toDataURL(c.cardId || "FAJR-CARD", {
           margin: 1,
-          width: 280,
+          width: 250,
           errorCorrectionLevel: "H",
           color: {
             dark: "#063A28",
@@ -596,300 +594,240 @@ export async function printBulkBeneficiaryCards(
     })
   );
 
-  const cardsHtml = cardsWithQr
-    .map((c) => {
+  // Chunk cards into groups of 24 (4 columns * 6 rows)
+  const PAGE_SIZE = 24;
+  const pages: (typeof cardsWithQr)[] = [];
+  for (let i = 0; i < cardsWithQr.length; i += PAGE_SIZE) {
+    pages.push(cardsWithQr.slice(i, i + PAGE_SIZE));
+  }
+
+  const pagesHtml = pages.map((pageCards, pageIdx) => {
+    const stickersHtml = pageCards.map((c) => {
       const cleanCard = cleanId(c.cardId);
       const cleanNat = cleanId(c.nationalId);
       const name = c.beneficiaryName || "مستفيد معتمد";
-      const residence = c.residence || (c as any).city || "جمهورية مصر العربية";
       const balance = (c.balance ?? c.totalBalance ?? 30);
       const quota = c.foodBasketsQuota ?? 2;
 
       return `
-        <div class="card-item">
-          <!-- Card Header -->
-          <div class="card-header">
-            <div class="brand-title">
-              <div class="brand-main">مؤسسة الفجر الخيرية</div>
-              <div class="brand-sub">منظومة الصرف الذكية المعتمدة</div>
-            </div>
-            <div class="card-badge">بطاقة ذكية 2026</div>
+        <div class="qr-sticker-item">
+          <div class="sticker-head">
+            <span class="sticker-brand">مؤسسة الفجر</span>
+            <span class="sticker-code">${cleanCard}</span>
           </div>
 
-          <!-- Card Content Body -->
-          <div class="card-body">
-            <!-- Details Column -->
-            <div class="card-info">
-              <div class="info-row">
-                <span class="info-label">اسم المستفيد:</span>
-                <span class="info-val name-val">${name}</span>
-              </div>
-              <div class="info-row">
-                <span class="info-label">رقم الكارت:</span>
-                <span class="info-val code-val">${cleanCard}</span>
-              </div>
-              <div class="info-row">
-                <span class="info-label">الرقم القومي:</span>
-                <span class="info-val nat-val">${cleanNat}</span>
-              </div>
-              <div class="info-row">
-                <span class="info-label">المحافظة / المدينة:</span>
-                <span class="info-val">${residence}</span>
-              </div>
-              <div class="quota-pill">
-                <span>الرصيد: <strong>${balance} ج.م</strong></span>
-                <span>•</span>
-                <span>الحصة: <strong>${quota} سلة غذائية</strong></span>
-              </div>
-            </div>
-
-            <!-- QR Code Box -->
-            <div class="qr-container">
-              ${
-                c.qrDataUrl
-                  ? `<img src="${c.qrDataUrl}" alt="QR Code" class="qr-img" />`
-                  : `<div class="qr-placeholder">${cleanCard}</div>`
-              }
-              <div class="qr-label">${cleanCard}</div>
-            </div>
+          <div class="sticker-qr-wrap">
+            ${
+              c.qrDataUrl
+                ? `<img src="${c.qrDataUrl}" alt="QR" class="sticker-qr-img" />`
+                : `<div class="qr-fallback">${cleanCard}</div>`
+            }
           </div>
 
-          <!-- Card Footer -->
-          <div class="card-footer">
-            <div class="footer-note">صالحة للصرف لدى كافة منافذ التموين المعتمدة لمؤسسة الفجر الخيرية</div>
-            <div class="card-watermark">${sealSvg}</div>
+          <div class="sticker-footer">
+            <div class="sticker-name" title="${name}">${name}</div>
+            <div class="sticker-meta">
+              <span class="meta-nat">${cleanNat}</span>
+              <span class="meta-val">${balance} ج.م (${quota} سلة)</span>
+            </div>
           </div>
         </div>
       `;
-    })
-    .join("");
+    }).join("");
+
+    return `
+      <div class="print-page">
+        <div class="page-micro-header">
+          <div class="page-title">مؤسسة الفجر الخيرية — كروت الصرف الذكية (صفحة ${pageIdx + 1} من ${pages.length})</div>
+          <div class="page-meta">إجمالي: ${cards.length} كارت — 24 كارت بالورقة (4 أعمدة × 6 صفوف)</div>
+        </div>
+        <div class="stickers-grid">
+          ${stickersHtml}
+        </div>
+      </div>
+    `;
+  }).join("");
 
   const docContent = `
     <!DOCTYPE html>
     <html dir="rtl" lang="ar">
     <head>
       <meta charset="utf-8" />
-      <title>طباعة_كروت_المستفيدين_مؤسسة_الفجر</title>
+      <title>طباعة_كروت_المستفيدين_مؤسسة_الفجر_24_بالورقة</title>
       <link rel="preconnect" href="https://fonts.googleapis.com">
       <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-      <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800;900&family=IBM+Plex+Sans+Arabic:wght@400;600;700;800&family=JetBrains+Mono:wght@700;800&display=swap" rel="stylesheet">
+      <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@600;700;800;900&family=IBM+Plex+Sans+Arabic:wght@600;700;800&family=JetBrains+Mono:wght@700;800&display=swap" rel="stylesheet">
       <style>
         @page {
           size: A4 portrait;
-          margin: 8mm;
+          margin: 5mm;
         }
         * {
           box-sizing: border-box;
           -webkit-print-color-adjust: exact !important;
           print-color-adjust: exact !important;
         }
-        body {
-          font-family: 'Cairo', 'IBM Plex Sans Arabic', sans-serif;
-          color: #0f172a;
+        html, body {
           margin: 0;
           padding: 0;
           background: #ffffff;
+          color: #0f172a;
+          font-family: 'Cairo', 'IBM Plex Sans Arabic', sans-serif;
           -webkit-font-smoothing: antialiased;
         }
-        .page-header {
+        .print-page {
+          page-break-after: always;
+          break-after: page;
+          height: 287mm;
+          max-height: 287mm;
+          box-sizing: border-box;
+          display: flex;
+          flex-direction: column;
+          justify-content: flex-start;
+          overflow: hidden;
+          padding: 0;
+          margin: 0 auto;
+        }
+        .print-page:last-child {
+          page-break-after: auto;
+          break-after: auto;
+        }
+        .page-micro-header {
           display: flex;
           justify-content: space-between;
           align-items: center;
-          padding-bottom: 8px;
-          margin-bottom: 12px;
-          border-bottom: 2px solid #0A734D;
+          height: 7mm;
+          padding: 0 2mm 1.5mm 2mm;
+          border-bottom: 1.5px solid #0A734D;
+          margin-bottom: 2mm;
+          flex-shrink: 0;
         }
         .page-title {
-          font-size: 13.5px;
+          font-size: 9.5px;
           font-weight: 900;
           color: #063A28;
         }
         .page-meta {
-          font-size: 10px;
-          color: #64748b;
+          font-size: 8px;
+          color: #475569;
           font-weight: 700;
         }
-        .cards-grid {
+        .stickers-grid {
           display: grid;
-          grid-template-columns: repeat(2, 1fr);
-          gap: 12px;
-          page-break-inside: auto;
+          grid-template-columns: repeat(4, 1fr);
+          grid-template-rows: repeat(6, 1fr);
+          gap: 2.2mm;
+          height: calc(287mm - 11mm);
+          flex: 1;
+          box-sizing: border-box;
         }
-        .card-item {
+        .qr-sticker-item {
+          border: 1px dashed #0A734D;
+          border-radius: 6px;
+          padding: 2.5px 3.5px;
+          background: #ffffff;
+          display: flex;
+          flex-direction: column;
+          justify-content: space-between;
+          align-items: center;
+          text-align: center;
+          box-sizing: border-box;
+          overflow: hidden;
           break-inside: avoid;
           page-break-inside: avoid;
-          border: 2px dashed #0A734D;
-          border-radius: 14px;
-          padding: 12px;
-          background: #ffffff;
-          position: relative;
-          overflow: hidden;
-          box-shadow: 0 1px 3px rgba(0,0,0,0.05);
-          display: flex;
-          flex-direction: column;
-          justify-content: space-between;
-          min-height: 220px;
         }
-        .card-header {
+        .sticker-head {
           display: flex;
           justify-content: space-between;
           align-items: center;
-          border-bottom: 1.5px solid #e2e8f0;
-          padding-bottom: 6px;
-          margin-bottom: 8px;
+          width: 100%;
+          border-bottom: 0.8px solid #e2e8f0;
+          padding-bottom: 1.5px;
+          line-height: 1;
         }
-        .brand-title {
-          text-align: right;
-        }
-        .brand-main {
-          font-size: 13px;
+        .sticker-brand {
+          font-size: 7.5px;
           font-weight: 900;
           color: #063A28;
-          line-height: 1.2;
         }
-        .brand-sub {
-          font-size: 9px;
-          font-weight: 700;
-          color: #0A734D;
-        }
-        .card-badge {
-          background: #ecfdf5;
-          color: #065f46;
-          border: 1px solid #a7f3d0;
-          border-radius: 6px;
-          padding: 2px 6px;
-          font-size: 9px;
-          font-weight: 800;
-        }
-        .card-body {
-          display: flex;
-          justify-content: space-between;
-          align-items: center;
-          gap: 10px;
-          flex: 1;
-        }
-        .card-info {
-          flex: 1;
-          display: flex;
-          flex-direction: column;
-          gap: 4px;
-          text-align: right;
-        }
-        .info-row {
-          font-size: 10.5px;
-          line-height: 1.3;
-          display: flex;
-          align-items: center;
-          gap: 4px;
-        }
-        .info-label {
-          color: #64748b;
-          font-weight: 700;
-          font-size: 9.5px;
-          white-space: nowrap;
-        }
-        .info-val {
-          color: #0f172a;
-          font-weight: 800;
-        }
-        .name-val {
-          color: #063A28;
-          font-size: 11.5px;
-          font-weight: 900;
-        }
-        .code-val {
+        .sticker-code {
           font-family: 'JetBrains Mono', monospace;
-          color: #0A734D;
+          font-size: 7px;
           font-weight: 800;
-          font-size: 10px;
+          color: #0A734D;
           direction: ltr;
         }
-        .nat-val {
-          font-family: 'JetBrains Mono', monospace;
-          font-size: 10px;
-          direction: ltr;
-        }
-        .quota-pill {
-          margin-top: 4px;
+        .sticker-qr-wrap {
+          width: 25mm;
+          height: 25mm;
           display: flex;
-          align-items: center;
-          gap: 6px;
-          background: #f0fdf4;
-          border: 1px solid #bbf7d0;
-          border-radius: 6px;
-          padding: 3px 6px;
-          font-size: 9px;
-          color: #166534;
-          font-weight: 700;
-        }
-        .qr-container {
-          display: flex;
-          flex-direction: column;
           align-items: center;
           justify-content: center;
-          background: #f8fafc;
-          border: 1px solid #cbd5e1;
-          border-radius: 10px;
-          padding: 6px;
-          width: 105px;
-          height: 115px;
+          margin: 1px 0;
           flex-shrink: 0;
         }
-        .qr-img {
-          width: 90px;
-          height: 90px;
+        .sticker-qr-img {
+          width: 100%;
+          height: 100%;
+          object-fit: contain;
           display: block;
         }
-        .qr-label {
+        .qr-fallback {
+          font-size: 7px;
           font-family: 'JetBrains Mono', monospace;
-          font-size: 8px;
-          font-weight: 800;
           color: #0A734D;
-          margin-top: 2px;
-          text-align: center;
-          direction: ltr;
         }
-        .card-footer {
-          margin-top: 6px;
-          border-top: 1px solid #e2e8f0;
-          padding-top: 4px;
+        .sticker-footer {
+          width: 100%;
+          display: flex;
+          flex-direction: column;
+          gap: 1.5px;
+          border-top: 0.8px solid #e2e8f0;
+          padding-top: 1.5px;
+          line-height: 1.1;
+        }
+        .sticker-name {
+          font-size: 8.5px;
+          font-weight: 900;
+          color: #0f172a;
+          white-space: nowrap;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          text-align: center;
+        }
+        .sticker-meta {
           display: flex;
           justify-content: space-between;
           align-items: center;
-          position: relative;
-        }
-        .footer-note {
-          font-size: 8px;
-          color: #64748b;
+          width: 100%;
+          font-size: 7px;
           font-weight: 700;
-          line-height: 1.2;
-          max-width: 80%;
+          color: #475569;
         }
-        .card-watermark {
-          position: absolute;
-          left: 0;
-          bottom: -2px;
-          width: 32px;
-          height: 32px;
-          opacity: 0.6;
+        .meta-nat {
+          font-family: 'JetBrains Mono', monospace;
+          direction: ltr;
+          font-size: 6.5px;
+        }
+        .meta-val {
+          color: #0A734D;
+          font-weight: 800;
+          font-size: 6.5px;
         }
         @media print {
-          body { padding: 0; }
-          .card-item {
-            break-inside: avoid !important;
-            page-break-inside: avoid !important;
+          html, body {
+            margin: 0;
+            padding: 0;
+          }
+          .print-page {
+            page-break-after: always !important;
+            break-after: page !important;
           }
         }
       </style>
     </head>
     <body>
-      <div class="page-header">
-        <div class="page-title">مؤسسة الفجر الخيرية — كروت الصرف الذكية (إجمالي: ${cards.length} كارت)</div>
-        <div class="page-meta">تاريخ الطباعة: ${new Date().toLocaleDateString('ar-EG')} — صالحة لكافة المنافذ المعتمدة</div>
-      </div>
-      <div class="cards-grid">
-        ${cardsHtml}
-      </div>
+      ${pagesHtml}
     </body>
     </html>
   `;
