@@ -626,9 +626,13 @@ export async function printBulkBeneficiaryCards(
 
           <div class="sticker-footer">
             <div class="sticker-name" title="${name}">${name}</div>
-            <div class="sticker-meta">
-              <span class="meta-nat">${cleanNat}</span>
-              <span class="meta-val">${balance} ج.م | ${quota} سلة</span>
+            <div class="sticker-nat-row">
+              <span class="nat-label">القومي:</span>
+              <span class="nat-num">${cleanNat}</span>
+            </div>
+            <div class="sticker-meta-row">
+              <span class="meta-badge">${balance} ج.م</span>
+              <span class="meta-sub">${quota} سلة</span>
             </div>
           </div>
         </div>
@@ -656,11 +660,11 @@ export async function printBulkBeneficiaryCards(
       <title>طباعة_كروت_المستفيدين_مؤسسة_الفجر_24_بالورقة</title>
       <link rel="preconnect" href="https://fonts.googleapis.com">
       <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-      <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@700;800;900&family=IBM+Plex+Sans+Arabic:wght@700;800&family=JetBrains+Mono:wght@700;800&display=swap" rel="stylesheet">
+      <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@700;800;900&family=IBM+Plex+Sans+Arabic:wght@700;800;900&family=JetBrains+Mono:wght@700;800;900&display=swap" rel="stylesheet">
       <style>
         @page {
           size: A4 portrait;
-          margin: 5mm;
+          margin: 4.5mm;
         }
         * {
           box-sizing: border-box;
@@ -678,8 +682,8 @@ export async function printBulkBeneficiaryCards(
         .print-page {
           page-break-after: always;
           break-after: page;
-          height: 287mm;
-          max-height: 287mm;
+          height: 288mm;
+          max-height: 288mm;
           box-sizing: border-box;
           display: flex;
           flex-direction: column;
@@ -696,19 +700,19 @@ export async function printBulkBeneficiaryCards(
           display: flex;
           justify-content: space-between;
           align-items: center;
-          height: 7mm;
-          padding: 0 2mm 1.5mm 2mm;
+          height: 6.5mm;
+          padding: 0 2mm 1mm 2mm;
           border-bottom: 2px solid #0A734D;
-          margin-bottom: 2mm;
+          margin-bottom: 1.5mm;
           flex-shrink: 0;
         }
         .page-title {
-          font-size: 11px;
+          font-size: 11.5px;
           font-weight: 900;
           color: #063A28;
         }
         .page-meta {
-          font-size: 9.5px;
+          font-size: 10px;
           color: #1e293b;
           font-weight: 800;
         }
@@ -716,14 +720,14 @@ export async function printBulkBeneficiaryCards(
           display: grid;
           grid-template-columns: repeat(4, 1fr);
           grid-template-rows: repeat(6, 1fr);
-          gap: 2.2mm;
-          height: calc(287mm - 11mm);
+          gap: 2mm;
+          height: calc(288mm - 10mm);
           flex: 1;
           box-sizing: border-box;
         }
         .qr-sticker-item {
-          border: 1.2px dashed #0A734D;
-          border-radius: 6px;
+          border: 1.3px dashed #0A734D;
+          border-radius: 7px;
           padding: 3px 4px;
           background: #ffffff;
           display: flex;
@@ -742,24 +746,24 @@ export async function printBulkBeneficiaryCards(
           align-items: center;
           width: 100%;
           border-bottom: 1px solid #cbd5e1;
-          padding-bottom: 2px;
+          padding-bottom: 1.5px;
           line-height: 1.1;
         }
         .sticker-brand {
-          font-size: 9.5px;
+          font-size: 10px;
           font-weight: 900;
           color: #063A28;
         }
         .sticker-code {
           font-family: 'JetBrains Mono', monospace;
-          font-size: 8.5px;
-          font-weight: 800;
+          font-size: 9px;
+          font-weight: 900;
           color: #0A734D;
           direction: ltr;
         }
         .sticker-qr-wrap {
-          width: 22mm;
-          height: 22mm;
+          width: 20.5mm;
+          height: 20.5mm;
           display: flex;
           align-items: center;
           justify-content: center;
@@ -773,50 +777,69 @@ export async function printBulkBeneficiaryCards(
           display: block;
         }
         .qr-fallback {
-          font-size: 8px;
+          font-size: 8.5px;
           font-family: 'JetBrains Mono', monospace;
           color: #0A734D;
-          font-weight: 800;
+          font-weight: 900;
         }
         .sticker-footer {
           width: 100%;
           display: flex;
           flex-direction: column;
-          gap: 2px;
+          gap: 1.5px;
           border-top: 1px solid #cbd5e1;
           padding-top: 2px;
           line-height: 1.15;
         }
         .sticker-name {
-          font-size: 11px;
+          font-size: 12px;
           font-weight: 900;
           color: #000000;
           white-space: nowrap;
           overflow: hidden;
           text-overflow: ellipsis;
           text-align: center;
-          letter-spacing: -0.1px;
+          letter-spacing: -0.2px;
         }
-        .sticker-meta {
+        .sticker-nat-row {
+          display: flex;
+          justify-content: center;
+          align-items: center;
+          gap: 3px;
+          line-height: 1;
+        }
+        .nat-label {
+          font-size: 9.5px;
+          font-weight: 800;
+          color: #475569;
+        }
+        .nat-num {
+          font-family: 'JetBrains Mono', monospace;
+          direction: ltr;
+          font-size: 10.5px;
+          color: #000000;
+          font-weight: 900;
+          letter-spacing: 0.3px;
+        }
+        .sticker-meta-row {
           display: flex;
           justify-content: space-between;
           align-items: center;
           width: 100%;
-          font-size: 8px;
-          font-weight: 800;
-          color: #334155;
+          font-size: 8.5px;
+          font-weight: 900;
+          color: #0A734D;
+          line-height: 1;
         }
-        .meta-nat {
-          font-family: 'JetBrains Mono', monospace;
-          direction: ltr;
-          font-size: 7.5px;
-          color: #0f172a;
-          font-weight: 800;
-        }
-        .meta-val {
+        .meta-badge {
           color: #0A734D;
           font-weight: 900;
-          font-size: 7.5px;
+          font-size: 9px;
+        }
+        .meta-sub {
+          color: #475569;
+          font-weight: 800;
+          font-size: 8.5px;
         }
         @media print {
           html, body {
